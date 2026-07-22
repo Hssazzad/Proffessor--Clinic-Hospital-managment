@@ -294,40 +294,6 @@
 
 </div>
 
-<div class="modal fade" id="invoicePrintModal" tabindex="-1" role="dialog">
-    <div class="modal-dialog modal-xl modal-dialog-centered" role="document">
-        <div class="modal-content" style="border-radius:8px; overflow:hidden; border:2px solid #00bfa5;">
-            <div style="background:linear-gradient(135deg,#00bfa5,#00796b); padding:12px 20px; display:flex; justify-content:space-between; align-items:center;">
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <span style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;">
-                        <i class="fas fa-file-invoice"></i>
-                    </span>
-                    <span style="color:#fff; font-size:16px; font-weight:600;">Invoice Preview</span>
-                </div>
-                <div style="display:flex; gap:8px; align-items:center;">
-                    <button type="button" id="btnPrintInvoice"
-                            style="background:#fff;color:#00796b;border:none;border-radius:4px;padding:6px 18px;font-size:13px;font-weight:600;cursor:pointer;">
-                        <i class="fas fa-print mr-1"></i> Print
-                    </button>
-                    <button type="button" id="btnCloseModal"
-                            style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:4px;padding:6px 14px;font-size:13px;cursor:pointer;">
-                        <i class="fas fa-times mr-1"></i> Close
-                    </button>
-                </div>
-            </div>
-            <div class="modal-body p-0" style="background:#f4f6f8;">
-                <div id="invoicePrintLoading" style="text-align:center; padding:60px 20px; color:#00796b;">
-                    <i class="fas fa-spinner fa-spin fa-2x"></i>
-                    <div style="margin-top:12px; font-size:14px; font-weight:500;">Loading invoice...</div>
-                </div>
-                <iframe id="invoicePrintFrame"
-                        style="display:none; width:100%; height:75vh; border:none; background:#fff;">
-                </iframe>
-            </div>
-        </div>
-    </div>
-</div>
-
 @stop
 
 @section('css')
@@ -367,8 +333,6 @@
     .btn-del:hover { background:#b71c1c; }
     #btnAddItem:disabled { background:#90caf9 !important; cursor:not-allowed !important; }
     #btnSaveInvoice:disabled { background:#80cbc4 !important; cursor:not-allowed !important; }
-    #invoicePrintModal { z-index:1060 !important; }
-    .modal-backdrop { z-index:1050 !important; }
     #billTypeSelect:focus { border-color:#00796b !important; box-shadow:0 0 0 2px rgba(0,121,107,.15); }
 </style>
 @stop
@@ -1236,7 +1200,9 @@ $('#btnSaveInvoice').on('click', function () {
                     _token       : '{{ csrf_token() }}'
                 });
 
-                openInvoiceModal('{{ url("Billing/CreateInvoice") }}/' + res.payment_id + '/print');
+                // ✅ FIX: notun tab e open kore — browser title = invoice title → unique filename
+                window.open('{{ url("Billing/CreateInvoice") }}/' + res.payment_id + '/print', '_blank');
+
                 billItems = [];
                 renderBill();
                 $('#patientSelect').val(null).trigger('change');
@@ -1251,64 +1217,6 @@ $('#btnSaveInvoice').on('click', function () {
             $btn.prop('disabled', false).text('Create Invoice');
         }
     });
-});
-
-// ============================================================
-// Print Modal
-// ============================================================
-function openInvoiceModal(url) {
-    const $frame   = $('#invoicePrintFrame');
-    const $loading = $('#invoicePrintLoading');
-
-    $frame.hide().attr('src', '');
-    $loading.show();
-
-    const modalEl = document.getElementById('invoicePrintModal');
-
-    if (typeof $ !== 'undefined' && $.fn.modal) {
-        $(modalEl).modal('show');
-    } else if (typeof bootstrap !== 'undefined' && bootstrap.Modal && typeof bootstrap.Modal.getOrCreateInstance === 'function') {
-        bootstrap.Modal.getOrCreateInstance(modalEl).show();
-    } else {
-        modalEl.style.display = 'block';
-        modalEl.classList.add('show');
-        document.body.classList.add('modal-open');
-        const bd = document.createElement('div');
-        bd.className = 'modal-backdrop fade show';
-        bd.id = 'invoiceBackdrop';
-        document.body.appendChild(bd);
-    }
-
-    $frame.off('load.invoice').one('load.invoice', function () {
-        $loading.hide();
-        $frame.show();
-    });
-
-    $frame.attr('src', url);
-}
-
-$('#btnCloseModal').on('click', function () {
-    const modalEl = document.getElementById('invoicePrintModal');
-
-    if (typeof $ !== 'undefined' && $.fn.modal) {
-        $(modalEl).modal('hide');
-    } else if (typeof bootstrap !== 'undefined' && bootstrap.Modal && typeof bootstrap.Modal.getOrCreateInstance === 'function') {
-        bootstrap.Modal.getOrCreateInstance(modalEl).hide();
-    } else {
-        modalEl.style.display = 'none';
-        modalEl.classList.remove('show');
-        document.body.classList.remove('modal-open');
-        const bd = document.getElementById('invoiceBackdrop');
-        if (bd) bd.remove();
-    }
-});
-
-$('#btnPrintInvoice').on('click', function () {
-    const frame = document.getElementById('invoicePrintFrame');
-    if (frame && frame.contentWindow) {
-        frame.contentWindow.focus();
-        frame.contentWindow.print();
-    }
 });
 
 // ============================================================

@@ -8,6 +8,7 @@ use App\Models\CommonComplaint;
 use App\Models\CommonDiagnosis;
 use App\Models\CommonInvestigation;
 use App\Models\CommonMedicine;
+use App\Models\Bed;
 use Illuminate\Support\Facades\DB;
 
 class MasterDataController extends Controller
@@ -66,36 +67,54 @@ class MasterDataController extends Controller
     // GET /settings/AddWardBed
     public function wardBedIndex()
     {
-        // tbl_ward টেবিল থেকে ডাটা আনা হচ্ছে
-        $wards = DB::table('tbl_ward')->orderBy('id', 'desc')->paginate(20);
-        return view('settings.ward_bed', compact('wards'));
+        $beds = Bed::orderBy('id', 'desc')->paginate(20);
+        return view('settings.ward_bed', compact('beds'));
     }
 
     // POST /settings/wardbed
     public function wardBedStore(Request $request)
     {
         $request->validate([
-            'ward_name' => 'required|string|max:100',
-            'bed_no'    => 'nullable|string|max:50',
-            'status'    => 'required|in:0,1',
+            'bed_number'    => 'required|string|max:50|unique:beds,bed_number',
+            'bed_type'      => 'required|string|max:100',
+            'price_per_day' => 'nullable|numeric|min:0',
         ]);
 
-        DB::table('tbl_ward')->insert([
-            'ward_name'  => $request->ward_name,
-            'bed_no'     => $request->bed_no,
-            'status'     => $request->status,
-            'created_at' => now(),
-            'updated_at' => now(),
+        Bed::create([
+            'bed_number'    => $request->bed_number,
+            'bed_type'      => $request->bed_type,
+            'price_per_day' => $request->price_per_day,
+            'status'        => 'vacant',
         ]);
 
-        return back()->with('success', 'Ward/Bed data added successfully.');
+        return back()->with('success', 'Bed added successfully.');
+    }
+
+    // PUT /settings/wardbed/{id}
+    public function wardBedUpdate(Request $request, $id)
+    {
+        $request->validate([
+            'bed_number'    => 'required|string|max:50|unique:beds,bed_number,' . $id,
+            'bed_type'      => 'required|string|max:100',
+            'price_per_day' => 'nullable|numeric|min:0',
+            'status'        => 'required|in:vacant,occupied,maintenance',
+        ]);
+
+        Bed::where('id', $id)->update([
+            'bed_number'    => $request->bed_number,
+            'bed_type'      => $request->bed_type,
+            'price_per_day' => $request->price_per_day,
+            'status'        => $request->status,
+        ]);
+
+        return back()->with('success', 'Bed updated successfully.');
     }
 
     // DELETE /settings/wardbed/{id}
     public function wardBedDestroy($id)
     {
-        DB::table('tbl_ward')->where('id', $id)->delete();
-        return back()->with('success', 'Ward/Bed deleted successfully.');
+        Bed::where('id', $id)->delete();
+        return back()->with('success', 'Bed deleted successfully.');
     }
 
     /* ////////////////////////*/

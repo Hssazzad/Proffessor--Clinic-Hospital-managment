@@ -126,7 +126,7 @@
         <table class="slip-table">
             <tr>
                 <th>Admission No</th>
-                <td>{{ $admission->admission_no ?? '' }}</td>
+                <td>{{ $admission->admission_no ?? $admission->admissionid ?? '' }}</td>
                 <th>Date</th>
                 <td>{{ date('d-m-Y') }}</td>
             </tr>
@@ -144,7 +144,7 @@
             </tr>
             <tr>
                 <th>Mobile</th>
-                <td>{{ $patient->mobile ?? '' }}</td>
+                <td>{{ $patient->mobile_no ?? '' }}</td>
                 <th>Address</th>
                 <td>{{ $patient->address ?? '' }}</td>
             </tr>
@@ -157,15 +157,15 @@
         <table class="slip-table">
             <tr>
                 <th>Admission Date</th>
-                <td>{{ $admission->admission_date ?? '' }}</td>
-                <th>Ward</th>
-                <td>{{ $admission->ward ?? '' }}</td>
+                <td>{{ isset($admission->admission_date) ? \Carbon\Carbon::parse($admission->admission_date)->format('d-m-Y') : \Carbon\Carbon::parse($admission->created_at ?? now())->format('d-m-Y') }}</td>
+                <th>Ward / Type</th>
+                <td>{{ $assignedBed->bed_type ?? $admission->ward ?? '' }}</td>
             </tr>
             <tr>
                 <th>Room No</th>
-                <td>{{ $admission->room_no ?? '' }}</td>
+                <td>{{ $assignedBed->bed_number ?? $admission->room_no ?? '' }}</td>
                 <th>Bed No</th>
-                <td>{{ $admission->bed_no ?? '' }}</td>
+                <td>{{ $assignedBed->bed_number ?? $admission->bed_no ?? '' }}</td>
             </tr>
             <tr>
                 <th>Admission Type</th>
@@ -179,18 +179,23 @@
             Doctor Information
         </div>
 
+        @php
+            $slipDoctorName = $printDoctor->doctor_name ?? $printDoctor->name ?? $admission->doctor_name ?? '';
+            $slipDoctorDepartment = $printDoctor->speciality ?? $printDoctor->Posting ?? $admission->department ?? '';
+            $slipDoctorMobile = $printDoctor->contact ?? $admission->doctor_mobile ?? '';
+        @endphp
         <table class="slip-table">
             <tr>
                 <th>Consultant</th>
-                <td>{{ $admission->doctor_name ?? '' }}</td>
+                <td>{{ $slipDoctorName }}</td>
                 <th>Department</th>
-                <td>{{ $admission->department ?? '' }}</td>
+                <td>{{ $slipDoctorDepartment }}</td>
             </tr>
             <tr>
                 <th>Doctor Mobile</th>
-                <td>{{ $admission->doctor_mobile ?? '' }}</td>
+                <td>{{ $slipDoctorMobile }}</td>
                 <th>Remarks</th>
-                <td>{{ $admission->remarks ?? '' }}</td>
+                <td>{{ $admission->remark ?? $admission->remarks ?? '' }}</td>
             </tr>
         </table>
 

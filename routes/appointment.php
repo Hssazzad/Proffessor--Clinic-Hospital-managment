@@ -10,6 +10,14 @@ use App\Http\Controllers\AppointmentController;
 */
 
 Route::prefix('appointments')->group(function () {
+    Route::get('/list', [AppointmentController::class, 'index'])
+        ->name('appointments.list');
+
+    Route::get('/pastappoinments', [AppointmentController::class, 'index'])
+        ->name('appointments.pastappoinments');
+
+    Route::get('/pastappointments', [AppointmentController::class, 'index'])
+        ->name('appointments.pastappointments');
     
     // ১. অ্যাপয়েন্টমেন্ট লিস্ট দেখা এবং অ্যাপ্রুভ করা
     Route::get('/appointmentapprove', [AppointmentController::class, 'appointmentapprove'])

@@ -29,7 +29,7 @@
     <div class="container-fluid">
         <div class="card card-warning card-outline">
             <div class="card-header">
-                <h3 class="card-title">Edit Payment — {{ $payment->invoice_no }}</h3>
+                <h3 class="card-title">Edit Payment - {{ $payment->invoice_no }}</h3>
             </div>
             <div class="card-body">
                 <form action="{{ route('patients.billing.update', $payment->id) }}" method="POST">
@@ -59,7 +59,7 @@
                         {{-- Total Amount --}}
                         <div class="col-md-4">
                             <div class="form-group">
-                                <label>Total Amount (?) <span class="text-danger">*</span></label>
+                                <label>Total Amount <span class="text-danger">*</span></label>
                                 <input type="number" name="total_amount" id="total_amount"
                                     class="form-control" placeholder="0.00"
                                     value="{{ old('total_amount', $payment->total_amount) }}"
@@ -71,7 +71,7 @@
                         {{-- Discount --}}
                         <div class="col-md-4">
                             <div class="form-group">
-                                <label>Discount (?)</label>
+                                <label>Discount</label>
                                 <input type="number" name="discount" id="discount"
                                     class="form-control" placeholder="0.00"
                                     value="{{ old('discount', $payment->discount) }}"
@@ -82,7 +82,7 @@
                         {{-- Payable Amount (readonly) --}}
                         <div class="col-md-4">
                             <div class="form-group">
-                                <label>Payable Amount (?)</label>
+                                <label>Payable Amount</label>
                                 <input type="number" id="payable_amount"
                                     class="form-control bg-light" placeholder="0.00"
                                     value="{{ $payment->payable_amount }}" readonly>
@@ -92,7 +92,7 @@
                         {{-- Paid Amount --}}
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label>Paid Amount (?) <span class="text-danger">*</span></label>
+                                <label>Paid Amount <span class="text-danger">*</span></label>
                                 <input type="number" name="paid_amount" id="paid_amount"
                                     class="form-control" placeholder="0.00"
                                     value="{{ old('paid_amount', $payment->paid_amount) }}"
@@ -104,7 +104,7 @@
                         {{-- Due Amount (readonly) --}}
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label>Due Amount (?)</label>
+                                <label>Due Amount</label>
                                 <input type="number" id="due_display"
                                     class="form-control bg-light text-danger font-weight-bold"
                                     placeholder="0.00"

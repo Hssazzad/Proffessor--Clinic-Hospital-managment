@@ -48,7 +48,13 @@
           <div class="form-group">
             <label>Date <span class="text-danger">*</span></label>
             <input type="date" name="appointment_date" id="appointment_date"
-                   class="form-control" min="{{ $today }}" required>
+                   class="form-control" min="{{ $today }}" value="{{ old('appointment_date') }}" required>
+          </div>
+
+          <div class="form-group">
+            <label>Time <span class="text-danger">*</span></label>
+            <input type="time" name="appointment_time" id="appointment_time"
+                   class="form-control" value="{{ old('appointment_time') }}" required>
           </div>
 
           <div class="form-group">

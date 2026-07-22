@@ -7,6 +7,47 @@ use Illuminate\Support\Facades\DB;
 
 class AppointmentController extends Controller
 {
+    public function index(Request $request)
+    {
+        $request->validate([
+            'date'   => ['nullable', 'date'],
+            'status' => ['nullable', 'in:pending,approved,completed'],
+        ]);
+
+        $query = DB::table('appointments')
+            ->leftJoin('patients', 'appointments.patient_id', '=', 'patients.id')
+            ->select(
+                'appointments.*',
+                'patients.patientname',
+                'patients.patientcode',
+                'patients.mobile_no'
+            );
+
+        if ($request->filled('date')) {
+            $query->whereDate('appointments.appointment_date', $request->date);
+        }
+
+        if ($request->filled('status')) {
+            if ($request->status === 'pending') {
+                $query->where(function ($statusQuery) {
+                    $statusQuery->whereNull('appointments.status')
+                        ->orWhere('appointments.status', 'pending');
+                });
+            } else {
+                $query->where('appointments.status', $request->status);
+            }
+        }
+
+        $appointments = $query
+            ->orderBy('appointments.appointment_date', 'desc')
+            ->orderBy('appointments.appointment_time')
+            ->orderBy('appointments.serial')
+            ->paginate(50)
+            ->withQueryString();
+
+        return view('appointments.index', compact('appointments'));
+    }
+
     // ১. সকল অ্যাপয়েন্টমেন্ট দেখার জন্য (Approve Page)
     public function appointmentapprove()
     {
@@ -14,7 +55,13 @@ class AppointmentController extends Controller
         $appointments = DB::table('appointments')
             ->join('patients', 'appointments.patient_id', '=', 'patients.id')
             ->select('appointments.*', 'patients.patientname')
+            ->where(function ($query) {
+                $query->whereNull('appointments.status')
+                    ->orWhereIn('appointments.status', ['pending', 'approved']);
+            })
             ->orderBy('appointment_date', 'desc')
+            ->orderBy('appointment_time')
+            ->orderBy('serial')
             ->get();
 
         return view('appointments.approve', compact('appointments'));
@@ -25,20 +72,34 @@ class AppointmentController extends Controller
     {
         $request->validate([
             'appointment_id' => 'required|integer|exists:appointments,id',
+            'status'         => 'nullable|in:approved,completed',
         ]);
 
         $id = $request->input('appointment_id');
+        $status = $request->input('status', 'approved');
 
         // স্ট্যাটাস আপডেট
-        $updated = DB::table('appointments')
-            ->where('id', $id)
-            ->update([
-                'status' => 'approved',
-                'updated_at' => now()
-            ]);
+        $query = DB::table('appointments')->where('id', $id);
+
+        if ($status === 'completed') {
+            $query->where('status', 'approved');
+        }
+
+        $updated = $query->update([
+            'status' => $status,
+            'updated_at' => now()
+        ]);
 
         if ($updated) {
-            return back()->with('success', 'Appointment approved successfully!');
+            $message = $status === 'completed'
+                ? 'Appointment marked as done successfully!'
+                : 'Appointment approved successfully!';
+
+            return back()->with('success', $message);
+        }
+
+        if ($status === 'completed') {
+            return back()->with('error', 'Only approved appointments can be marked as done.');
         }
 
         return back()->with('error', 'Something went wrong. Please try again.');
@@ -69,6 +130,7 @@ class AppointmentController extends Controller
         $data = $r->validate([
             'patient_id'       => ['required', 'integer', 'exists:patients,id'],
             'appointment_date' => ['required', 'date'],
+            'appointment_time' => ['required', 'date_format:H:i'],
             'serial_no'        => ['required', 'integer', 'min:1', 'max:50'],
             'remarks'          => ['nullable', 'string', 'max:500'],
         ]);
@@ -99,6 +161,7 @@ class AppointmentController extends Controller
         DB::table('appointments')->insert([
             'patient_id'       => $data['patient_id'],
             'appointment_date' => $data['appointment_date'],
+            'appointment_time' => $data['appointment_time'] ?? null,
             'serial'           => $data['serial_no'],
             'remarks'          => $data['remarks'] ?? null,
             'status'           => 'pending',

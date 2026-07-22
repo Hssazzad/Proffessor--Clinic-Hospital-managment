@@ -142,4 +142,23 @@ class UserCreateController extends Controller
         ]);
         return redirect()->back()->with('success', 'Parent menu added successfully!');
     }
+    
+     public function Userlist()
+    {
+        $users = DB::table('users')
+            ->select(
+                'id',
+                'accounttype',
+                'name',
+                'mobile',
+                'email',
+                'email_verified_at',
+                'created_at',
+                'updated_at'
+            )
+            ->orderByDesc('id')
+            ->get();
+
+        return view('account.user.userlist', compact('users'));
+    }
 }

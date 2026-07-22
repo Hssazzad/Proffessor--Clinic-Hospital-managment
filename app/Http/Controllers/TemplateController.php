@@ -255,11 +255,16 @@ class TemplateController extends Controller
                 'name'       => $request->name,
                 'strength'   => $request->strength,
                 'dose'       => $request->dose ?? $request->dosage,
+                'morning'    => $request->morning,
+                'noon'       => $request->noon,
+                'night'      => $request->night,
                 'route'      => $request->route,
                 'frequency'  => $request->frequency,
                 'duration'   => $request->duration,
-                'timing'     => $request->timing,
+                'timing'     => $request->filled('timing') ? $request->timing : $request->meal_timing,
                 'meal_timing'=> $request->meal_timing,
+                'instruction'=> $request->instruction,
+                'company'    => $request->company,
                 'order_type' => $request->order_type,
                 'note'       => $request->note,
                 'group'      => $request->group,
@@ -326,11 +331,16 @@ class TemplateController extends Controller
                 'name'       => trim($request->name),
                 'strength'   => $request->strength,
                 'dose'       => $request->dose ?? $request->dosage,
+                'morning'    => $request->morning,
+                'noon'       => $request->noon,
+                'night'      => $request->night,
                 'route'      => $request->route,
                 'frequency'  => $request->frequency,
                 'duration'   => $request->duration,
-                'timing'     => $request->timing,
+                'timing'     => $request->filled('timing') ? $request->timing : $request->meal_timing,
                 'meal_timing'=> $request->meal_timing,
+                'instruction'=> $request->instruction,
+                'company'    => $request->company,
                 'order_type' => $request->order_type,
                 'note'       => $request->note,
                 'group'      => $request->group,
@@ -459,30 +469,116 @@ class TemplateController extends Controller
      */
     public function addDischarge()
     {
-        $templates = Template::orderBy('title')->get();
-        return view('templates.discharge.create', compact('templates'));
+        try {
+            $templates = Template::orderBy('title')->get();
+            Log::info('addDischarge: loaded ' . $templates->count() . ' templates');
+            return view('templates.discharge.create', compact('templates'));
+        } catch (\Exception $e) {
+            Log::error('addDischarge error: ' . $e->getMessage());
+            throw $e;
+        }
     }
 
     public function ajaxAddDischarge(Request $request)
     {
         try {
-            $request->validate([
+            // Step A: Request data log করো
+            \Log::info('=== ajaxAddDischarge START ===');
+            \Log::info('Request data:', $request->all());
+            \Log::info('Request method: ' . $request->method());
+            \Log::info('CSRF token present: ' . ($request->has('_token') ? 'YES' : 'NO'));
+
+            // Step B: Validation
+            $validated = $request->validate([
                 'templateid' => 'required',
+                'treatment'  => 'required|string',
+                'condition'  => 'required|string',
             ]);
 
-            TemplateDischarge::updateOrCreate(
-                ['templateid' => $request->templateid],
-                [
-                    'treatment' => $request->treatment,
-                    'condition' => $request->condition,
-                    'follow_up' => $request->follow_up,
-                    'active'    => 1
-                ]
-            );
+            \Log::info('Validation passed');
 
-            return response()->json(['ok' => true, 'message' => 'Discharge summary saved']);
+            // Step C: Table exists check
+            if (!\Schema::hasTable('template_discharge')) {
+                \Log::error('Table template_discharge does not exist!');
+                return response()->json([
+                    'ok'      => false,
+                    'message' => 'Database table template_discharge not found!'
+                ], 500);
+            }
+
+            \Log::info('Table exists: template_discharge');
+
+            // Step D: Column check
+            $columns = \Schema::getColumnListing('template_discharge');
+            \Log::info('Table columns:', $columns);
+
+            // Step E: Data prepare
+            $data = [
+                'templateid' => $request->templateid,
+                'updated_at' => now(),
+            ];
+
+            if (in_array('treatment', $columns)) {
+                $data['treatment'] = $request->treatment;
+            }
+            if (in_array('condition', $columns)) {
+                $data['condition'] = $request->condition;
+            }
+            if (in_array('follow_up', $columns)) {
+                $data['follow_up'] = $request->follow_up ?? null;
+            }
+
+            \Log::info('Data to save:', $data);
+
+            // Step F: Insert or Update
+            $exists = \DB::table('template_discharge')
+                ->where('templateid', $request->templateid)
+                ->first();
+
+            if ($exists) {
+                \DB::table('template_discharge')
+                    ->where('templateid', $request->templateid)
+                    ->update($data);
+                \Log::info('Updated existing record');
+            } else {
+                if (in_array('created_at', $columns)) {
+                    $data['created_at'] = now();
+                }
+                \DB::table('template_discharge')->insert($data);
+                \Log::info('Inserted new record');
+            }
+
+            \Log::info('=== ajaxAddDischarge SUCCESS ===');
+
+            return response()->json([
+                'ok'      => true,
+                'message' => 'Discharge summary saved successfully.'
+            ]);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            \Log::error('Validation Error: ', $e->errors());
+            return response()->json([
+                'ok'      => false,
+                'message' => 'Validation Error: ' . implode(', ', array_merge(...array_values($e->errors()))),
+                'errors'  => $e->errors()
+            ], 422);
+
+        } catch (\Illuminate\Database\QueryException $e) {
+            \Log::error('Database Error: ' . $e->getMessage());
+            \Log::error('SQL: ' . $e->getSql());
+            return response()->json([
+                'ok'      => false,
+                'message' => 'Database Error: ' . $e->getMessage()
+            ], 500);
+
         } catch (\Exception $e) {
-            return response()->json(['ok' => false, 'message' => $e->getMessage()], 500);
+            \Log::error('General Error: ' . $e->getMessage());
+            \Log::error('File: ' . $e->getFile() . ' Line: ' . $e->getLine());
+            \Log::error('Trace: ' . $e->getTraceAsString());
+            return response()->json([
+                'ok'      => false,
+                'message' => 'Error: ' . $e->getMessage() . ' (Line: ' . $e->getLine() . ')'
+            ], 500);
         }
     }
 

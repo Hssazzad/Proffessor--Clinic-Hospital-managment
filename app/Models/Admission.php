@@ -68,4 +68,9 @@ class Admission extends Model
      * টাইমস্ট্যাম্প এনাবল রাখা হয়েছে।
      */
     public $timestamps = true;
+
+    public function patient()
+    {
+        return $this->belongsTo(Patient::class, 'patientcode', 'patientcode');
+    }
 }

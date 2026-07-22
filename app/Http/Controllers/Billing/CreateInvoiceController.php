@@ -241,12 +241,13 @@ class CreateInvoiceController extends Controller
 
         } catch (\Throwable $e) {
             \Log::error('CreateInvoiceController@store: ' . $e->getMessage(), [
-                'patient_id' => $request->patient_id ?? null
+                'patient_id' => $request->patient_id ?? null,
+                'trace'      => $e->getTraceAsString()
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to save invoice. Please try again.'
+                'message' => $e->getMessage()
             ], 500);
         }
     }

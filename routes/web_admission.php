@@ -1,5 +1,7 @@
 <?php
 use App\Http\Controllers\PatientAdmitController;
+use App\Http\Controllers\AdmissionController;
+use App\Http\Controllers\PatientAccomodationController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth'])->group(function () {
@@ -16,6 +18,26 @@ Route::middleware(['auth'])->group(function () {
 		
 	Route::get('admission/show-admission-slip', [PatientAdmitController::class, 'showAdmissionSlip'])
     ->name('admission.showAdmissionSlip');
+
+    Route::get('admission/PatientAccomodation', [PatientAccomodationController::class, 'index'])
+        ->name('admission.patient_accomodation');
+
+    Route::get('admission/patient-accomodation', [PatientAccomodationController::class, 'index']);
+
+    Route::post('admission/PatientAccomodation/store', [PatientAccomodationController::class, 'store'])
+        ->name('admission.patient_accomodation.store');
+
+    Route::post('admission/PatientAccomodation/change-bed', [PatientAccomodationController::class, 'changeBed'])
+        ->name('admission.patient_accomodation.changeBed');
+
+    Route::get('admission/PatientAccomodation/{bed}/details', [PatientAccomodationController::class, 'bedDetails'])
+        ->name('admission.patient_accomodation.bedDetails');
+
+    Route::get('admission/PatientAccomodation/{bed}/notes', [PatientAccomodationController::class, 'notes'])
+        ->name('admission.patient_accomodation.notes');
+
+    Route::get('admission/PatientAccomodation/{bed}/update-status', [PatientAccomodationController::class, 'updateStatusForm'])
+        ->name('admission.patient_accomodation.updateStatus');
 		
 	Route::get('admission/insmedicine', [PatientAdmitController::class, 'insmedicine'])
         ->name('admission.admedicine');	
@@ -86,7 +108,7 @@ Route::middleware(['auth'])->group(function () {
 		
 
     /* -------------------------------------------------------------------------- */
-    /* 🏥 ROUND PATIENT ROUTES (ইউআরএল ফিক্স করা হয়েছে)                             */
+    /* 🏥 ROUND PATIENT ROUTES (ইউআরএল ফিক্স করা হয়েছে)                             */
     /* -------------------------------------------------------------------------- */    
   
     Route::get('admission/roundpatient', [PatientAdmitController::class, 'roundmedicine'])
@@ -125,6 +147,12 @@ Route::middleware(['auth'])->group(function () {
 
     Route::post('/admission/showdischargeMedicine', [PatientAdmitController::class, 'showdischargeMedicine'])
         ->name('admission.showdischargeMedicine');
+
+    Route::post('/admission/discharge-submit', [PatientAdmitController::class, 'submitDischargeForApproval'])
+        ->name('admission.discharge.submit');
+
+    Route::post('/admission/discharge-approve', [PatientAdmitController::class, 'approveDischarge'])
+        ->name('admission.discharge.approve');
 
     Route::post('/admission/discharge-do', [PatientAdmitController::class, 'doDischarge'])
         ->name('admission.discharge.do');

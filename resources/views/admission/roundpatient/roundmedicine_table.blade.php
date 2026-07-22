@@ -31,7 +31,7 @@
 <div class="card card-outline card-primary shadow">
     <div class="card-body">
 
-        <form method="POST" action="{{ route('admission.showroundMedicine') }}">
+        <form method="POST" action="{{ route('admission.showroundMedicine') }}" id="roundLoadForm">
             @csrf
 
             <div class="form-group">
@@ -69,6 +69,12 @@ $(document).ready(function () {
     $('.select2').select2({
         theme: 'bootstrap4',
         width: '100%'
+    });
+
+    $('#roundLoadForm').on('submit', function (e) {
+        if (!confirm('Do you want to add medicine for this round patient?')) {
+            e.preventDefault();
+        }
     });
 });
 </script>

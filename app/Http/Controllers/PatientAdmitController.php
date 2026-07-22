@@ -35,7 +35,16 @@ class PatientAdmitController extends Controller
     ->get();
 	
 	$templates = DB::table('tbl_template')->orderBy('title')->get();
-    return view('admission.admitpatient',compact('patients','templates'));
+    $availableBeds = Schema::hasTable('beds')
+        ? DB::table('beds')->where('status', 'vacant')->orderBy('bed_number')->get()
+        : collect();
+
+    // Added: fetch doctors list for the "Select Doctor" dropdown (was missing before)
+    $doctors = Schema::hasTable('doctors')
+        ? DB::table('doctors')->orderBy('doctor_name')->get()
+        : collect();
+
+    return view('admission.admitpatient',compact('patients','templates', 'availableBeds', 'doctors'));
 }
 
 public function medicineRowsHtml(Request $request)
@@ -65,7 +74,21 @@ public function storeadmitpatient(Request $request)
 
     $patientcode = $request->patientcode;
     $templeteid  = $request->templeteid;
+    $bedId       = $request->input('bed_id');
     $order_type  = "instant";
+
+    if (!empty($bedId) && Schema::hasTable('beds')) {
+        $bed = DB::table('beds')->where('id', $bedId)->first();
+
+        if (!$bed) {
+            return redirect()->back()->withInput()->with('error', 'Selected bed not found.');
+        }
+
+        if (($bed->status ?? null) !== 'vacant') {
+            return redirect()->back()->withInput()->with('error', 'Selected bed is not available.');
+        }
+    }
+
 	$admissionConfig = DB::table('configadmissionid')->first();
 	$currentAdmissionId = (int)$admissionConfig->admissionid;
 	$newAdmissionId = $currentAdmissionId + 1;
@@ -84,7 +107,8 @@ public function storeadmitpatient(Request $request)
         ->exists();
 
     if (!$admissionExists) {
-        DB::table('patient_admission')->insert([
+        // insertGetId() — patient_admission.id (bigint PK) return করে
+        $patientAdmissionPK = DB::table('patient_admission')->insertGetId([
             'patientcode'     => $patientcode,
             'admissionid'     => $admissionid,
             'templeteid'      => $templeteid,
@@ -97,6 +121,44 @@ public function storeadmitpatient(Request $request)
             'updated_at'      => now(),
             'created_by'      => Auth::id(),
         ]);
+    } else {
+        // আগে থেকে থাকলে id বের করো
+        $patientAdmissionPK = DB::table('patient_admission')
+            ->where('patientcode', $patientcode)
+            ->where('admissionid', $admissionid)
+            ->where('templeteid', $templeteid)
+            ->where('order_type', $order_type)
+            ->value('id');
+    }
+
+    // Added: persist the selected consultant doctor on this admission record (used by the print slip)
+    if (Schema::hasColumn('patient_admission', 'doctor_id')) {
+        DB::table('patient_admission')
+            ->where('id', $patientAdmissionPK)
+            ->update(['doctor_id' => $request->doctor_id]);
+    }
+
+    if (!empty($bedId) && Schema::hasTable('beds')) {
+        $bedColumns = Schema::getColumnListing('beds');
+        $bedUpdate = [];
+
+        if (in_array('status', $bedColumns, true)) {
+            $bedUpdate['status'] = 'occupied';
+        }
+
+        if (in_array('current_admission_id', $bedColumns, true)) {
+            // Fix: আগে $admissionid (varchar custom code) save হত — "No Patient Found" এর কারণ ছিল
+            // এখন patient_admission.id (bigint primary key) save হচ্ছে
+            $bedUpdate['current_admission_id'] = $patientAdmissionPK;
+        }
+
+        if (in_array('updated_at', $bedColumns, true)) {
+            $bedUpdate['updated_at'] = now();
+        }
+
+        if (!empty($bedUpdate)) {
+            DB::table('beds')->where('id', $bedId)->update($bedUpdate);
+        }
     }
 
     $patientmedicines = DB::table('patient_instant_medicines')
@@ -175,13 +237,31 @@ public function showAdmissionSlip()
         ->orderBy('id', 'asc')
         ->get();
 
+    // Added: fetch the bed assigned to this admission (Room No / Bed No / Ward on the print slip)
+    $assignedBed = null;
+    if (Schema::hasTable('beds') && !empty($admission->id)) {
+        $assignedBed = DB::table('beds')
+            ->where('current_admission_id', $admission->id)
+            ->first();
+    }
+
+    // Added: fetch the consultant doctor selected during admission (Doctor Information on the print slip)
+    $printDoctor = null;
+    if (Schema::hasTable('doctors') && !empty($admission->doctor_id)) {
+        $printDoctor = DB::table('doctors')
+            ->where('id', $admission->doctor_id)
+            ->first();
+    }
+
     return view('admission.admissioninfo.show_admission_slip', compact(
         'activeMenu',
         'admission',
         'patient',
         'medicines',
         'patientcode',
-        'medicine'
+        'medicine',
+        'assignedBed',
+        'printDoctor'
     ));
 }
 
@@ -886,54 +966,12 @@ public function showroundMedicine(Request $request)
 
     $order_type = "postorder";
 	
-	$patientmedicines = DB::table('patient_round_medicines')
+	$medicines = DB::table('patient_round_medicines')
         ->where('templeteid', $TempleteID)
         ->where('order_type', $order_type)
         ->where('patientid', $patientcode)
         ->orderBy('id', 'asc')
         ->get();
-
-	if ($patientmedicines->isNotEmpty()) {
-        $medicines = $patientmedicines;
-	} else {		
-        $medicines = DB::table('template_medicine')
-            ->where('templeteid', $TempleteID)
-            ->where('order_type', $order_type)
-            ->orderBy('id', 'asc')
-            ->get();
-
-        foreach($medicines as $row) {
-            $exists = DB::table('patient_round_medicines')
-                ->where('patientid', $request->patientcode)
-                ->where('admissionid', $admissionid)
-                ->where('name', $row->name)
-                ->where('strength', $row->strength)
-                ->where('dose', $row->dose)
-                ->exists();
-
-            if (!$exists) {
-                DB::table('patient_round_medicines')->insert([
-                    'patientid'   => $request->patientcode,
-                    'admissionid' => $admissionid,
-                    'templeteid'  => $row->templeteid,
-                    'name'        => $row->name,
-                    'strength'    => $row->strength,
-                    'dose'        => $row->dose,
-                    'morning'     => $row->morning,
-                    'noon'        => $row->noon,
-                    'night'       => $row->night,
-                    'route'       => $row->route,
-                    'duration'    => $row->duration,
-                    'timing'      => $row->timing,
-                    'instruction' => $row->instruction,
-                    'order_type'  => $order_type,
-                    'active'      => 1,
-                    'created_at'  => now(),
-                    'updated_at'  => now(),
-                ]);
-            }
-        }
-	}
 
 	$patient = DB::table('patients')
 		->where('patientcode', $patientcode)
@@ -1299,6 +1337,7 @@ public function nextStage(Request $request)
 
 public function dischargeList(Request $request)
 {
+    $activeMenu = 'admission/Discharge';
     $patients = DB::table('patient_admission as pa')
         ->join('patients as p', 'p.patientcode', '=', 'pa.patientcode')
         ->where('pa.status', 6)
@@ -1306,52 +1345,227 @@ public function dischargeList(Request $request)
         ->orderBy('pa.id')
         ->get(['pa.id', 'pa.patientcode', 'pa.admissionid', 'pa.created_at', 'p.patientname', 'p.mobile_no']);
 
-    return view('admission.discharge.discharge_list', compact('patients'));
+    $patientcode = $request->query('patientcode') ?? $request->input('patientcode');
+
+    // Default to the first patient if none specified
+    if (empty($patientcode) && $patients->isNotEmpty()) {
+        $patientcode = $patients->first()->patientcode;
+    }
+
+    $patient = null;
+    $admission = null;
+    $templateDischarge = null;
+    $admitMedicines = collect();
+    $preMedicines = collect();
+    $postMedicines = collect();
+    $roundMedicines = collect();
+    $freshMedicines = collect();
+    $discharge = null;
+    $savedMedicines = collect();
+    $commonMedicines = Schema::hasTable('common_medicine')
+        ? DB::table('common_medicine')->orderBy('name')->get()
+        : collect();
+
+    if ($patientcode) {
+        $admission = DB::table('patient_admission')
+            ->where('patientcode', $patientcode)
+            ->where('status', 6)
+            ->where('Active', 1)
+            ->orderByDesc('id')
+            ->first();
+
+        if ($admission) {
+            $patient = DB::table('patients')->where('patientcode', $patientcode)->first();
+			
+			$dischargeDoctor = null;
+			if(schema ::hastable('doctors')&& !empty($admission->doctor_id)){
+				$dischargeDoctor =DB::table('doctors')
+				->where('id',$admission->doctor_id)
+			->first();
+			}
+			
+			$dischargeBed =null;
+			if(schema ::hastable ('beds')&& !empty($admission->id)){
+				$dischargeBed =DB::table('beds')
+				->where('current_admission_id',$admission->id)
+			->first();
+				
+		    }
+			
+            $TempleteID = $admission->templeteid ?? 'TPL-000001';
+            $admissionid = $admission->admissionid ?? 59;
+
+            $templateDischarge = DB::table('template_discharge')
+                ->where('templateid', $TempleteID)
+                ->first();
+
+            if (Schema::hasTable('discharges')) {
+                $discharge = DB::table('discharges')
+                    ->where('admission_id', $admission->id)
+                    ->orderByDesc('id')
+                    ->first();
+            }
+
+            if (Schema::hasTable('discharge_medicines')) {
+                $medicineColumns = Schema::getColumnListing('discharge_medicines');
+                $savedMedicineQuery = DB::table('discharge_medicines');
+
+                if (in_array('admission_id', $medicineColumns, true)) {
+                    $savedMedicineQuery->where('admission_id', $admission->id);
+                } elseif (in_array('patientcode', $medicineColumns, true)) {
+                    $savedMedicineQuery->where('patientcode', $patientcode);
+                }
+
+                $savedMedicines = $savedMedicineQuery->orderBy('id')->get();
+            }
+
+            $admitMedicines = DB::table('patient_admission_medicines')
+                ->where('patientcode', $patientcode)
+                ->where('admissionid', $admissionid)
+                ->orderBy('id')->get();
+
+            $preMedicines = DB::table('patient_presurgery_medicines')
+                ->where('patientid', $patientcode)
+                ->where('admissionid', $admissionid)
+                ->orderBy('id')->get();
+
+            $postMedicines = DB::table('patient_postsurgery_medicines')
+                ->where('patientid', $patientcode)
+                ->where('admissionid', $admissionid)
+                ->orderBy('id')->get();
+
+            $roundMedicines = DB::table('patient_round_medicines')
+                ->where('patientid', $patientcode)
+                ->where('admissionid', $admissionid)
+                ->orderBy('id')->get();
+
+            $freshMedicines = DB::table('patient_fresh_medicines')
+                ->where('patientid', $patientcode)
+                ->where('admissionid', $admissionid)
+                ->orderBy('id')->get();
+        }
+    }
+
+    return view('admission.discharge.discharge_list', compact(
+        'activeMenu', 'patients', 'patientcode', 'patient', 'admission',
+        'admitMedicines', 'preMedicines', 'postMedicines', 'roundMedicines', 'freshMedicines',
+        'templateDischarge', 'discharge', 'savedMedicines', 'commonMedicines','dischargeDoctor',
+		'dischargeBed'
+    ));
 }
 
 public function showdischargeMedicine(Request $request)
 {
-    $activeMenu = 'admission/Discharge';
-    $patientcode = $request->patientcode;
+    return redirect()->route('admission.discharge', ['patientcode' => $request->patientcode]);
+}
 
-    $admission = $this->getActiveAdmission($patientcode);
-    if (!$admission) {
-        return redirect()->back()->with('error', 'Active admission not found.');
+public function submitDischargeForApproval(Request $request)
+{
+    $request->validate([
+        'patientcode'       => 'required|string',
+        'admission_id'      => 'required|integer',
+        'discharge_date'    => 'nullable|date',
+        'diagnosis'         => 'nullable|string|max:300',
+        'doctor_name'       => 'nullable|string|max:150',
+        'ward'              => 'nullable|string|max:100',
+        'reg_no'            => 'nullable|string|max:100',
+        'operation_name'    => 'nullable|string|max:300',
+        'operation_method'  => 'nullable|string',
+        'surgeon'           => 'nullable|string|max:200',
+        'anesthetist'       => 'nullable|string|max:200',
+        'assistant_1'       => 'nullable|string|max:200',
+        'assistant_2'       => 'nullable|string|max:200',
+        'investigations'    => 'nullable|string',
+        'blood_group'       => 'nullable|string|max:10',
+        'drug_allergy'      => 'nullable|string|max:200',
+        'notes'             => 'nullable|string',
+        'follow_up_date'    => 'nullable|date',
+        'medicines'         => 'nullable|array',
+    ]);
+
+    if (!Schema::hasTable('discharges')) {
+        return response()->json(['success' => false, 'message' => 'Discharges table not found.'], 500);
     }
 
-    $patient = DB::table('patients')->where('patientcode', $patientcode)->first();
-    $TempleteID = $admission->templeteid ?? 'TPL-000001';
-    $admissionid = $admission->admissionid ?? 59;
+    $admission = $this->getActiveAdmission($request->patientcode);
+    if (!$admission || (int) $admission->id !== (int) $request->admission_id) {
+        return response()->json(['success' => false, 'message' => 'Active admission not found.'], 422);
+    }
 
-    $admitMedicines = DB::table('patient_admission_medicines')
-        ->where('patientcode', $patientcode)
-        ->where('admissionid', $admissionid)
-        ->orderBy('id')->get();
+    $patient = DB::table('patients')->where('patientcode', $request->patientcode)->first();
+    if (!$patient) {
+        return response()->json(['success' => false, 'message' => 'Patient not found.'], 422);
+    }
 
-    $preMedicines = DB::table('patient_presurgery_medicines')
-        ->where('patientid', $patientcode)
-        ->where('admissionid', $admissionid)
-        ->orderBy('id')->get();
+    DB::transaction(function () use ($request, $admission, $patient) {
+        DB::table('discharges')->updateOrInsert(
+            ['admission_id' => $admission->id],
+            [
+                'patient_id'        => $patient->id,
+                'discharge_date'    => $request->discharge_date,
+                'diagnosis'         => $request->diagnosis,
+                'doctor_name'       => $request->doctor_name,
+                'ward'              => $request->ward,
+                'reg_no'            => $request->reg_no,
+                'operation_name'    => $request->operation_name,
+                'operation_method'  => $request->operation_method,
+                'surgeon'           => $request->surgeon,
+                'anesthetist'       => $request->anesthetist,
+                'assistant_1'       => $request->assistant_1,
+                'assistant_2'       => $request->assistant_2,
+                'investigations'    => $request->investigations,
+                'blood_group'       => $request->blood_group,
+                'drug_allergy'      => $request->drug_allergy,
+                'notes'             => $request->notes,
+                'follow_up_date'    => $request->follow_up_date,
+                'status'            => 'pending',
+                'updated_at'        => now(),
+                'created_at'        => now(),
+            ]
+        );
 
-    $postMedicines = DB::table('patient_postsurgery_medicines')
-        ->where('patientid', $patientcode)
-        ->where('admissionid', $admissionid)
-        ->orderBy('id')->get();
+        $this->syncDischargeMedicines($request->input('medicines', []), $patient, $admission);
+    });
 
-    $roundMedicines = DB::table('patient_round_medicines')
-        ->where('patientid', $patientcode)
-        ->where('admissionid', $admissionid)
-        ->orderBy('id')->get();
+    return response()->json([
+        'success' => true,
+        'message' => 'Discharge slip saved and sent for manager approval.',
+    ]);
+}
 
-    $freshMedicines = DB::table('patient_fresh_medicines')
-        ->where('patientid', $patientcode)
-        ->where('admissionid', $admissionid)
-        ->orderBy('id')->get();
+public function approveDischarge(Request $request)
+{
+    $request->validate([
+        'patientcode'  => 'required|string',
+        'admission_id' => 'required|integer',
+    ]);
 
-    return view('admission.discharge.discharge_show_medicine', compact(
-        'activeMenu', 'patientcode', 'patient', 'admission',
-        'admitMedicines', 'preMedicines', 'postMedicines', 'roundMedicines', 'freshMedicines'
-    ));
+    $admission = $this->getActiveAdmission($request->patientcode);
+    if (!$admission || (int) $admission->id !== (int) $request->admission_id) {
+        return response()->json(['success' => false, 'message' => 'Active admission not found.'], 422);
+    }
+
+    $updated = DB::table('discharges')
+        ->where('admission_id', $admission->id)
+        ->where('status', 'pending')
+        ->update([
+            'status' => 'completed',
+            'discharge_date' => DB::raw('COALESCE(discharge_date, CURDATE())'),
+            'discharged_by' => Auth::id(),
+            'updated_at' => now(),
+        ]);
+
+    if (!$updated) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Pending discharge request not found or already approved.',
+        ], 422);
+    }
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Manager approval completed. You can now print and finalize discharge.',
+    ]);
 }
 
 public function doDischarge(Request $request)
@@ -1363,19 +1577,122 @@ public function doDischarge(Request $request)
         return response()->json(['success' => false, 'message' => 'Active admission not found.'], 422);
     }
 
+    $approved = DB::table('discharges')
+        ->where('admission_id', $admission->id)
+        ->where('status', 'completed')
+        ->exists();
+
+    if (!$approved) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Manager approval is required before final discharge.',
+        ], 422);
+    }
+
+    $admissionUpdate = [
+        'status' => 6,
+        'Active' => 0,
+        'updated_at' => now(),
+    ];
+
+    if (Schema::hasColumn('patient_admission', 'discharge_date')) {
+        $admissionUpdate['discharge_date'] = now();
+    }
+
     DB::table('patient_admission')
         ->where('id', $admission->id)
+        ->update($admissionUpdate);
+
+    DB::table('discharges')
+        ->where('admission_id', $admission->id)
         ->update([
-            'status' => 6,
-            'Active' => 0,
-            'discharge_date' => now(),
+            'discharge_date' => now()->toDateString(),
+            'discharged_by' => Auth::id(),
             'updated_at' => now(),
         ]);
+
+    $this->releaseAdmissionBed($admission);
 
     return response()->json([
         'success' => true,
         'message' => 'Patient discharged successfully.',
     ]);
+}
+
+private function syncDischargeMedicines(array $medicines, object $patient, object $admission): void
+{
+    if (!Schema::hasTable('discharge_medicines')) {
+        return;
+    }
+
+    $columns = Schema::getColumnListing('discharge_medicines');
+    $deleteQuery = DB::table('discharge_medicines');
+
+    if (in_array('admission_id', $columns, true)) {
+        $deleteQuery->where('admission_id', $admission->id);
+    } elseif (in_array('patientcode', $columns, true)) {
+        $deleteQuery->where('patientcode', $patient->patientcode);
+    }
+
+    $deleteQuery->delete();
+
+    $rows = [];
+    foreach ($medicines as $medicine) {
+        $name = trim((string) ($medicine['medicine_name'] ?? $medicine['name'] ?? ''));
+        if ($name === '') {
+            continue;
+        }
+
+        $row = [
+            'patientcode' => $patient->patientcode,
+            'patient_id' => $patient->id,
+            'admission_id' => $admission->id,
+            'medicine_name' => $name,
+            'name' => $name,
+            'strength' => $medicine['strength'] ?? null,
+            'dose' => $medicine['dose'] ?? null,
+            'morning' => $medicine['morning'] ?? null,
+            'noon' => $medicine['noon'] ?? null,
+            'night' => $medicine['night'] ?? null,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+
+        $rows[] = array_intersect_key($row, array_flip($columns));
+    }
+
+    if (!empty($rows)) {
+        DB::table('discharge_medicines')->insert($rows);
+    }
+}
+
+private function releaseAdmissionBed(object $admission): void
+{
+    if (!Schema::hasTable('beds')) {
+        return;
+    }
+
+    $columns = Schema::getColumnListing('beds');
+    if (!in_array('current_admission_id', $columns, true)) {
+        return;
+    }
+
+    $bedUpdate = ['current_admission_id' => null];
+
+    if (in_array('status', $columns, true)) {
+        $bedUpdate['status'] = 'vacant';
+    }
+
+    if (in_array('updated_at', $columns, true)) {
+        $bedUpdate['updated_at'] = now();
+    }
+
+    DB::table('beds')
+        ->where(function ($query) use ($admission) {
+            $query->where('current_admission_id', $admission->admissionid ?? null)
+                ->orWhere('current_admission_id', $admission->id);
+        })
+        ->update($bedUpdate);
 }
 
 }

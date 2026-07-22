@@ -21,6 +21,7 @@
       <thead>
         <tr>
           <th>#</th>
+          <th>Photo</th>
           <th>Patient Name</th>
           <th>Mobile</th>
           <th>Age</th>
@@ -32,6 +33,10 @@
       @forelse($patients as $p)
         <tr>
           <td>{{ $loop->iteration }}</td>
+          <td>
+            <img src="{{ !empty($p->photo) ? asset('uploads/photos/' . $p->photo) : asset('uploads/photos/no_image.png') }}"
+                 style="width:45px;height:45px;object-fit:cover;border-radius:4px;border:1px solid #ddd;">
+          </td>
           <td>{{ $p->patientname }}</td>
           <td>{{ $p->mobile_no ?? $p->mobileno }}</td>
           <td>{{ $p->age ?? '-' }}</td>
@@ -57,7 +62,7 @@
         </tr>
       @empty
         <tr>
-          <td colspan="6" class="text-center text-muted">No patients found.</td>
+          <td colspan="7" class="text-center text-muted">No patients found.</td>
         </tr>
       @endforelse
       </tbody>

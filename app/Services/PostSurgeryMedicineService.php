@@ -38,7 +38,7 @@ class PostSurgeryMedicineService
     }
 
     /**
-     * Get medicines from template for post surgery (only order_type = 'preorder')
+     * Get medicines from template for post surgery (only order_type = 'postorder')
      * This is used for auto-loading selected medicines when template is applied
      * 
      * @param string $templateId
@@ -49,7 +49,7 @@ class PostSurgeryMedicineService
         return DB::table('template_medicine')
             ->where('templeteid', $templateId)
             ->where('active', 1)
-            ->where('order_type', 'preorder')  // ? Only load medicines with order_type = 'preorder' for post surgery
+            ->where('order_type', 'postorder')
             ->orderBy('group')
             ->orderBy('name')
             ->get();
@@ -63,7 +63,7 @@ class PostSurgeryMedicineService
      */
     public function applyTemplateWithCommonMedicines($templateId)
     {
-        // Get template medicines for auto-loading (only order_type = 'preorder')
+        // Get template medicines for auto-loading (only order_type = 'postorder')
         $templateMedicines = $this->getTemplateMedicinesForPostSurgery($templateId);
         
         // Get all available common medicines for reference
@@ -90,7 +90,7 @@ class PostSurgeryMedicineService
                 'route'         => $med->route ?? '',
                 'frequency'     => $med->frequency ?? '',
                 'duration'      => $med->duration ?? '',
-                'timing'        => $med->timing ?? '',
+                'timing'        => !empty($med->timing) ? $med->timing : ($med->meal_timing ?? ''),
                 'remarks'       => $med->note ?? '',
                 'common_medicine_id' => $commonMed->id ?? null,
                 'medicine_code' => $commonMed->code ?? '',

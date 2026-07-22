@@ -4,13 +4,14 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 
 class PrescriptionController extends Controller
 {
-    // 1) SEARCH: সিলেক্ট পেশেন্ট → প্রেসক্রিপশন লিস্ট দেখা
+    // 1) SEARCH: সিলেক্ট পেশেন্ট → প্রেসক্রিপশন + এডমিশন স্টেজ লিস্ট দেখা
     public function search(Request $request)
     {
         $patientId = $request->query('patient');
@@ -27,10 +28,7 @@ class PrescriptionController extends Controller
                 ->where('id', $patientId)
                 ->first();
 
-            $prescriptions = DB::table('prescriptions')
-                ->where('patient_id', $patientId)
-                ->orderByDesc('id')
-                ->get();
+            $prescriptions = $this->getPatientPrescriptions($patientId, $selectedPatient);
         }
 
         return view('prescriptions.search', compact(
@@ -41,7 +39,97 @@ class PrescriptionController extends Controller
         ));
     }
 
-    // 2) AJAX PREVIEW: প্রেসক্রিপশন প্রিভিউ (HTML Fragment)
+    private function getPatientPrescriptions($patientId, $selectedPatient)
+    {
+        $prescriptions = collect();
+
+        // Regular prescriptions (from wizard)
+        $prescriptions = DB::table('prescriptions')
+            ->where('patient_id', $patientId)
+            ->orderByDesc('id')
+            ->get()
+            ->map(function ($item) {
+                $item->source = 'prescription';
+                $item->display_date = $item->prescribed_on ?? $item->created_at;
+                $item->label = $item->prescription_no ?? ('RX #' . $item->id);
+                return $item;
+            });
+
+        // Admission stage medicines
+        if ($selectedPatient && !empty($selectedPatient->patientcode)) {
+            $pc = $selectedPatient->patientcode;
+
+            $admissionTables = [
+                'patient_admission_medicines'  => ['label' => 'On Admission',  'stage' => 'on_admission'],
+                'patient_presurgery_medicines' => ['label' => 'Pre-Surgery',   'stage' => 'pre_surgery'],
+                'patient_postsurgery_medicines'=> ['label' => 'Post-Surgery',  'stage' => 'post_surgery'],
+                'patient_round_medicines'      => ['label' => 'Round',          'stage' => 'round'],
+                'patient_instant_medicines'    => ['label' => 'Fresh Rx',       'stage' => 'fresh'],
+                'patient_fresh_medicines'      => ['label' => 'Discharge',      'stage' => 'discharge'],
+            ];
+
+            foreach ($admissionTables as $table => $info) {
+                if (!Schema::hasTable($table)) continue;
+
+                $col = Schema::hasColumn($table, 'patientcode') ? 'patientcode' : 'patientid';
+
+                $query = DB::table($table)->where($col, $pc);
+                if (Schema::hasColumn($table, 'active')) {
+                    $query->where('active', 1);
+                }
+
+                $admCol = Schema::hasColumn($table, 'admissionid') ? 'admissionid' : 'patient_admission_id';
+
+                $hasCreatedAt = Schema::hasColumn($table, 'created_at');
+                $selectCols = [$admCol . ' as admissionid'];
+                if ($hasCreatedAt) {
+                    $selectCols[] = 'created_at';
+                }
+                $rows = $query->select($selectCols)
+                    ->distinct()
+                    ->get();
+
+                foreach ($rows as $r) {
+                    if (empty($r->admissionid)) continue;
+                    $prescriptions->push((object)[
+                        'id'           => 'adm-' . $table . '-' . $r->admissionid,
+                        'source'       => 'admission',
+                        'stage'        => $info['stage'],
+                        'label'        => $info['label'],
+                        'display_date' => $r->created_at ?? now(),
+                        'admissionid'  => $r->admissionid,
+                        'table_name'   => $table,
+                        'doctor_name'  => $info['label'],
+                    ]);
+                }
+            }
+
+            // Surgery prescriptions
+            if (Schema::hasTable('surgery_prescriptions')) {
+                $surgeryRx = DB::table('surgery_prescriptions')
+                    ->where('patient_id', $patientId)
+                    ->orderByDesc('id')
+                    ->get()
+                    ->map(function ($item) {
+                        $item->source = 'surgery';
+                        $item->display_date = $item->created_at;
+                        $item->label = $item->prescription_no ?? ('SUR #' . $item->id);
+                        return $item;
+                    });
+
+                $prescriptions = $prescriptions->concat($surgeryRx);
+            }
+        }
+
+        // Sort all by date desc
+        $prescriptions = $prescriptions->sortByDesc(function ($p) {
+            return $p->display_date ?? now();
+        })->values();
+
+        return $prescriptions;
+    }
+
+    // 2) AJAX PREVIEW: প্রেসক্রিপশন প্রিভিউ (HTML Fragment) — unified print layout
     public function previewAjax($id)
     {
         $rx = DB::table('prescriptions')->where('id', $id)->first();
@@ -56,13 +144,22 @@ class PrescriptionController extends Controller
         $investigations = DB::table('prescriptions_investigations')->where('prescription_id', $id)->get();
         $medicines = DB::table('prescriptions_medicine')->where('prescription_id', $id)->get();
 
-        $clinicAddr  = 'আপনার ক্লিনিকের ঠিকানা এখানে দিন';
-        $clinicPhone = 'মোবাইল: 01XXXXXXXXX';
+        // Load doctors for this prescription
+        $rxDoctors = collect();
+        if (Schema::hasTable('prescription_doctors')) {
+            $rxDoctors = DB::table('prescription_doctors as pd')
+                ->leftJoin('doctors as d', 'd.id', '=', 'pd.doctor_id')
+                ->where('pd.prescription_id', $id)
+                ->select('pd.*', 'd.doctor_name', 'd.name', 'd.speciality')
+                ->get();
+        }
 
-        $html = view('prescriptions.tabs.preview', [
-            'pid'            => $rx->id,
-            'patientId'      => $patient->id ?? null,
+        $clinicAddr  = 'Shah Amanat (R.) Road, G.E.C. Circle, Chattagram';
+        $clinicPhone = 'Phone: 880-18-19-433633';
+
+        $html = view('prescriptions.tabs.print-preview', [
             'rx'             => $rx,
+            'rxDoctors'      => $rxDoctors,
             'patient'        => $patient,
             'complaints'     => $complaints,
             'diagnoses'      => $diagnoses,
@@ -70,6 +167,7 @@ class PrescriptionController extends Controller
             'medicines'      => $medicines,
             'clinicAddr'     => $clinicAddr,
             'clinicPhone'    => $clinicPhone,
+            'stageLabel'     => 'regular',
         ])->render();
 
         return response($html);
@@ -282,6 +380,320 @@ class PrescriptionController extends Controller
                 'message' => 'Error saving prescription: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Surgery prescription preview (unified print layout)
+     */
+    public function surgeryPreview($id)
+    {
+        $rx = DB::table('surgery_prescriptions')->where('id', $id)->first();
+        if (!$rx) {
+            return response('Surgery prescription not found', 404);
+        }
+
+        $patient = DB::table('patients')->where('id', $rx->patient_id)->first();
+
+        $medicines = DB::table('surgery_prescription_medicines')
+            ->where('prescription_id', $id)->get();
+
+        $diagnoses = DB::table('surgery_prescription_diagnoses')
+            ->where('surgery_prescription_id', $id)->get();
+
+        $investigations = DB::table('surgery_investigations')
+            ->where('prescription_id', $id)->get();
+
+        $complaints = collect();
+
+        // Load advices if table exists
+        $advices = collect();
+        if (Schema::hasTable('surgery_prescription_advices')) {
+            $advices = DB::table('surgery_prescription_advices')
+                ->where('prescription_id', $id)->get();
+        }
+
+        $clinicAddr  = 'Shah Amanat (R.) Road, G.E.C. Circle, Chattagram';
+        $clinicPhone = 'Phone: 880-18-19-433633';
+
+        $html = view('prescriptions.tabs.print-preview', [
+            'rx'             => $rx,
+            'patient'        => $patient,
+            'complaints'     => $complaints,
+            'diagnoses'      => $diagnoses,
+            'investigations' => $investigations,
+            'medicines'      => $medicines,
+            'advices'        => $advices,
+            'clinicAddr'     => $clinicAddr,
+            'clinicPhone'    => $clinicPhone,
+            'stageLabel'     => 'surgery',
+        ])->render();
+
+        return response($html);
+    }
+
+    /**
+     * Return JSON data for admission-style print (regular prescription)
+     */
+    public function printData($id)
+    {
+        $rx = DB::table('prescriptions')->where('id', $id)->first();
+        if (!$rx) {
+            return response()->json(['error' => 'Prescription not found'], 404);
+        }
+
+        $patient = DB::table('patients')->where('id', $rx->patient_id)->first();
+
+        $doctor = DB::table('prescription_doctors as pd')
+            ->leftJoin('doctors as d', 'd.id', '=', 'pd.doctor_id')
+            ->where('pd.prescription_id', $id)
+            ->select('d.doctor_name', 'd.name', 'd.speciality', 'd.reg_no', 'd.contact')
+            ->first();
+
+        $medicines = DB::table('prescriptions_medicine')
+            ->where('prescription_id', $id)
+            ->get();
+
+        $complaints = DB::table('prescriptions_complain')->where('prescription_id', $id)->get();
+        $investigations = DB::table('prescriptions_investigations')->where('prescription_id', $id)->get();
+
+        $cc = $this->buildPrintCcText($complaints);
+        if ($cc === '' && !empty($rx->chief_complaint)) {
+            $cc = '• ' . $rx->chief_complaint;
+        }
+
+        return response()->json([
+            'title'            => 'Prescription',
+            'stageTitle'       => 'Prescription',
+            'patientCode'      => $patient->patientcode ?? '',
+            'patientName'      => $patient->patientname ?? '',
+            'mobile'           => $patient->mobile_no ?? $patient->mobileno ?? '',
+            'admissionDate'    => date('d-m-Y', strtotime($rx->prescribed_on ?? $rx->created_at)),
+            'doctorName'       => $doctor->doctor_name ?? $doctor->name ?? $rx->doctor_name ?? '',
+            'doctorSpeciality' => $doctor->speciality ?? '',
+            'doctorRegNo'      => $doctor->reg_no ?? '',
+            'doctorContact'    => $doctor->contact ?? '',
+            'cc'               => $cc,
+            'oe'               => $this->buildPrintOeText($patient->patientcode ?? ''),
+            'inv'              => $this->buildPrintInvText($investigations),
+            'medicines'        => $this->formatMedicinesForPrint($medicines),
+        ]);
+    }
+
+    /**
+     * Return JSON data for admission-style print (admission stage medicines)
+     */
+    public function admissionPrintData(Request $request)
+    {
+        $admissionId = $request->query('admissionid');
+        $table       = $request->query('table');
+        $stage       = $request->query('stage', '');
+        $patientCode = $request->query('patientcode', '');
+
+        $stageLabels = [
+            'on_admission' => 'On Admission Medicine Prescription',
+            'pre_surgery'  => 'Pre-Surgery Medicine Prescription',
+            'post_surgery' => 'Post-Surgery Medicine Prescription',
+            'round'        => 'Round Patient Medicine Prescription',
+            'fresh'        => 'Fresh Medicine Prescription',
+            'discharge'    => 'Discharge Medicine Prescription',
+        ];
+        $stageTitle = $stageLabels[$stage] ?? 'Admission Medicine Prescription';
+
+        if (!$table || !Schema::hasTable($table)) {
+            return response()->json(['error' => 'Medicine table not found'], 404);
+        }
+
+        $admission = null;
+        foreach (['tbl_patient_admission', 'patient_admission'] as $tbl) {
+            if (!Schema::hasTable($tbl)) {
+                continue;
+            }
+            $admission = DB::table($tbl)
+                ->where('admissionid', $admissionId)
+                ->orWhere('id', $admissionId)
+                ->first();
+            if ($admission) {
+                break;
+            }
+        }
+
+        $patient = null;
+        if ($patientCode) {
+            $patient = DB::table('patients')->where('patientcode', $patientCode)->first();
+        }
+        if (!$patient && $admission && !empty($admission->patientcode)) {
+            $patient = DB::table('patients')->where('patientcode', $admission->patientcode)->first();
+        }
+
+        $pcCol  = Schema::hasColumn($table, 'patientcode') ? 'patientcode' : 'patientid';
+        $admCol = Schema::hasColumn($table, 'admissionid') ? 'admissionid' : 'patient_admission_id';
+
+        $query = DB::table($table);
+        if ($admissionId && Schema::hasColumn($table, $admCol)) {
+            $query->where($admCol, $admissionId);
+        } elseif ($patientCode && Schema::hasColumn($table, $pcCol)) {
+            $query->where($pcCol, $patientCode);
+        }
+        if (Schema::hasColumn($table, 'active')) {
+            $query->where('active', 1);
+        }
+
+        $medicines = $query->orderBy('id')->get();
+        $doctor    = $this->resolveAdmissionPrintDoctor($admission);
+        $templateId = $admission->templeteid ?? '';
+
+        return response()->json([
+            'title'            => $stageTitle,
+            'stageTitle'       => $stageTitle,
+            'patientCode'      => $patient->patientcode ?? $patientCode,
+            'patientName'      => $patient->patientname ?? '',
+            'mobile'           => $patient->mobile_no ?? $patient->mobileno ?? '',
+            'admissionDate'    => isset($admission->admission_date)
+                ? date('d-m-Y', strtotime($admission->admission_date))
+                : date('d-m-Y'),
+            'doctorName'       => $doctor->doctor_name ?? $doctor->name ?? '',
+            'doctorSpeciality' => $doctor->speciality ?? $doctor->Posting ?? '',
+            'doctorRegNo'      => $doctor->reg_no ?? '',
+            'doctorContact'    => $doctor->contact ?? '',
+            'cc'               => $this->buildTemplateCcText($templateId) ?: $stageTitle,
+            'oe'               => $this->buildPrintOeText($patient->patientcode ?? $patientCode),
+            'inv'              => $this->buildTemplateInvText($templateId),
+            'medicines'        => $this->formatMedicinesForPrint($medicines),
+        ]);
+    }
+
+    private function parseMedicineSchedule($m): array
+    {
+        $morning = $m->morning ?? $m->sokal ?? '';
+        $noon    = $m->noon ?? $m->afternoon ?? $m->dupure ?? $m->dupur ?? '';
+        $night   = $m->night ?? $m->raat ?? '';
+
+        if ($morning === '' && $noon === '' && $night === '') {
+            $schedule = $m->frequency ?? $m->dose ?? '';
+            if (preg_match('/[\d\/\+]/', $schedule)) {
+                $parts   = preg_split('/[\+\-]/', str_replace(' ', '', $schedule));
+                $morning = $parts[0] ?? '';
+                $noon    = $parts[1] ?? '';
+                $night   = $parts[2] ?? '';
+            }
+        }
+
+        return [
+            'name'        => $m->name ?? $m->medicine_name ?? '',
+            'morning'     => $morning,
+            'noon'        => $noon,
+            'night'       => $night,
+            'strength'    => $m->strength ?? '',
+            'timing'      => $m->timing ?? $m->meal_timing ?? '',
+            'duration'    => $m->duration ?? '',
+            'instruction' => $m->note ?? $m->instruction ?? '',
+        ];
+    }
+
+    private function formatMedicinesForPrint($medicines): array
+    {
+        return collect($medicines)
+            ->map(fn($m) => $this->parseMedicineSchedule($m))
+            ->values()
+            ->all();
+    }
+
+    private function buildPrintCcText($complaints): string
+    {
+        return collect($complaints)->map(function ($c) {
+            $text = $c->complaint ?? $c->complain ?? $c->name ?? '';
+            $note = $c->note ?? '';
+            return trim($text) !== '' ? '• ' . $text . ($note ? ' (' . $note . ')' : '') : '';
+        })->filter()->implode("\n");
+    }
+
+    private function buildPrintInvText($investigations): string
+    {
+        return collect($investigations)->map(function ($i) {
+            $text = $i->name ?? $i->investigation_name ?? $i->test ?? '';
+            $note = $i->note ?? $i->notes ?? '';
+            return trim($text) !== '' ? '• ' . $text . ($note ? ' (' . $note . ')' : '') : '';
+        })->filter()->implode("\n");
+    }
+
+    private function buildTemplateCcText($templateId): string
+    {
+        if (!$templateId || !Schema::hasTable('template_complain')) {
+            return '';
+        }
+
+        $rows = DB::table('template_complain')->where('templateid', $templateId)->get();
+        return $rows->map(fn($c) => '• ' . $c->complain . ($c->note ? ' (' . $c->note . ')' : ''))->implode("\n");
+    }
+
+    private function buildTemplateInvText($templateId): string
+    {
+        if (!$templateId || !Schema::hasTable('template_investigations')) {
+            return '';
+        }
+
+        $rows = DB::table('template_investigations')->where('templateid', $templateId)->get();
+        return $rows->map(fn($i) => '• ' . $i->name . ($i->note ? ' (' . $i->note . ')' : ''))->implode("\n");
+    }
+
+    private function buildPrintOeText($patientCode): string
+    {
+        if (!$patientCode || !Schema::hasTable('nursing_admissions')) {
+            return "Pulse: \nBP: ";
+        }
+
+        $nursing = DB::table('nursing_admissions')
+            ->where('patient_code', $patientCode)
+            ->orderByDesc('id')
+            ->first();
+
+        if (!$nursing) {
+            return "Pulse: \nBP: ";
+        }
+
+        $parts = [];
+        if (!empty($nursing->pulse)) {
+            $parts[] = 'Pulse: ' . $nursing->pulse;
+        }
+        if (!empty($nursing->bp)) {
+            $parts[] = 'BP: ' . $nursing->bp;
+        }
+        $temp = $nursing->temp ?? $nursing->temperature ?? '';
+        if (!empty($temp)) {
+            $parts[] = 'Temp: ' . $temp;
+        }
+        if (!empty($nursing->weight)) {
+            $parts[] = 'Weight: ' . $nursing->weight;
+        }
+
+        return !empty($parts) ? implode("\n", $parts) : "Pulse: \nBP: ";
+    }
+
+    private function resolveAdmissionPrintDoctor($admission)
+    {
+        if (!$admission) {
+            return (object) [];
+        }
+
+        if (!empty($admission->doctor_id) && Schema::hasTable('doctors')) {
+            $doctor = DB::table('doctors')->where('id', $admission->doctor_id)->first();
+            if ($doctor) {
+                return $doctor;
+            }
+        }
+
+        if (!empty($admission->doctor_name) || !empty($admission->doctor_reg_no) || !empty($admission->department)) {
+            return (object) [
+                'doctor_name' => $admission->doctor_name ?? null,
+                'name'        => $admission->doctor_name ?? null,
+                'speciality'  => $admission->department ?? null,
+                'reg_no'      => $admission->doctor_reg_no ?? null,
+                'contact'     => $admission->doctor_mobile ?? null,
+                'Posting'     => $admission->department ?? null,
+            ];
+        }
+
+        return (object) [];
     }
 
     /**
@@ -644,5 +1056,68 @@ class PrescriptionController extends Controller
             Log::error('Surgery complain search error: ' . $e->getMessage());
             return response()->json(['success' => true, 'data' => []]);
         }
+    }
+
+    public function admissionStagePreview(Request $request, $admissionId)
+    {
+        $stage = $request->query('stage');
+        $table = $request->query('table');
+
+        // Try multiple possible admission table names
+        $admission = null;
+        $admissionTables = ['tbl_patient_admission', 'patient_admission'];
+        foreach ($admissionTables as $tbl) {
+            if (Schema::hasTable($tbl)) {
+                $admission = DB::table($tbl)->where('id', $admissionId)
+                    ->orWhere('admissionid', $admissionId)
+                    ->first();
+                if ($admission) break;
+            }
+        }
+
+        $patient = null;
+        if ($admission) {
+            $patient = DB::table('patients')->where('id', $admission->patient_id ?? 0)->first();
+            if (!$patient && !empty($admission->patientcode)) {
+                $patient = DB::table('patients')->where('patientcode', $admission->patientcode)->first();
+            }
+        }
+
+        // Load medicines from the specified table
+        $medicines = collect();
+        if ($table && Schema::hasTable($table)) {
+            // Determine patient column
+            $pcCol = Schema::hasColumn($table, 'patientcode') ? 'patientcode' : 'patientid';
+            $admCol = Schema::hasColumn($table, 'admissionid') ? 'admissionid' : 'patient_admission_id';
+
+            // Try to match by admissionid first, fall back to patientcode
+            $query = DB::table($table);
+            if (Schema::hasColumn($table, $admCol)) {
+                $query->where($admCol, $admissionId);
+            } elseif ($patient && !empty($patient->patientcode) && Schema::hasColumn($table, $pcCol)) {
+                $query->where($pcCol, $patient->patientcode);
+            }
+            if (Schema::hasColumn($table, 'active')) {
+                $query->where('active', 1);
+            }
+            $medicines = $query->orderBy('id')->get();
+        }
+
+        $clinicAddr  = 'Shah Amanat (R.) Road, G.E.C. Circle, Chattagram';
+        $clinicPhone = 'Phone: 880-18-19-433633';
+
+        $html = view('prescriptions.tabs.print-preview', [
+            'rx'             => $admission,
+            'patient'        => $patient,
+            'complaints'     => collect(),
+            'diagnoses'      => collect(),
+            'investigations' => collect(),
+            'medicines'      => $medicines,
+            'clinicAddr'     => $clinicAddr,
+            'clinicPhone'    => $clinicPhone,
+            'stageLabel'     => $stage,
+        ])->render();
+
+        return response($html);
     }
 }

@@ -10,6 +10,9 @@
                 <h1>Approve Appointments</h1>
             </div>
             <div class="col-sm-6 text-right">
+                <a href="{{ route('appointments.list') }}" class="btn btn-outline-secondary mr-2">
+                    <i class="fas fa-history"></i> Appointment List
+                </a>
                 <a href="{{ route('appointments.create') }}" class="btn btn-primary">
                     <i class="fas fa-plus"></i> New Appointment
                 </a>
@@ -38,6 +41,15 @@
         </div>
     @endif
 
+    @if(session('error'))
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="icon fas fa-exclamation-triangle"></i> {{ session('error') }}
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+    @endif
+
     <div class="row">
         <div class="col-12">
             <div class="card card-outline-primary shadow-sm">
@@ -56,8 +68,9 @@
                             <thead class="bg-light">
                                 <tr>
                                     <th width="5%">#</th>
-                                    <th width="25%">Patient Name</th>
-                                    <th width="20%">Appointment Date</th>
+                                    <th width="22%">Patient Name</th>
+                                    <th width="18%">Appointment Date</th>
+                                    <th width="12%">Time</th>
                                     <th width="15%" class="text-center">Serial No</th>
                                     <th width="15%">Status</th>
                                     <th width="20%" class="text-right">Action</th>
@@ -74,6 +87,14 @@
                                         <i class="far fa-calendar-check text-muted mr-1"></i> 
                                         {{ date('d M, Y', strtotime($app->appointment_date)) }}
                                     </td>
+                                    <td>
+                                        @if(data_get($app, 'appointment_time'))
+                                            <i class="far fa-clock text-muted mr-1"></i>
+                                            {{ date('h:i A', strtotime($app->appointment_time)) }}
+                                        @else
+                                            <span class="text-muted">Not set</span>
+                                        @endif
+                                    </td>
                                     <td class="text-center">
                                         <span class="badge badge-pill badge-light border">{{ sprintf('%02d', $app->serial) }}</span>
                                     </td>
@@ -83,9 +104,17 @@
                                             <span class="badge badge-warning badge-status shadow-sm">
                                                 <i class="fas fa-clock mr-1"></i> Pending
                                             </span>
-                                        @else
+                                        @elseif($status == 'approved')
                                             <span class="badge badge-success badge-status shadow-sm">
                                                 <i class="fas fa-check-circle mr-1"></i> Approved
+                                            </span>
+                                        @elseif($status == 'completed')
+                                            <span class="badge badge-primary badge-status shadow-sm">
+                                                <i class="fas fa-clipboard-check mr-1"></i> Done
+                                            </span>
+                                        @else
+                                            <span class="badge badge-secondary badge-status shadow-sm">
+                                                {{ ucfirst($status) }}
                                             </span>
                                         @endif
                                     </td>
@@ -100,6 +129,16 @@
                                                     <i class="fas fa-check-circle mr-1"></i> Approve
                                                 </button>
                                             </form>
+                                        @elseif($status == 'approved')
+                                            <form action="{{ route('appointments.updateStatus') }}" method="POST" class="d-inline">
+                                                @csrf
+                                                <input type="hidden" name="appointment_id" value="{{ $app->id }}">
+                                                <input type="hidden" name="status" value="completed">
+                                                <button type="submit" class="btn btn-sm btn-primary px-3 shadow-sm"
+                                                        onclick="return confirm('Mark this appointment as done?')">
+                                                    <i class="fas fa-clipboard-check mr-1"></i> Done
+                                                </button>
+                                            </form>
                                         @else
                                             <button class="btn btn-sm btn-flat btn-light text-muted border" disabled>
                                                 <i class="fas fa-user-check"></i> Finalized
@@ -109,7 +148,7 @@
                                 </tr>
                                 @empty
                                 <tr>
-                                    <td colspan="6" class="text-center py-5">
+                                    <td colspan="7" class="text-center py-5">
                                         <div class="text-muted">
                                             <i class="fas fa-inbox fa-3x mb-3"></i>
                                             <p class="h5">No appointments found for approval.</p>

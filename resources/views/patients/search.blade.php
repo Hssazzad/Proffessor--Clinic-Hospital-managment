@@ -18,7 +18,7 @@
             <form method="GET" action="{{ route('patients.searchpatient') }}" class="row mb-3">
                 <div class="col-md-6 mb-2">
                     <input type="text" name="q" value="{{ $query }}" class="form-control"
-                        placeholder="Search by Name, Mobile, NID or Patient Code">
+                        placeholder="Search by Name, Mobile or Patient Code">
                 </div>
                 <div class="col-md-2 mb-2">
                     <button class="btn btn-primary btn-block w-100">Search</button>
@@ -34,9 +34,9 @@
                     <thead>
                         <tr>
                             <th>Code</th>
+                            <th>Photo</th>
                             <th>Name</th>
                             <th>Mobile</th>
-                            <th>NID</th>
                             <th>Age</th>
                             <th>Date of Birth</th>
                             <th>Gender</th>
@@ -48,9 +48,12 @@
                         @forelse($patients as $p)
                         <tr>
                             <td><span class="badge badge-info">{{ $p->patientcode }}</span></td>
+                            <td>
+                                <img src="{{ !empty($p->photo) ? asset('uploads/photos/' . $p->photo) : asset('uploads/photos/no_image.png') }}"
+                                     style="width:45px;height:45px;object-fit:cover;border-radius:4px;border:1px solid #ddd;">
+                            </td>
                             <td>{{ $p->patientname }}</td>
                             <td>{{ $p->mobile_no }}</td>
-                            <td>{{ $p->nid_number }}</td>
                             <td>{{ $p->age }}</td>
                             <td>{{ optional($p->date_of_birth)->format('d-m-Y') }}</td>
                             <td>{{ $p->gender }}</td>
@@ -72,7 +75,7 @@
                             </td>
                         </tr>
                         @empty
-                        <tr><td colspan="8" class="text-center text-muted">No patient found.</td></tr>
+                        <tr><td colspan="9" class="text-center text-muted">No patient found.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -114,6 +117,12 @@
             <label class="form-label">Appointment Date <span class="text-danger">*</span></label>
             <input type="date" class="form-control" name="appointment_date" id="ap_date"
                 min="{{ $today }}" required>
+          </div>
+
+          {{-- Time --}}
+          <div class="mb-3">
+            <label class="form-label">Appointment Time <span class="text-danger">*</span></label>
+            <input type="time" class="form-control" name="appointment_time" id="ap_time" required>
           </div>
 
           {{-- Serial --}}
@@ -165,6 +174,7 @@ $(document).ready(function () {
         clearError();
 
         $('#ap_date').val('');
+        $('#ap_time').val('');
         $('#ap_serial').prop("disabled", true).html('<option>Select date first</option>');
 
         $('#appointmentModal').modal({backdrop:'static'}).modal('show');

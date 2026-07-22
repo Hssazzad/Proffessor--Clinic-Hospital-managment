@@ -3,15 +3,15 @@
 @section('title', 'Confirmed Invoices | Professor Clinic')
 
 @section('content_header')
-<div class="d-flex justify-content-between align-items-center">
+<div class="cc-header">
+    <div class="cc-header-icon">
+        <i class="fas fa-file-invoice"></i>
+    </div>
     <div>
-        <h1 class="m-0 page-main-title">
-            <span class="page-title-icon"><i class="fas fa-file-invoice"></i></span>
-            Confirmed Invoices
-        </h1>
-        <ol class="breadcrumb mt-1 p-0" style="background:transparent;font-size:12px">
-            <li class="breadcrumb-item"><a href="{{ url('/') }}"><i class="fas fa-home"></i> Home</a></li>
-            <li class="breadcrumb-item active">Confirmed Invoices</li>
+        <h1 class="cc-header-title">Confirmed Invoices</h1>
+        <ol class="cc-breadcrumb">
+            <li><a href="{{ url('/') }}"><i class="fas fa-home"></i> Home</a></li>
+            <li class="active">Confirmed Invoices</li>
         </ol>
     </div>
 </div>
@@ -19,215 +19,211 @@
 
 @section('content')
 
-<div id="save-alert" class="alert d-none mb-3" role="alert"></div>
+<div id="save-alert" class="cc-alert d-none" role="alert"></div>
 
 {{-- Stats Row --}}
-<div class="stats-row mb-4">
-    <div class="stat-card">
-        <div class="stat-icon" style="background:#e3f2fd;color:#1565c0"><i class="fas fa-file-invoice"></i></div>
-        <div>
-            <div class="stat-label">Total Bills</div>
-            <div class="stat-value">{{ number_format($stats['total_bills']) }}</div>
+<div class="cc-stats">
+    <div class="cc-stat-card">
+        <div class="cc-stat-icon cc-stat-icon--blue">
+            <i class="fas fa-file-invoice"></i>
+        </div>
+        <div class="cc-stat-body">
+            <div class="cc-stat-label">Total Bills</div>
+            <div class="cc-stat-value">{{ number_format($stats['total_bills']) }}</div>
         </div>
     </div>
-    <div class="stat-card">
-        <div class="stat-icon" style="background:#fff3e0;color:#e65100"><i class="fas fa-hourglass-half"></i></div>
-        <div>
-            <div class="stat-label">Total Due</div>
-            <div class="stat-value">? {{ number_format($stats['total_due'], 0) }}</div>
+    <div class="cc-stat-card">
+        <div class="cc-stat-icon cc-stat-icon--amber">
+            <i class="fas fa-hourglass-half"></i>
+        </div>
+        <div class="cc-stat-body">
+            <div class="cc-stat-label">Total Due</div>
+            <div class="cc-stat-value">? {{ number_format($stats['total_due'], 0) }}</div>
         </div>
     </div>
-    <div class="stat-card">
-        <div class="stat-icon" style="background:#e8f5e9;color:#2e7d32"><i class="fas fa-calendar-day"></i></div>
-        <div>
-            <div class="stat-label">Today Bills</div>
-            <div class="stat-value">{{ number_format($stats['today_bills']) }}</div>
+    <div class="cc-stat-card">
+        <div class="cc-stat-icon cc-stat-icon--green">
+            <i class="fas fa-calendar-day"></i>
+        </div>
+        <div class="cc-stat-body">
+            <div class="cc-stat-label">Today Bills</div>
+            <div class="cc-stat-value">{{ number_format($stats['today_bills']) }}</div>
         </div>
     </div>
-    <div class="stat-card">
-        <div class="stat-icon" style="background:#e0f2f1;color:#00695c"><i class="fas fa-money-bill-wave"></i></div>
-        <div>
-            <div class="stat-label">Today Revenue</div>
-            <div class="stat-value">? {{ number_format($stats['today_revenue'], 0) }}</div>
+    <div class="cc-stat-card">
+        <div class="cc-stat-icon cc-stat-icon--primary">
+            <i class="fas fa-money-bill-wave"></i>
+        </div>
+        <div class="cc-stat-body">
+            <div class="cc-stat-label">Today Revenue</div>
+            <div class="cc-stat-value">? {{ number_format($stats['today_revenue'], 0) }}</div>
         </div>
     </div>
 </div>
 
-<div class="pc-card">
-    <div class="pc-card-header">
-        <div class="pc-card-title">
-            <span class="pc-icon-wrap"><i class="fas fa-receipt"></i></span>
+{{-- Main Card with Filter & Table --}}
+<div class="cc-card">
+    <div class="cc-card-header">
+        <div class="cc-card-header-left">
+            <div class="cc-card-icon">
+                <i class="fas fa-receipt"></i>
+            </div>
             <div>
-                <h5 class="mb-0">All Saved Bills</h5>
-                <small class="text-muted">Investigation and confirmed invoices list</small>
+                <div class="cc-card-title">All Saved Bills</div>
+                <div class="cc-card-subtitle">Investigation and confirmed invoices list</div>
             </div>
         </div>
-        <span class="pc-badge">{{ $pastPayments->total() }} Records</span>
+        <div class="cc-card-actions">
+            <span class="cc-card-badge">{{ $pastPayments->total() }} Records</span>
+            <button class="cc-btn cc-btn-export" onclick="exportCSV()">
+                <i class="fas fa-file-csv"></i> CSV
+            </button>
+        </div>
     </div>
 
-    {{-- Search + Filter --}}
-    <div class="pc-search-bar">
-        <form method="GET" action="{{ route('billing.discharge.index') }}" id="paySearchForm"
-              style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-            <div class="pc-search-group" style="flex:1; min-width:200px;">
-                <span class="pc-search-icon"><i class="fas fa-search"></i></span>
-                <input type="text" name="search" class="pc-search-input"
-                       value="{{ request('search') }}"
-                       placeholder="Search Name, receipt no, or mobile">
-                <button type="submit" class="pc-search-btn">
-                    <i class="fas fa-search mr-1"></i> Search
+    {{-- Filter Bar --}}
+    <div class="cc-search-bar">
+        <form method="GET" action="{{ route('billing.discharge.index') }}" id="paySearchForm" class="cc-search-form">
+            <div class="cc-search-row">
+                <div class="cc-search-group">
+                    <span class="cc-search-icon"><i class="fas fa-search"></i></span>
+                    <input type="text" name="search" class="cc-search-input"
+                           value="{{ request('search') }}"
+                           placeholder="Search name, receipt no, or mobile">
+                    <button type="submit" class="cc-btn cc-btn-primary">
+                        <i class="fas fa-search"></i> Load
+                    </button>
+                </div>
+                <select name="status_filter" class="cc-select" onchange="this.form.submit()">
+                    <option value="all"     {{ request('status_filter','all') === 'all'     ? 'selected' : '' }}>All Status</option>
+                    <option value="paid"    {{ request('status_filter') === 'paid'    ? 'selected' : '' }}>Paid</option>
+                    <option value="partial" {{ request('status_filter') === 'partial' ? 'selected' : '' }}>Partial</option>
+                    <option value="due"     {{ request('status_filter') === 'due'     ? 'selected' : '' }}>Due</option>
+                </select>
+                <button type="reset" class="cc-btn cc-btn-reset" onclick="resetFilter(event)">
+                    <i class="fas fa-times"></i> Reset
                 </button>
+                @if(request()->has('search') || request()->has('status_filter'))
+                    <a href="{{ route('billing.discharge.index') }}" class="cc-clear-link">Clear</a>
+                @endif
             </div>
-            <select name="status_filter" class="filter-select" onchange="this.form.submit()">
-                <option value="all"     {{ request('status_filter','all') === 'all'     ? 'selected' : '' }}>All Status</option>
-                <option value="paid"    {{ request('status_filter') === 'paid'    ? 'selected' : '' }}>Paid</option>
-                <option value="partial" {{ request('status_filter') === 'partial' ? 'selected' : '' }}>Partial</option>
-                <option value="due"     {{ request('status_filter') === 'due'     ? 'selected' : '' }}>Due</option>
-            </select>
-            @if(request()->has('search') || request()->has('status_filter'))
-                <a href="{{ route('billing.discharge.index') }}" class="btn btn-secondary btn-sm" style="height:32px; padding-top:6px;">Clear</a>
-            @endif
         </form>
     </div>
 
-    <div class="pc-card-body pt-0">
-        <div class="pc-table-wrap">
-            <table class="pc-table" id="payTable">
+    {{-- Table --}}
+    <div class="cc-card-body">
+        <div id="tableWrapper" style="overflow-x:auto;">
+            <table class="cc-table" id="dischargeTable">
                 <thead>
                     <tr>
-                        <th>#</th>
-                        <th>RECEIPT NO</th>
-                        <th>PATIENT</th>
-                        <th>DATE</th>
-                        <th style="text-align:right">TOTAL</th>
-                        <th style="text-align:right">PAID</th>
-                        <th style="text-align:right">DUE</th>
-                        <th style="text-align:center">STATUS</th>
-                        <th style="text-align:center">ACTION</th>
+                        <th>Date</th>
+                        <th>Bill No</th>
+                        <th>Patient Name</th>
+                        <th class="text-right">Total Bill</th>
+                        <th class="text-right">Paid</th>
+                        <th class="text-right">Due</th>
+                        <th class="text-center">Status</th>
+                        <th class="text-center" style="width:110px;">Action</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="tableBody">
                     @forelse($pastPayments as $pp)
-                    <tr>
-                        <td class="text-muted">{{ $loop->iteration + $pastPayments->firstItem() - 1 }}</td>
-                        <td>
-                            <span class="pc-adm-badge">{{ $pp->BillNo }}</span>
-                        </td>
-                        <td>
-                            <div class="pc-name-cell">
-                                <div>
-                                    <strong style="font-size:13px;">{{ $pp->PatientName ?? '' }}</strong>
-                                    <br>
-                                    <small class="text-muted">{{ $pp->PatientCode ?? '' }} | {{ $pp->MobileNo ?? '' }}</small>
-                                </div>
-                            </div>
-                        </td>
-                        <td style="font-size:12px; color:#666;">
-                            {{ $pp->PaymentDate ? \Carbon\Carbon::parse($pp->PaymentDate)->format('Y-m-d') : '' }}
-                        </td>
-                        <td style="text-align:right; font-weight:600; font-size:12px;">
-                            ? {{ number_format($pp->TotalBill, 0) }}
-                        </td>
-                        <td style="text-align:right; font-weight:600; font-size:12px; color:#2e7d32;">
-                            ? {{ number_format($pp->PaidAmount, 0) }}
-                        </td>
-                        <td style="text-align:right; font-weight:600; font-size:12px;
-                                   color:{{ $pp->DueAmount > 0 ? '#c62828' : '#aaa' }}">
-                            ? {{ number_format($pp->DueAmount, 0) }}
-                        </td>
-                        <td style="text-align:center;">
+                    <tr data-id="{{ $pp->ID }}">
+                        <td>{{ $pp->PaymentDate ? \Carbon\Carbon::parse($pp->PaymentDate)->format('d M Y') : '' }}</td>
+                        <td><strong>{{ $pp->BillNo }}</strong></td>
+                        <td>{{ $pp->PatientName ?? '' }}</td>
+                        <td class="text-right">? {{ number_format($pp->TotalBill, 0) }}</td>
+                        <td class="text-right text-green">? {{ number_format($pp->PaidAmount, 0) }}</td>
+                        <td class="text-right text-red">? {{ number_format($pp->DueAmount, 0) }}</td>
+                        <td class="text-center">
                             @if(strtolower($pp->Status) === 'paid')
-                                <span class="pc-status-paid">Paid</span>
+                                <span class="cc-badge cc-badge--paid">Paid</span>
                             @elseif(strtolower($pp->Status) === 'partial')
-                                <span class="pc-status-partial">Partial</span>
+                                <span class="cc-badge cc-badge--partial">Partial</span>
                             @else
-                                <span class="pc-status-due">Due</span>
+                                <span class="cc-badge cc-badge--due">Due</span>
                             @endif
                         </td>
-                        <td style="text-align:center;">
-                            <div style="display:flex; gap:4px; justify-content:center;">
-                                <a href="{{ url('Billing/payment/'.$pp->ID.'/print') }}" target="_blank" class="pc-print-btn" style="padding:4px 8px; border-radius:5px; text-decoration:none;">
-                                    <i class="fas fa-print"></i>
-                                </a>
-                                <button class="pc-view-btn" onclick="viewReceipt({{ $pp->ID }})" title="View Details">
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                                <button class="pc-delete-btn"
-                                        onclick="deleteRecord({{ $pp->ID }}, this)"
-                                        title="Delete">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </div>
+                        <td class="text-center">
+                            <button class="cc-action-btn cc-action-btn--print" onclick="window.open('{{ url('Billing/payment/'.$pp->ID.'/print') }}','_blank')">
+                                <i class="fas fa-print"></i>
+                            </button>
+                            <button class="cc-action-btn cc-action-btn--view" onclick="viewReceipt({{ $pp->ID }})">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="cc-action-btn cc-action-btn--delete" onclick="deleteRecord({{ $pp->ID }}, this)">
+                                <i class="fas fa-trash"></i>
+                            </button>
                         </td>
                     </tr>
                     @empty
-                    <tr>
-                        <td colspan="9">
-                            <div class="pc-empty">
-                                <i class="fas fa-receipt"></i>
-                                <p>No confirmed bills found.</p>
-                            </div>
-                        </td>
-                    </tr>
+                    <tr><td colspan="8" class="cc-empty"><i class="fas fa-receipt"></i><p>No confirmed bills found.</p></td></tr>
                     @endforelse
                 </tbody>
             </table>
         </div>
 
+        {{-- Load More + Pagination Fallback --}}
         @if($pastPayments->hasPages())
-        <div class="pc-pagination mt-3">
-            <small class="text-muted">
+        <div class="cc-load-more-wrap" id="loadMoreWrap">
+            @if($pastPayments->hasMorePages())
+            <button class="cc-load-more" id="loadMoreBtn"
+                    data-next="{{ $pastPayments->nextPageUrl() }}"
+                    onclick="loadMore(this)">
+                <i class="fas fa-chevron-down"></i> Load More
+            </button>
+            @endif
+            <div class="cc-pagination-info">
                 Showing {{ $pastPayments->firstItem() }} to {{ $pastPayments->lastItem() }}
                 of {{ $pastPayments->total() }} entries
-            </small>
-            {{ $pastPayments->links('pagination::bootstrap-4') }}
+            </div>
+            <div class="cc-pagination-fallback d-none">
+                {{ $pastPayments->links('pagination::bootstrap-4') }}
+            </div>
         </div>
         @endif
     </div>
 </div>
 
-
-{{-- MODAL: View past receipt --}}
+{{-- MODAL: View past receipt (unchanged) --}}
 <div class="modal fade" id="receiptModal" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable" role="document">
-        <div class="modal-content" style="border:none;border-radius:14px;overflow:hidden">
-            <div class="modal-header" style="background:linear-gradient(135deg,#00796B,#00695C);color:#fff;border:none;padding:18px 24px">
-                <div class="d-flex align-items-center">
-                    <div style="width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.2);
-                                display:flex;align-items:center;justify-content:center;font-size:18px;margin-right:12px">
+        <div class="cc-modal-content">
+            <div class="cc-modal-header">
+                <div class="cc-modal-header-left">
+                    <div class="cc-modal-icon">
                         <i class="fas fa-receipt"></i>
                     </div>
                     <div>
-                        <h5 class="modal-title mb-0 font-weight-bold">Investigation Bill</h5>
-                        <small style="opacity:.9" id="modal-subtitle">Loading</small>
+                        <div class="cc-modal-title">Investigation Bill</div>
+                        <div class="cc-modal-subtitle" id="modal-subtitle">Loading</div>
                     </div>
                 </div>
-                <div style="display:flex;gap:8px">
-                    <button class="pc-modal-print-btn" onclick="printModal()">
-                        <i class="fas fa-print mr-1"></i> Print
+                <div class="cc-modal-header-actions">
+                    <button class="cc-modal-print-btn" onclick="printModal()">
+                        <i class="fas fa-print"></i> Print
                     </button>
-                    <button style="background:none;border:none;color:#fff;font-size:18px;cursor:pointer;opacity:.8"
-                            data-dismiss="modal">
+                    <button class="cc-modal-close" data-dismiss="modal">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
             </div>
-            <div class="modal-body p-0">
-                <div id="modal-loading" style="text-align:center;padding:60px;color:#888">
-                    <i class="fas fa-spinner fa-spin" style="font-size:30px;color:#00796B"></i>
-                    <p class="mt-3">Loading receipt</p>
+            <div class="cc-modal-body">
+                <div id="modal-loading" class="cc-modal-state">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <p>Loading receipt...</p>
                 </div>
-                <div id="modal-error" class="d-none" style="text-align:center;padding:60px;color:#e53935">
-                    <i class="fas fa-exclamation-triangle" style="font-size:32px"></i>
-                    <p class="mt-3" id="modal-error-msg">Failed to load.</p>
+                <div id="modal-error" class="cc-modal-state cc-modal-state--error d-none">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <p id="modal-error-msg">Failed to load.</p>
                 </div>
                 <div id="modal-rx-area" class="d-none">
-                    <div id="modal-prescription-print-area" style="padding:20px 24px"></div>
+                    <div id="modal-prescription-print-area" class="cc-modal-print-area"></div>
                 </div>
             </div>
-            <div class="modal-footer" style="background:#fafbfd;border-top:1px solid #eee;padding:14px 24px">
-                <button class="btn btn-secondary btn-sm" data-dismiss="modal">
-                    <i class="fas fa-times mr-1"></i> Close
+            <div class="cc-modal-footer">
+                <button class="cc-modal-close-btn" data-dismiss="modal">
+                    <i class="fas fa-times"></i> Close
                 </button>
             </div>
         </div>
@@ -236,116 +232,694 @@
 
 <iframe id="print-iframe" style="position:fixed;top:-9999px;left:-9999px;width:0;height:0;border:none" title="Print Frame"></iframe>
 
+{{-- Bottom Navigation --}}
+<nav class="cc-bottom-nav">
+    <a href="{{ url('/') }}" class="cc-bottom-nav-item">
+        <i class="fas fa-home"></i>
+        <span>Home</span>
+    </a>
+    <a href="{{ route('billing.paylist.index') }}" class="cc-bottom-nav-item">
+        <i class="fas fa-credit-card"></i>
+        <span>Payments</span>
+    </a>
+    <a href="{{ route('billing.duelist.index') }}" class="cc-bottom-nav-item">
+        <i class="fas fa-exclamation-circle"></i>
+        <span>Due List</span>
+    </a>
+    <a href="{{ route('billing.discharge.index') }}" class="cc-bottom-nav-item cc-bottom-nav-item--active">
+        <i class="fas fa-file-invoice"></i>
+        <span>Discharge</span>
+    </a>
+    <a href="{{ route('billing.paynow.index') }}" class="cc-bottom-nav-item">
+        <i class="fas fa-hand-holding-usd"></i>
+        <span>Pay Now</span>
+    </a>
+</nav>
+
+<div class="cc-bottom-spacer"></div>
+
 @stop
 
 @section('css')
-<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-:root{
-    --pc:#00796B; --pc-deep:#00695C; --pc-light:#E0F2F1; --pc-soft:#B2DFDB;
-    --text:#1a2332; --muted:#6b7a90; --border:#e4e9f0; --bg:#f0f4f0;
-    --red:#c62828; --amber:#f9a825; --green:#2e7d32;
-    --radius:10px; --shadow:0 4px 16px rgba(0,0,0,.08);
-    --font:'DM Sans','Hind Siliguri',Arial,sans-serif;
+/* ===========================================
+   CLINICAL CLARITY – COMPACT TABLE STYLE
+=========================================== */
+:root {
+    --cc-bg: #faf8ff;
+    --cc-primary: #0f52ba;
+    --cc-primary-dark: #0b3d8a;
+    --cc-primary-light: #e8edff;
+    --cc-white: #ffffff;
+    --cc-border: #d9d9e2;
+    --cc-text: #1a1a2e;
+    --cc-muted: #6b7280;
+    --cc-green: #10b981;
+    --cc-green-bg: #ecfdf5;
+    --cc-red: #ef4444;
+    --cc-red-bg: #fef2f2;
+    --cc-amber: #f59e0b;
+    --cc-amber-bg: #fffbeb;
+    --cc-radius: 4px;
+    --cc-font: 'Hanken Grotesk', system-ui, -apple-system, sans-serif;
 }
+
 *,*::before,*::after{box-sizing:border-box}
-body,.content-wrapper{background:var(--bg)!important;font-family:var(--font)}
-.page-main-title{font-size:22px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:10px}
-.page-title-icon{width:38px;height:38px;border-radius:10px;background:var(--pc-light);display:inline-flex;align-items:center;justify-content:center;color:var(--pc);font-size:17px}
 
-/* Stats */
-.stats-row{display:flex;gap:14px;flex-wrap:wrap}
-.stat-card{background:#fff;border-radius:10px;padding:14px 18px;display:flex;align-items:center;gap:14px;flex:1;min-width:160px;box-shadow:0 2px 8px rgba(0,0,0,.06);border:1px solid var(--border)}
-.stat-icon{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
-.stat-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px}
-.stat-value{font-size:16px;font-weight:700;color:var(--text)}
+body,.content-wrapper{
+    background:var(--cc-bg)!important;
+    font-family:var(--cc-font);
+    color:var(--cc-text);
+}
 
-/* Card */
-.pc-card{background:#fff;border-radius:14px;box-shadow:var(--shadow);border:1px solid var(--border);overflow:hidden;margin-bottom:24px}
-.pc-card-header{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:#fafbfd;flex-wrap:wrap;gap:10px}
-.pc-card-title{display:flex;align-items:center;gap:12px}
-.pc-card-title h5,.pc-card-title h6{font-size:14px; font-weight:600;}
-.pc-icon-wrap{width:36px;height:36px;border-radius:8px;background:var(--pc-light);display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--pc);flex-shrink:0}
-.pc-card-body{padding:20px}
-.pc-card-footer{padding:12px 20px;border-top:1px solid var(--border);background:#fafbfd;display:flex;align-items:center;justify-content:space-between}
-.pc-badge{background:var(--pc-light);color:var(--pc-deep);border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600}
+/* ─── Alert ─── */
+.cc-alert{
+    padding:8px 12px;
+    border-radius:var(--cc-radius);
+    font-size:12px;
+    font-weight:500;
+    margin-bottom:12px;
+    border:1px solid transparent;
+}
+.cc-alert.alert-success{
+    background:var(--cc-green-bg);
+    color:var(--cc-green);
+    border-color:#a7f3d0;
+}
+.cc-alert.alert-danger{
+    background:var(--cc-red-bg);
+    color:var(--cc-red);
+    border-color:#fecaca;
+}
 
-/* Search */
-.pc-search-bar{padding:10px 20px;background:#fafbff;border-bottom:2px solid var(--pc-soft)}
-.pc-search-group{display:flex;align-items:center;background:#fff;border:2px solid var(--border);border-radius:8px;overflow:hidden;transition:border-color .2s}
-.pc-search-group:focus-within{border-color:var(--pc);box-shadow:0 0 0 3px rgba(0,121,107,.1)}
-.pc-search-icon{padding:0 10px;color:#aab;font-size:14px}
-.pc-search-input{flex:1;border:none;outline:none;padding:8px 6px;font-size:13px;background:transparent;color:var(--text);font-family:var(--font)}
-.pc-search-btn{border:none;padding:9px 18px;font-size:12px;font-weight:600;cursor:pointer;background:var(--pc);color:#fff;transition:background .2s;white-space:nowrap}
-.pc-search-btn:hover{background:var(--pc-deep)}
-.filter-select{border:2px solid var(--border);border-radius:8px;padding:7px 10px;font-size:12px;font-family:var(--font);outline:none;cursor:pointer;background:#fff;color:var(--text);transition:border-color .2s}
-.filter-select:focus{border-color:var(--pc)}
+/* ─── Page Header ─── */
+.cc-header{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    margin-bottom:14px;
+}
+.cc-header-icon{
+    width:36px;
+    height:36px;
+    border-radius:var(--cc-radius);
+    background:var(--cc-primary);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color:var(--cc-white);
+    font-size:16px;
+    flex-shrink:0;
+}
+.cc-header-title{
+    font-size:18px;
+    font-weight:700;
+    color:var(--cc-text);
+    margin:0;
+    line-height:1.2;
+}
+.cc-breadcrumb{
+    list-style:none;
+    padding:0;
+    margin:2px 0 0;
+    display:flex;
+    gap:6px;
+    font-size:11px;
+    color:var(--cc-muted);
+}
+.cc-breadcrumb li{display:flex;align-items:center;gap:6px;}
+.cc-breadcrumb li+li::before{content:'/';color:var(--cc-border);}
+.cc-breadcrumb a{color:var(--cc-primary);text-decoration:none;}
+.cc-breadcrumb a:hover{text-decoration:underline;}
+.cc-breadcrumb .active{color:var(--cc-muted);}
 
-/* Table */
-.pc-table-wrap{overflow-x:auto;overflow-y:auto}
-.pc-table{width:100%;border-collapse:separate;border-spacing:0}
-.pc-table thead th{background:#f0faf8;color:var(--text);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;padding:12px;border-bottom:2px solid var(--pc-soft);white-space:nowrap;position:sticky;top:0;z-index:10}
-.pc-table tbody tr{transition:background .15s}
-.pc-table tbody tr:hover{background:#f0faf8}
-.pc-table tbody td{padding:12px;border-bottom:1px solid var(--border);font-size:13px;color:var(--text);vertical-align:middle}
-.pc-table tbody tr:last-child td{border-bottom:none}
-.pc-adm-badge{background:#e0f2f1;color:var(--pc-deep);border-radius:4px;padding:3px 8px;font-size:12px;font-weight:700;font-family:monospace}
-.pc-status-paid{background:#e8f5e9;color:#2e7d32;border-radius:4px;padding:3px 8px;font-size:11px;font-weight:600}
-.pc-status-partial{background:#fff3e0;color:#f57c00;border-radius:4px;padding:3px 8px;font-size:11px;font-weight:600}
-.pc-status-due{background:#ffebee;color:var(--red);border-radius:4px;padding:3px 8px;font-size:11px;font-weight:600}
-.pc-name-cell{display:flex;align-items:center;gap:8px}
-.pc-empty{text-align:center;padding:40px 20px;color:var(--muted)}
-.pc-empty i{font-size:40px;margin-bottom:12px;opacity:.5;display:block}
-.pc-empty p{margin:0;font-size:14px}
+/* ─── Stats ─── */
+.cc-stats{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:10px;
+    margin-bottom:14px;
+}
+@media(max-width:768px){.cc-stats{grid-template-columns:repeat(2,1fr);gap:8px;}}
+@media(max-width:480px){.cc-stats{grid-template-columns:1fr 1fr;gap:6px;}}
+.cc-stat-card{
+    background:var(--cc-white);
+    border:1px solid var(--cc-border);
+    border-radius:var(--cc-radius);
+    padding:10px 12px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+}
+.cc-stat-icon{
+    width:32px;
+    height:32px;
+    border-radius:var(--cc-radius);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:14px;
+    flex-shrink:0;
+}
+.cc-stat-icon--blue{background:#e8edff;color:var(--cc-primary);}
+.cc-stat-icon--amber{background:var(--cc-amber-bg);color:var(--cc-amber);}
+.cc-stat-icon--green{background:var(--cc-green-bg);color:var(--cc-green);}
+.cc-stat-icon--primary{background:var(--cc-primary-light);color:var(--cc-primary);}
+.cc-stat-body{min-width:0;}
+.cc-stat-label{
+    font-size:9px;
+    font-weight:600;
+    text-transform:uppercase;
+    letter-spacing:.4px;
+    color:var(--cc-muted);
+    margin-bottom:1px;
+}
+.cc-stat-value{
+    font-size:16px;
+    font-weight:700;
+    color:var(--cc-text);
+    line-height:1.1;
+}
 
-.pc-pagination{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
-.pc-pagination .pagination{margin:0}
+/* ─── Main Card ─── */
+.cc-card{
+    background:var(--cc-white);
+    border:1px solid var(--cc-border);
+    border-radius:var(--cc-radius);
+    margin-bottom:20px;
+    overflow:hidden;
+}
+.cc-card-header{
+    padding:8px 14px;
+    border-bottom:1px solid var(--cc-border);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:8px;
+    flex-wrap:wrap;
+    background:#fafcfd;
+}
+.cc-card-header-left{
+    display:flex;
+    align-items:center;
+    gap:8px;
+}
+.cc-card-icon{
+    width:28px;
+    height:28px;
+    border-radius:var(--cc-radius);
+    background:var(--cc-primary-light);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color:var(--cc-primary);
+    font-size:13px;
+    flex-shrink:0;
+}
+.cc-card-title{
+    font-size:13px;
+    font-weight:700;
+    color:var(--cc-text);
+    line-height:1.2;
+}
+.cc-card-subtitle{
+    font-size:10.5px;
+    color:var(--cc-muted);
+    margin-top:1px;
+}
+.cc-card-actions{
+    display:flex;
+    align-items:center;
+    gap:6px;
+}
+.cc-card-badge{
+    background:var(--cc-primary-light);
+    color:var(--cc-primary);
+    border:1px solid #c7d4f0;
+    border-radius:var(--cc-radius);
+    padding:2px 8px;
+    font-size:10px;
+    font-weight:600;
+    white-space:nowrap;
+}
+.cc-card-body{
+    padding:0;
+}
 
-/* Actions */
-.pc-print-btn{background:#00bfa5;color:#fff;border:1px solid #00bfa5;transition:all .2s; cursor:pointer;}
-.pc-print-btn:hover{background:#00897b;color:#fff;}
-.pc-view-btn{background:#1976D2;color:#fff;border:none;border-radius:5px;padding:4px 8px;font-size:12px;cursor:pointer;transition:all .2s}
-.pc-view-btn:hover{background:#1565C0}
-.pc-delete-btn{background:#ffebee;color:var(--red);border:1px solid #ffcdd2;border-radius:5px;padding:4px 8px;font-size:12px;cursor:pointer;transition:all .2s}
-.pc-delete-btn:hover{background:var(--red);color:#fff}
-.pc-modal-print-btn{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s}
-.pc-modal-print-btn:hover{background:rgba(255,255,255,.3)}
+/* ─── Buttons ─── */
+.cc-btn{
+    display:inline-flex;
+    align-items:center;
+    gap:4px;
+    border:1px solid var(--cc-border);
+    border-radius:var(--cc-radius);
+    padding:5px 10px;
+    font-size:11px;
+    font-weight:600;
+    font-family:var(--cc-font);
+    cursor:pointer;
+    transition:all .15s;
+    line-height:1.2;
+    white-space:nowrap;
+    background:var(--cc-white);
+    color:var(--cc-text);
+}
+.cc-btn:hover{ border-color:var(--cc-primary);color:var(--cc-primary);}
+.cc-btn-primary{
+    background:var(--cc-primary);
+    border-color:var(--cc-primary);
+    color:#fff;
+}
+.cc-btn-primary:hover{background:var(--cc-primary-dark);border-color:var(--cc-primary-dark);color:#fff;}
+.cc-btn-reset{
+    background:var(--cc-white);
+    border-color:var(--cc-red);
+    color:var(--cc-red);
+}
+.cc-btn-reset:hover{background:var(--cc-red-bg);border-color:var(--cc-red);}
+.cc-btn-export{
+    background:var(--cc-green);
+    border-color:var(--cc-green);
+    color:#fff;
+}
+.cc-btn-export:hover{background:#059669;border-color:#059669;color:#fff;}
+.cc-btn-sm{padding:3px 8px;font-size:10px;}
 
-/* Print template for modal */
-.print-bill-wrapper{background:#fff;max-width:560px;margin:0 auto;border:1px solid #ccc;font-family:'Hind Siliguri',Arial,sans-serif}
-.print-letterhead{display:flex;justify-content:space-between;align-items:flex-start;padding:16px;border-bottom:2px solid #00796B}
-.print-lh-left{font-size:11px;color:#444;min-width:100px}
-.print-reg-label{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.4px}
-.print-reg-val{font-size:12px;font-weight:700;color:#00695C}
-.print-lh-center{flex:1;text-align:center;padding:0 10px}
-.print-clinic-name{font-size:18px;font-weight:700;color:#00695C;letter-spacing:.4px}
-.print-clinic-addr{font-size:11px;color:#555}
-.print-clinic-cell{font-size:11px;color:#777}
-.print-lh-right{font-size:11px;color:#555;text-align:right;line-height:1.7;min-width:100px}
-.print-patient-row{display:flex;flex-wrap:wrap;gap:8px;padding:10px 16px;background:#f8f9fa;border-bottom:1px solid #ddd}
-.print-pf{flex:1;min-width:100px}
-.print-pf-label{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.3px;display:block}
-.print-pf-val{font-size:12px;font-weight:600;color:#333}
-.print-bill-title{text-align:center;font-size:12px;font-weight:700;letter-spacing:2px;padding:7px;background:#f0faf8;border-bottom:2px solid #B2DFDB;color:#00695C;text-transform:uppercase}
-.print-bill-table{width:100%;border-collapse:collapse;font-size:12px}
-.print-bill-table thead th{background:#f0faf8;color:#1a2332;font-size:10px;font-weight:700;text-transform:uppercase;padding:6px 12px;border-bottom:2px solid #B2DFDB;text-align:left}
-.print-bill-table tbody td{padding:6px 12px;border-bottom:1px solid #eee;vertical-align:middle}
-.print-bill-table tfoot td{padding:7px 12px;font-weight:700}
-.print-footer-note{font-size:12px;color:#444;padding:9px 16px;border-top:1px dashed #ccc;background:#fafafa;font-family:'Hind Siliguri',Arial,sans-serif}
-.print-sig-row{display:flex;justify-content:space-between;align-items:flex-end;padding:12px 16px}
-.print-sig-left{font-size:12px;color:#555}
-.print-sig-right{text-align:center}
-.print-sig-line{border-bottom:1px solid #999;width:110px;margin-bottom:4px}
-.print-sig-label{font-size:11px;color:#777}
+/* ─── Search Bar ─── */
+.cc-search-bar{
+    padding:10px 14px;
+    background:#f8f7fc;
+    border-bottom:1px solid var(--cc-border);
+}
+.cc-search-form{width:100%;}
+.cc-search-row{
+    display:flex;
+    gap:6px;
+    align-items:center;
+    flex-wrap:wrap;
+}
+.cc-search-group{
+    display:flex;
+    align-items:center;
+    background:var(--cc-white);
+    border:1px solid var(--cc-border);
+    border-radius:var(--cc-radius);
+    overflow:hidden;
+    flex:1;
+    min-width:180px;
+    transition:border-color .15s;
+}
+.cc-search-group:focus-within{
+    border-color:var(--cc-primary);
+}
+.cc-search-icon{
+    padding:0 8px;
+    color:var(--cc-muted);
+    font-size:12px;
+}
+.cc-search-input{
+    flex:1;
+    border:none;
+    outline:none;
+    padding:5px 8px;
+    font-size:12px;
+    background:transparent;
+    color:var(--cc-text);
+    font-family:var(--cc-font);
+    height:30px;
+}
+.cc-search-group .cc-btn{
+    border-radius:0;
+    height:30px;
+    padding:0 12px;
+    font-size:11px;
+}
+.cc-select{
+    border:1px solid var(--cc-border);
+    border-radius:var(--cc-radius);
+    padding:4px 8px;
+    font-size:12px;
+    font-family:var(--cc-font);
+    outline:none;
+    cursor:pointer;
+    background:var(--cc-white);
+    color:var(--cc-text);
+    transition:border-color .15s;
+    height:30px;
+}
+.cc-select:focus{border-color:var(--cc-primary);}
+.cc-clear-link{
+    font-size:11px;
+    color:var(--cc-primary);
+    text-decoration:none;
+    font-weight:500;
+    white-space:nowrap;
+    padding:4px 0;
+}
+.cc-clear-link:hover{text-decoration:underline;}
 
-.d-none{display:none!important}
+/* ─── Table ─── */
+.cc-table{
+    width:100%;
+    border-collapse:collapse;
+    font-size:11.5px;
+}
+.cc-table thead th{
+    background:#f0f1f5;
+    color:var(--cc-text);
+    font-weight:700;
+    font-size:10px;
+    text-transform:uppercase;
+    letter-spacing:.3px;
+    padding:6px 6px;
+    border-bottom:2px solid var(--cc-border);
+    white-space:nowrap;
+    text-align:left;
+}
+.cc-table thead th.text-right{text-align:right;}
+.cc-table thead th.text-center{text-align:center;}
+.cc-table tbody td{
+    padding:5px 6px;
+    border-bottom:1px solid #eef0f2;
+    vertical-align:middle;
+}
+.cc-table tbody tr:hover{background:var(--cc-primary-light);}
+.cc-table .text-right{text-align:right;}
+.cc-table .text-center{text-align:center;}
+.cc-table .text-green{color:var(--cc-green);font-weight:600;}
+.cc-table .text-red{color:var(--cc-red);font-weight:600;}
 
+.cc-table .cc-empty{
+    text-align:center;
+    padding:40px 0;
+    color:var(--cc-muted);
+}
+.cc-table .cc-empty i{font-size:1.8rem;display:block;margin-bottom:8px;color:var(--cc-border);}
+.cc-table .cc-empty p{margin:0;font-size:13px;}
+
+/* ─── Badges ─── */
+.cc-badge{
+    display:inline-block;
+    border-radius:var(--cc-radius);
+    padding:2px 8px;
+    font-size:10px;
+    font-weight:600;
+    white-space:nowrap;
+}
+.cc-badge--paid{background:var(--cc-green-bg);color:var(--cc-green);}
+.cc-badge--partial{background:var(--cc-amber-bg);color:var(--cc-amber);}
+.cc-badge--due{background:var(--cc-red-bg);color:var(--cc-red);}
+
+/* ─── Action Buttons ─── */
+.cc-action-btn{
+    border-radius:var(--cc-radius);
+    padding:3px 5px;
+    font-size:10px;
+    font-weight:500;
+    cursor:pointer;
+    transition:all .12s;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    border:1px solid transparent;
+    background:transparent;
+    color:var(--cc-muted);
+    font-family:var(--cc-font);
+    min-width:24px;
+    height:24px;
+}
+.cc-action-btn:hover{background:var(--cc-primary-light);color:var(--cc-primary);border-color:var(--cc-primary);}
+.cc-action-btn--print{color:var(--cc-primary);border-color:var(--cc-primary);background:var(--cc-primary-light);}
+.cc-action-btn--print:hover{background:var(--cc-primary);color:#fff;}
+.cc-action-btn--view{color:var(--cc-amber);border-color:var(--cc-amber);background:var(--cc-amber-bg);}
+.cc-action-btn--view:hover{background:var(--cc-amber);color:#fff;}
+.cc-action-btn--delete{color:var(--cc-red);border-color:var(--cc-red);background:var(--cc-red-bg);}
+.cc-action-btn--delete:hover{background:var(--cc-red);color:#fff;}
+
+/* ─── Load More ─── */
+.cc-load-more-wrap{
+    padding:12px 14px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:6px;
+}
+.cc-load-more{
+    border:1px solid var(--cc-border);
+    border-radius:var(--cc-radius);
+    background:var(--cc-white);
+    color:var(--cc-primary);
+    padding:8px 24px;
+    font-size:12px;
+    font-weight:600;
+    cursor:pointer;
+    transition:all .12s;
+    font-family:var(--cc-font);
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+}
+.cc-load-more:hover{
+    background:var(--cc-primary-light);
+    border-color:var(--cc-primary);
+}
+.cc-load-more:disabled{opacity:.5;cursor:not-allowed;}
+.cc-pagination-info{
+    font-size:10.5px;
+    color:var(--cc-muted);
+}
+.d-none{display:none!important;}
+
+/* ─── Modal (unchanged, kept compact) ─── */
+.cc-modal-content{
+    border:none;
+    border-radius:var(--cc-radius);
+    overflow:hidden;
+    background:var(--cc-white);
+}
+.cc-modal-header{
+    background:var(--cc-primary);
+    color:var(--cc-white);
+    border:none;
+    padding:12px 16px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+}
+.cc-modal-header-left{
+    display:flex;
+    align-items:center;
+    gap:10px;
+}
+.cc-modal-icon{
+    width:34px;
+    height:34px;
+    border-radius:var(--cc-radius);
+    background:rgba(255,255,255,.14);
+    border:1px solid rgba(255,255,255,.2);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:14px;
+    color:var(--cc-white);
+    flex-shrink:0;
+}
+.cc-modal-title{
+    font-size:14px;
+    font-weight:700;
+    color:var(--cc-white);
+    margin:0;
+    line-height:1.2;
+}
+.cc-modal-subtitle{
+    font-size:10.5px;
+    opacity:.75;
+    color:var(--cc-white);
+    margin-top:1px;
+}
+.cc-modal-header-actions{
+    display:flex;
+    gap:6px;
+    align-items:center;
+}
+.cc-modal-print-btn{
+    background:rgba(255,255,255,.18);
+    border:1px solid rgba(255,255,255,.25);
+    color:var(--cc-white);
+    border-radius:var(--cc-radius);
+    padding:4px 12px;
+    font-size:11px;
+    font-weight:600;
+    cursor:pointer;
+    transition:all .12s;
+    font-family:var(--cc-font);
+    display:inline-flex;
+    align-items:center;
+    gap:4px;
+}
+.cc-modal-print-btn:hover{background:rgba(255,255,255,.28);}
+.cc-modal-close{
+    background:none;
+    border:none;
+    color:var(--cc-white);
+    font-size:16px;
+    cursor:pointer;
+    opacity:.7;
+    transition:opacity .12s;
+}
+.cc-modal-close:hover{opacity:1;}
+.cc-modal-body{
+    padding:0;
+}
+.cc-modal-state{
+    text-align:center;
+    padding:40px 20px;
+    color:var(--cc-muted);
+}
+.cc-modal-state i{
+    font-size:26px;
+    color:var(--cc-primary);
+    display:block;
+    margin-bottom:8px;
+}
+.cc-modal-state p{margin:0;font-size:12px;}
+.cc-modal-state--error i{color:var(--cc-red);}
+.cc-modal-state--error p{color:var(--cc-red);}
+.cc-modal-print-area{
+    padding:16px 20px;
+}
+.cc-modal-footer{
+    background:#f8f7fc;
+    border-top:1px solid var(--cc-border);
+    padding:10px 16px;
+    display:flex;
+    justify-content:flex-end;
+}
+.cc-modal-close-btn{
+    background:var(--cc-white);
+    border:1px solid var(--cc-border);
+    border-radius:var(--cc-radius);
+    color:var(--cc-text);
+    padding:5px 14px;
+    font-size:11px;
+    font-weight:500;
+    cursor:pointer;
+    transition:all .12s;
+    font-family:var(--cc-font);
+    display:inline-flex;
+    align-items:center;
+    gap:4px;
+}
+.cc-modal-close-btn:hover{background:#f0eff5;}
+
+/* ─── Print template (kept as is) ─── */
+.print-bill-wrapper{background:#fff;max-width:560px;margin:0 auto;border:1px solid var(--cc-border);font-family:var(--cc-font);}
+.print-letterhead{display:flex;justify-content:space-between;align-items:flex-start;padding:16px;border-bottom:2px solid var(--cc-primary);}
+.print-lh-left{font-size:11px;color:#444;min-width:100px;}
+.print-reg-label{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.4px;}
+.print-reg-val{font-size:12px;font-weight:700;color:var(--cc-primary);}
+.print-lh-center{flex:1;text-align:center;padding:0 10px;}
+.print-clinic-name{font-size:18px;font-weight:700;color:var(--cc-primary);letter-spacing:.4px;}
+.print-clinic-addr{font-size:11px;color:#555;}
+.print-clinic-cell{font-size:11px;color:#777;}
+.print-lh-right{font-size:11px;color:#555;text-align:right;line-height:1.7;min-width:100px;}
+.print-patient-row{display:flex;flex-wrap:wrap;gap:8px;padding:10px 16px;background:#f8f9fa;border-bottom:1px solid #ddd;}
+.print-pf{flex:1;min-width:100px;}
+.print-pf-label{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.3px;display:block;}
+.print-pf-val{font-size:12px;font-weight:600;color:#333;}
+.print-bill-title{text-align:center;font-size:12px;font-weight:700;letter-spacing:2px;padding:7px;background:var(--cc-primary-light);border-bottom:2px solid #c7d4f0;color:var(--cc-primary);text-transform:uppercase;}
+.print-bill-table{width:100%;border-collapse:collapse;font-size:12px;}
+.print-bill-table thead th{background:var(--cc-primary-light);color:var(--cc-primary);font-size:10px;font-weight:700;text-transform:uppercase;padding:6px 12px;border-bottom:2px solid #c7d4f0;text-align:left;}
+.print-bill-table tbody td{padding:6px 12px;border-bottom:1px solid #eee;vertical-align:middle;}
+.print-bill-table tfoot td{padding:7px 12px;font-weight:700;}
+.print-footer-note{font-size:12px;color:#444;padding:9px 16px;border-top:1px dashed #ccc;background:#fafafa;}
+.print-sig-row{display:flex;justify-content:space-between;align-items:flex-end;padding:12px 16px;}
+.print-sig-left{font-size:12px;color:#555;}
+.print-sig-right{text-align:center;}
+.print-sig-line{border-bottom:1px solid #999;width:110px;margin-bottom:4px;}
+.print-sig-label{font-size:11px;color:#777;}
 @media print{
     *{visibility:hidden!important}
     #prescription-print-area,#prescription-print-area *{visibility:visible!important}
     #prescription-print-area{position:fixed!important;top:0!important;left:0!important;width:100%!important;margin:0!important;padding:0!important;z-index:99999!important;}
     .print-bill-wrapper{box-shadow:none!important;border:1px solid #000!important;max-width:100%!important;width:100%!important;}
     @page{margin:8mm;size:A5}
+}
+
+/* ─── Bottom Navigation ─── */
+.cc-bottom-nav{
+    position:fixed;
+    bottom:0;
+    left:0;
+    right:0;
+    height:50px;
+    background:var(--cc-white);
+    border-top:1px solid var(--cc-border);
+    display:flex;
+    align-items:center;
+    justify-content:space-around;
+    z-index:1050;
+    padding:0 4px;
+}
+.cc-bottom-nav-item{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:1px;
+    text-decoration:none!important;
+    color:var(--cc-muted);
+    font-size:9px;
+    font-weight:500;
+    padding:4px 6px;
+    border-radius:var(--cc-radius);
+    transition:color .12s;
+    min-width:48px;
+}
+.cc-bottom-nav-item i{
+    font-size:16px;
+    transition:color .12s;
+}
+.cc-bottom-nav-item:hover{color:var(--cc-primary);}
+.cc-bottom-nav-item--active{
+    color:var(--cc-primary);
+}
+.cc-bottom-nav-item--active i{
+    color:var(--cc-primary);
+}
+.cc-bottom-spacer{
+    height:56px;
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 768px) {
+    .cc-search-row{
+        flex-direction:column;
+        align-items:stretch;
+    }
+    .cc-search-group{min-width:100%;}
+    .cc-search-group .cc-btn{flex-shrink:0;}
+}
+@media (max-width: 576px) {
+    .cc-stats{grid-template-columns:1fr 1fr;gap:4px;}
+    .cc-stat-card{padding:6px 8px;}
+    .cc-stat-value{font-size:14px;}
+    .cc-table thead{display:none;}
+    .cc-table tbody tr{display:block;border:1px solid var(--cc-border);margin-bottom:6px;border-radius:var(--cc-radius);padding:6px;}
+    .cc-table tbody td{display:block;text-align:left!important;border:none;padding:2px 4px;}
+    .cc-table tbody td::before{content:attr(data-label);font-weight:700;margin-right:6px;color:var(--cc-muted);font-size:9px;text-transform:uppercase;}
+    .cc-table tbody td:first-child::before{content:'Date';}
+    .cc-table tbody td:nth-child(2)::before{content:'Bill No';}
+    .cc-table tbody td:nth-child(3)::before{content:'Patient';}
+    .cc-table tbody td:nth-child(4)::before{content:'Total';}
+    .cc-table tbody td:nth-child(5)::before{content:'Paid';}
+    .cc-table tbody td:nth-child(6)::before{content:'Due';}
+    .cc-table tbody td:nth-child(7)::before{content:'Status';}
+    .cc-table tbody td:nth-child(8)::before{content:'Action';}
+    .cc-table tbody td:last-child{text-align:center;}
+    .cc-card-actions{width:100%;justify-content:space-between;}
 }
 </style>
 @stop
@@ -368,15 +942,65 @@ function fmtDate(d){
 }
 function showAlert(msg, type){
     var el = document.getElementById('save-alert');
-    el.className = 'alert alert-'+(type||'success')+' mb-3';
+    el.className = 'cc-alert alert-'+(type||'success');
     el.textContent = msg;
     el.classList.remove('d-none');
     window.scrollTo({top:0,behavior:'smooth'});
     setTimeout(function(){ el.classList.add('d-none'); }, 5000);
 }
 
+/* ========== LOAD MORE (adapt to table rows) ========== */
+function loadMore(btn){
+    var nextUrl = btn.getAttribute('data-next');
+    if(!nextUrl) return;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+    fetch(nextUrl, {headers:{'Accept':'text/html'}})
+    .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.text(); })
+    .then(function(html){
+        var parser = new DOMParser();
+        var doc = parser.parseFromString(html, 'text/html');
+        var newRows = doc.querySelectorAll('#tableBody tr');
+        var container = document.getElementById('tableBody');
+        newRows.forEach(function(row){ container.appendChild(row); });
+        var newWrap = doc.getElementById('loadMoreWrap');
+        if(newWrap){
+            var newBtn = newWrap.querySelector('.cc-load-more');
+            var newInfo = newWrap.querySelector('.cc-pagination-info');
+            if(newBtn){
+                btn.setAttribute('data-next', newBtn.getAttribute('data-next')||'');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-chevron-down"></i> Load More';
+                if(!newBtn.getAttribute('data-next')){
+                    btn.style.display = 'none';
+                }
+            } else {
+                btn.style.display = 'none';
+            }
+            if(newInfo){
+                document.querySelector('.cc-pagination-info').textContent = newInfo.textContent;
+            }
+        } else {
+            btn.style.display = 'none';
+        }
+    })
+    .catch(function(e){
+        showAlert('Error loading more: '+e.message,'danger');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-chevron-down"></i> Load More';
+    });
+}
 
-/* -- viewReceipt modal ------------------------------------- */
+/* ========== RESET FILTER ========== */
+function resetFilter(e){
+    e.preventDefault();
+    var form = document.getElementById('paySearchForm');
+    form.querySelector('input[name="search"]').value = '';
+    form.querySelector('select[name="status_filter"]').value = 'all';
+    form.submit();
+}
+
+/* ========== VIEW RECEIPT (unchanged) ========== */
 function viewReceipt(id){
     $('#receiptModal').modal('show');
     document.getElementById('modal-loading').style.display = '';
@@ -406,10 +1030,10 @@ function renderModal(d){
 
     var footerRows =
         '<tr style="background:#f0faf8"><td colspan="2" style="text-align:right;font-weight:700">Total</td><td style="text-align:right;font-weight:700">'+Number(gross).toLocaleString()+'</td></tr>'+
-        (less>0?'<tr style="color:#c62828"><td colspan="2" style="text-align:right">Less (Discount)</td><td style="text-align:right"> '+Number(less).toLocaleString()+'</td></tr>':'')+
-        '<tr style="background:#e0f2f1"><td colspan="2" style="text-align:right;font-weight:700;color:#00695c">Net Total</td><td style="text-align:right;font-weight:700;color:#00695c">'+Number(net).toLocaleString()+'</td></tr>'+
-        '<tr style="background:#fff8e1"><td colspan="2" style="text-align:right">Paid</td><td style="text-align:right;font-weight:700">'+Number(adv).toLocaleString()+'</td></tr>'+
-        (due>0?'<tr style="background:#ffebee"><td colspan="2" style="text-align:right;font-weight:700;color:#c62828">Due</td><td style="text-align:right;font-weight:700;color:#c62828">'+Number(due).toLocaleString()+'</td></tr>':'');
+        (less>0?'<tr style="color:#ef4444"><td colspan="2" style="text-align:right">Less (Discount)</td><td style="text-align:right"> '+Number(less).toLocaleString()+'</td></tr>':'')+
+        '<tr style="background:var(--cc-primary-light, #e8edff)"><td colspan="2" style="text-align:right;font-weight:700;color:var(--cc-primary, #0f52ba)">Net Total</td><td style="text-align:right;font-weight:700;color:var(--cc-primary, #0f52ba)">'+Number(net).toLocaleString()+'</td></tr>'+
+        '<tr style="background:#fffbeb"><td colspan="2" style="text-align:right">Paid</td><td style="text-align:right;font-weight:700">'+Number(adv).toLocaleString()+'</td></tr>'+
+        (due>0?'<tr style="background:#fef2f2"><td colspan="2" style="text-align:right;font-weight:700;color:#ef4444">Due</td><td style="text-align:right;font-weight:700;color:#ef4444">'+Number(due).toLocaleString()+'</td></tr>':'');
 
     document.getElementById('modal-prescription-print-area').innerHTML =
         '<div class="print-bill-wrapper" id="prescription-print-area">'+
@@ -442,7 +1066,7 @@ function showModalError(msg){
     document.getElementById('modal-error').classList.remove('d-none');
 }
 
-/* -- deleteRecord ------------------------------------------ */
+/* ========== DELETE ========== */
 function deleteRecord(id, btn){
     if(!confirm('Delete this bill? This cannot be undone.')) return;
     btn.disabled = true;
@@ -464,25 +1088,25 @@ function deleteRecord(id, btn){
     .catch(function(e){ showAlert('Error: '+e.message,'danger'); btn.disabled = false; });
 }
 
-/* -- print ------------------------------------------------- */
+/* ========== PRINT MODAL ========== */
 function printModal(){
     var area = document.getElementById('modal-prescription-print-area');
     if(!area||!area.innerHTML.trim()){ alert('No receipt to print.'); return; }
     var html = '<!DOCTYPE html><html><head><meta charset="UTF-8">'+
-        '<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;600;700&display=swap" rel="stylesheet">'+
-        '<style>body{margin:0;padding:8mm;font-family:"Hind Siliguri",Arial,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
-        '.print-bill-wrapper{max-width:100%;margin:0 auto;border:1px solid #ccc}'+
-        '.print-letterhead{display:flex;justify-content:space-between;align-items:flex-start;padding:16px;border-bottom:2px solid #00796B}'+
-        '.print-lh-center{flex:1;text-align:center;padding:0 10px}.print-clinic-name{font-size:18px;font-weight:700;color:#00695C}'+
+        '<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">'+
+        '<style>body{margin:0;padding:8mm;font-family:"Hanken Grotesk",Arial,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
+        '.print-bill-wrapper{max-width:100%;margin:0 auto;border:1px solid #d9d9e2}'+
+        '.print-letterhead{display:flex;justify-content:space-between;align-items:flex-start;padding:16px;border-bottom:2px solid #0f52ba}'+
+        '.print-lh-center{flex:1;text-align:center;padding:0 10px}.print-clinic-name{font-size:18px;font-weight:700;color:#0f52ba}'+
         '.print-clinic-addr,.print-clinic-cell{font-size:11px;color:#555}.print-lh-left{font-size:11px;color:#444;min-width:100px}'+
         '.print-lh-right{font-size:11px;color:#555;text-align:right;line-height:1.7;min-width:100px}'+
-        '.print-reg-label{font-size:10px;color:#888;text-transform:uppercase}.print-reg-val{font-size:12px;font-weight:700;color:#00695C}'+
+        '.print-reg-label{font-size:10px;color:#888;text-transform:uppercase}.print-reg-val{font-size:12px;font-weight:700;color:#0f52ba}'+
         '.print-patient-row{display:flex;flex-wrap:wrap;gap:8px;padding:10px 16px;background:#f8f9fa;border-bottom:1px solid #ddd}'+
         '.print-pf{flex:1;min-width:100px}.print-pf-label{font-size:10px;color:#888;text-transform:uppercase;display:block}'+
         '.print-pf-val{font-size:12px;font-weight:600;color:#333}'+
-        '.print-bill-title{text-align:center;font-size:12px;font-weight:700;letter-spacing:2px;padding:7px;background:#f0faf8;border-bottom:2px solid #B2DFDB;color:#00695C;text-transform:uppercase}'+
+        '.print-bill-title{text-align:center;font-size:12px;font-weight:700;letter-spacing:2px;padding:7px;background:#e8edff;border-bottom:2px solid #c7d4f0;color:#0f52ba;text-transform:uppercase}'+
         '.print-bill-table{width:100%;border-collapse:collapse;font-size:12px}'+
-        '.print-bill-table thead th{background:#f0faf8;font-size:10px;font-weight:700;text-transform:uppercase;padding:6px 12px;border-bottom:2px solid #B2DFDB;text-align:left}'+
+        '.print-bill-table thead th{background:#e8edff;font-size:10px;font-weight:700;text-transform:uppercase;padding:6px 12px;border-bottom:2px solid #c7d4f0;text-align:left}'+
         '.print-bill-table tbody td,.print-bill-table tfoot td{padding:6px 12px;border-bottom:1px solid #eee;vertical-align:middle}'+
         '.print-footer-note{font-size:12px;color:#444;padding:9px 16px;border-top:1px dashed #ccc;background:#fafafa}'+
         '.print-sig-row{display:flex;justify-content:space-between;align-items:flex-end;padding:12px 16px}'+
@@ -495,5 +1119,47 @@ function printModal(){
     iframe.srcdoc = html;
 }
 
+/* ========== EXPORT CSV ========== */
+function exportCSV(){
+    var rows = document.querySelectorAll('#tableBody tr');
+    if(!rows.length){ toastr.warning('No data to export.'); return; }
+    var data = [];
+    rows.forEach(function(row, idx){
+        var cells = row.querySelectorAll('td');
+        if(cells.length < 8) return;
+        data.push({
+            '#'          : idx + 1,
+            'Date'       : cells[0].textContent.trim(),
+            'Bill No'    : cells[1].textContent.trim(),
+            'Patient'    : cells[2].textContent.trim(),
+            'Total Bill' : parseFloat(cells[3].textContent.replace(/[^0-9.-]/g,'')) || 0,
+            'Paid'       : parseFloat(cells[4].textContent.replace(/[^0-9.-]/g,'')) || 0,
+            'Due'        : parseFloat(cells[5].textContent.replace(/[^0-9.-]/g,'')) || 0,
+            'Status'     : cells[6].textContent.trim(),
+        });
+    });
+    if(!data.length){ toastr.warning('No rows to export.'); return; }
+    var heads = Object.keys(data[0]);
+    var csv = [heads.join(','), ...data.map(row =>
+        heads.map(h => '"' + String(row[h]).replace(/"/g, '""') + '"').join(',')
+    )].join('\r\n');
+    var blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = 'ConfirmedInvoices_' + new Date().toISOString().slice(0,10) + '.csv'; a.click();
+    URL.revokeObjectURL(url);
+    toastr.success('CSV exported!');
+}
+
+// Ensure toastr is loaded (if not already)
+if(typeof toastr === 'undefined'){
+    var script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js';
+    document.head.appendChild(script);
+    var link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css';
+    document.head.appendChild(link);
+}
 </script>
 @stop

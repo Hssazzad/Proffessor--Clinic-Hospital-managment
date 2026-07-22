@@ -313,8 +313,12 @@ public function show1(Request $r)
 
         $pid = $v['prescription_id'] ?? null;
         if (!$pid) {
+            $tmpNo = 'TMP-' . $now->timestamp;
             $pid = DB::table('prescriptions')->insertGetId([
-                'patient_id'=>$patientId,'created_at'=>$now,'updated_at'=>$now,
+                'patient_id'      => $patientId,
+                'prescription_no' => $tmpNo,
+                'created_at'      => $now,
+                'updated_at'      => $now,
             ]);
         } else {
             DB::table('prescriptions')->where('id',$pid)->update([
@@ -353,11 +357,13 @@ public function savePatient(Request $r)
         DB::transaction(function() use ($patientId, $prevRxId, $patientCode, $now, &$newPid){
 
             // 1) Create a brand-new prescription
+            $tmpNo = 'TMP-' . $now->timestamp;
             $newPid = DB::table('prescriptions')->insertGetId([
-                'patient_id' => $patientId,
-                'advices'    => null,
-                'created_at' => $now,
-                'updated_at' => $now,
+                'patient_id'      => $patientId,
+                'prescription_no' => $tmpNo,
+                'advices'         => null,
+                'created_at'      => $now,
+                'updated_at'      => $now,
             ]);
 
             // 2) Fetch previous prescription
@@ -468,10 +474,12 @@ public function savePatient(Request $r)
             'updated_at' => $now,
         ]);
     } else {
+        $tmpNo = 'TMP-' . $now->timestamp;
         $pid = DB::table('prescriptions')->insertGetId([
-            'patient_id' => $patientId,
-            'created_at' => $now,
-            'updated_at' => $now,
+            'patient_id'      => $patientId,
+            'prescription_no' => $tmpNo,
+            'created_at'      => $now,
+            'updated_at'      => $now,
         ]);
     }
 
@@ -1003,25 +1011,38 @@ public function finishNew(Request $r)
 
     // ✅ First close (complete) the active prescription if exists
     if ($patientId) {
+        $prefix = 'RX-' . now()->format('Ymd') . '-';
+        $lastRx = DB::table('prescriptions')
+            ->where('prescription_no', 'like', $prefix . '%')
+            ->orderByDesc('prescription_no')
+            ->value('prescription_no');
+        $nextNo = 1;
+        if ($lastRx && preg_match('/-(\d{4})$/', $lastRx, $m)) {
+            $nextNo = (int)$m[1] + 1;
+        }
+        $prescriptionNo = $prefix . str_pad((string)$nextNo, 4, '0', STR_PAD_LEFT);
+
         DB::table('prescriptions')
             ->where('patient_id', $patientId)
-            ->where('status', 0) // active/incomplete
+            ->where(function ($q) {
+                $q->whereNull('status')
+                  ->orWhere('status', 0);
+            })
             ->update([
-                'status'     => 1,   // completed
-                'updated_at' => $now,
+                'status'          => 1,
+                'prescribed_on'   => now()->toDateString(),
+                'prescription_no' => $prescriptionNo,
+                'updated_at'      => $now,
             ]);
     }
-
-    // ✅ Create new prescription
-   
 
     // If same patient, go to investigations, else start at patients tab
     $tab = $patientId ? 'patients' : 'patients';
 
-    return redirect()->route('rx.wizard', [       
+    return redirect()->route('rx.wizard', [
         'patient' => $patientId,
         'tab'     => $tab,
-    ])->with('success', 'Previous prescription completed. New prescription started.');
+    ])->with('success', 'Prescription completed. New prescription started.');
 }
 
 
@@ -1280,6 +1301,83 @@ public function pdf($id, Request $r)
 
     return response($mpdf->Output("prescription-{$pid}.pdf", 'S'))
         ->header('Content-Type', 'application/pdf');
+}
+
+public function admissionSearch(Request $r)
+{
+    $patientId = $r->query('patient');
+
+    $patients = collect();
+    if (Schema::hasTable('patients')) {
+        $patients = DB::table('patients')
+            ->orderBy('patientname')
+            ->get(['id', 'patientname', 'mobile_no', 'patientcode']);
+    }
+
+    $selectedPatient = null;
+    $admissions      = collect();
+
+    if ($patientId) {
+        $selectedPatient = DB::table('patients')->where('id', $patientId)->first();
+
+        if ($selectedPatient && Schema::hasTable('tbl_patient_admission')) {
+            $admissions = DB::table('tbl_patient_admission')
+                ->where('patient_id', $patientId)
+                ->orderByDesc('id')
+                ->get(['id', 'admission_no', 'admission_date', 'discharge_date', 'stage', 'status']);
+        }
+    }
+
+    return view('prescriptions.admission-search', compact(
+        'patients', 'selectedPatient', 'admissions', 'patientId'
+    ));
+}
+
+public function admissionStagePreview($admissionId)
+{
+    $admission = DB::table('tbl_patient_admission')->where('id', $admissionId)->first();
+    if (!$admission) abort(404);
+
+    $patient = DB::table('patients')->where('id', $admission->patient_id)->first();
+
+    $onAdmissionMeds = collect();
+    $preSurgeryMeds  = collect();
+    $postSurgeryMeds = collect();
+    $roundMeds       = collect();
+    $freshMeds       = collect();
+    $dischargeMeds   = collect();
+
+    $tables = [
+        'admit'     => ['tbl' => 'patient_admission_medicines',  'col' => 'patient_admission_id'],
+        'preorder'  => ['tbl' => 'patient_preop_medicines',      'col' => 'patient_admission_id'],
+        'postorder' => ['tbl' => 'patient_postop_medicines',     'col' => 'patient_admission_id'],
+        'round'     => ['tbl' => 'patient_round_medicines',      'col' => 'patient_admission_id'],
+        'fresh'     => ['tbl' => 'patient_instant_medicines',    'col' => 'patient_admission_id'],
+        'discharge' => ['tbl' => 'patient_discharge_medicines',  'col' => 'patient_admission_id'],
+    ];
+
+    foreach ($tables as $key => $cfg) {
+        if (Schema::hasTable($cfg['tbl'])) {
+            $rows = DB::table($cfg['tbl'])
+                ->where($cfg['col'], $admissionId)
+                ->orderBy('id')
+                ->get();
+            switch ($key) {
+                case 'admit':     $onAdmissionMeds = $rows; break;
+                case 'preorder':  $preSurgeryMeds  = $rows; break;
+                case 'postorder': $postSurgeryMeds = $rows; break;
+                case 'round':     $roundMeds       = $rows; break;
+                case 'fresh':     $freshMeds       = $rows; break;
+                case 'discharge': $dischargeMeds   = $rows; break;
+            }
+        }
+    }
+
+    return view('prescriptions.admission-stage-preview', compact(
+        'admission', 'patient',
+        'onAdmissionMeds', 'preSurgeryMeds', 'postSurgeryMeds',
+        'roundMeds', 'freshMeds', 'dischargeMeds'
+    ));
 }
 
 }

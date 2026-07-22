@@ -1,17 +1,13 @@
 <?php
+
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\MasterDataController;
 use App\Http\Controllers\InvestigationManageController;
 use App\Http\Controllers\ReferencePersonController;
+use App\Http\Controllers\UserMenuController;
 
-/*
-|--------------------------------------------------------------------------
-| Settings / Master Data Routes
-|--------------------------------------------------------------------------
-*/
 Route::prefix('settings')->middleware('auth')->group(function () {
 
-    // --- 1. Medicine Management ---
     Route::get('/AddMedicine', [MasterDataController::class, 'medicinesIndex'])
         ->name('settings.medicines.index');
     Route::post('/medicines/store', [MasterDataController::class, 'medicinesStore'])
@@ -21,7 +17,6 @@ Route::prefix('settings')->middleware('auth')->group(function () {
     Route::delete('/medicines/delete/{medicine}', [MasterDataController::class, 'medicinesDestroy'])
         ->name('settings.medicines.destroy');
 
-    // --- 2. Ward & Bed Management ---
     Route::get('/AddWardBed', [MasterDataController::class, 'wardBedIndex'])
         ->name('settings.wardbed.index');
     Route::post('/wardbed/store', [MasterDataController::class, 'wardBedStore'])
@@ -31,21 +26,17 @@ Route::prefix('settings')->middleware('auth')->group(function () {
     Route::delete('/wardbed/delete/{id}', [MasterDataController::class, 'wardBedDestroy'])
         ->name('settings.wardbed.destroy');
 
-    // --- 3. Investigation Management ---
     Route::prefix('InvestigationPayment')->name('investigations.')->group(function () {
-        // GET routes
         Route::get('/', [InvestigationManageController::class, 'index'])
             ->name('index');
         Route::get('/categories', [InvestigationManageController::class, 'getCategories'])
             ->name('categories');
         
-        // POST routes (Tests)
         Route::post('/store', [InvestigationManageController::class, 'store'])
             ->name('store');
         Route::post('/update', [InvestigationManageController::class, 'update'])
             ->name('update');
             
-        // POST/DELETE routes (Categories)
         Route::post('/categories/store', [InvestigationManageController::class, 'storeCategory'])
             ->name('categories.store');
         Route::post('/categories/update', [InvestigationManageController::class, 'updateCategory'])
@@ -53,12 +44,10 @@ Route::prefix('settings')->middleware('auth')->group(function () {
         Route::delete('/categories/{id}', [InvestigationManageController::class, 'destroyCategory'])
             ->name('categories.destroy');
         
-        // DELETE route (Tests) - Must be at the bottom to avoid overriding categories/{id}
         Route::delete('/{id}', [InvestigationManageController::class, 'destroy'])
             ->name('destroy');
     });
 
-    // --- 4. Reference Person Management ---
     Route::get('/ReferencePerson', [ReferencePersonController::class, 'index'])
         ->name('settings.referenceperson.index');
     Route::post('/referenceperson/store', [ReferencePersonController::class, 'store'])
@@ -68,4 +57,28 @@ Route::prefix('settings')->middleware('auth')->group(function () {
     Route::delete('/referenceperson/delete/{id}', [ReferencePersonController::class, 'destroy'])
         ->name('settings.referenceperson.destroy');
 
+});
+
+Route::middleware('auth')->group(function () {
+    
+    Route::get('usermenu/mainmenu', [UserMenuController::class, 'index'])
+        ->name('parentmenu.index');
+    Route::post('usermenu/mainmenu/store', [UserMenuController::class, 'parentStore'])
+        ->name('Parentstore');
+    Route::get('usermenu/mainmenu/{id}/edit', [UserMenuController::class, 'edit'])
+        ->name('parentmenu.edit');
+    Route::put('usermenu/mainmenu/{id}', [UserMenuController::class, 'update'])
+        ->name('parentmenu.update');
+    Route::delete('usermenu/mainmenu/{id}', [UserMenuController::class, 'destroy'])
+        ->name('parentmenu.destroy');
+
+    Route::get('usermenu/submenulist', [UserMenuController::class, 'submenulist'])
+        ->name('usermenu.submenulist');
+    Route::post('usermenu/submenulist/store', [UserMenuController::class, 'store'])
+        ->name('usermenu.submenulist.store');
+    Route::put('usermenu/submenulist/update/{id}', [UserMenuController::class, 'update'])
+        ->name('usermenu.submenulist.update');
+    Route::delete('usermenu/submenulist/delete/{id}', [UserMenuController::class, 'destroy'])
+        ->name('usermenu.submenulist.destroy');
+        
 });

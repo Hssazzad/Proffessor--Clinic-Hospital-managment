@@ -4,7 +4,7 @@
 @section('title','Prescription Wizard (Separate Forms)')
 
 @section('content_header')
-  <h1 class="text-primary">Prescription Wizard — Separate Forms</h1>
+  <h1 class="text-primary">Prescription Wizard ï¿½ Separate Forms</h1>
 @stop
 
 @section('content')
@@ -109,7 +109,7 @@
         </div>
 
         <div>
-          <label>Father’s Name</label>
+          <label>Fatherï¿½s Name</label>
           <input class="form-control" name="patientfather" value="{{ old('patientfather', $data['patient']->patientfather ?? '') }}">
         </div>
         <div>
@@ -134,7 +134,7 @@
 
       <div class="footer-actions" style="margin-top:1rem">
         <span class="muted">Tip: leave Patient Code empty to auto-generate (PT-YYYYMM-####).</span>
-        <button class="btn" type="submit">Save & Next ?</button>
+        <button class="btn" type="submit">Save & Next &rarr;</button>
       </div>
     </form>
   </div>
@@ -155,8 +155,8 @@
         <tbody></tbody>
       </table>
       <div class="footer-actions">
-        <a class="btn secondary" href="{{ route('rx.wizard',['id'=>$pid,'tab'=>'patients']) }}">? Back</a>
-        <button class="btn" type="submit">Save & Next ?</button>
+        <a class="btn secondary" href="{{ route('rx.wizard',['id'=>$pid,'tab'=>'patients']) }}">&larr; Back</a>
+        <button class="btn" type="submit">Save & Next &rarr;</button>
       </div>
     </form>
   </div>
@@ -183,8 +183,8 @@
         </div>
       </div>
       <div class="footer-actions">
-        <a class="btn secondary" href="{{ route('rx.wizard',['id'=>$pid,'tab'=>'investigations']) }}">? Back</a>
-        <button class="btn" type="submit">Save & Next ?</button>
+        <a class="btn secondary" href="{{ route('rx.wizard',['id'=>$pid,'tab'=>'investigations']) }}">&larr; Back</a>
+        <button class="btn" type="submit">Save & Next &rarr;</button>
       </div>
     </form>
   </div>
@@ -231,7 +231,7 @@
       </div>
 
       <div class="footer-actions">
-        <a class="btn secondary" href="{{ route('rx.wizard',['id'=>$pid,'tab'=>'diagnosis']) }}">? Back</a>
+        <a class="btn secondary" href="{{ route('rx.wizard',['id'=>$pid,'tab'=>'diagnosis']) }}">&larr; Back</a>
         <button class="btn" type="submit">Save Medicine</button>
       </div>
     </form>

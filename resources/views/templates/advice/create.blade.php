@@ -3,150 +3,564 @@
 @section('title', 'Template Advice')
 
 @section('content_header')
-    <div class="container-fluid">
-        <div class="row mb-2">
-            <div class="col-sm-6">
-                <h1 class="m-0 text-dark">Template Advice (???????)</h1>
-            </div>
+<div class="cc-appbar">
+    <div class="cc-appbar-inner">
+        <div class="cc-appbar-brand">
+            <i class="fas fa-comment-medical"></i>
+            <span>ClinicBilling</span>
         </div>
+        <div class="cc-appbar-subtitle">Template Advice — Manage medical advice templates for patient care</div>
     </div>
+</div>
 @stop
 
 @section('content')
-<section class="content">
-    <div class="container-fluid">
-        <div class="row">
-            <div class="col-md-4">
-                <div class="card card-warning card-outline">
-                    <div class="card-header">
-                        <h3 class="card-title"><i class="fas fa-comment-medical mr-1"></i> Add Advice</h3>
+<section class="cc-section">
+    <div class="container-fluid" style="max-width:1200px;">
+
+        {{-- Page Headline --}}
+        <div class="cc-page-headline mb-3">
+            <h1 class="cc-page-title">Template Advice</h1>
+            <p class="cc-page-desc">Create and manage standardized advice templates for patient care plans.</p>
+        </div>
+
+        {{-- Template Selection --}}
+        <div class="row mb-3">
+            <div class="col-md-12">
+                <div class="cc-card">
+                    <div class="cc-card-header">
+                        <i class="fas fa-file-medical-alt mr-2"></i>Select Template
                     </div>
-                    <form id="adviceForm">
-                        @csrf
-                        <div class="card-body">
-                            <div class="form-group">
-                                <label>Select Template <span class="text-danger">*</span></label>
-                                <select name="templateid" id="templateid" class="form-control select2 shadow-none">
-                                    <option value="">-- Choose Template --</option>
+                    <div class="cc-card-body">
+                        <div class="row align-items-end">
+                            <div class="col-md-6">
+                                <label class="cc-label">Template <span class="text-danger">*</span></label>
+                                <select id="templateid" class="form-control select2">
+                                    <option value="">-- Select Template --</option>
                                     @foreach($templates as $temp)
                                         <option value="{{ $temp->templateid }}">{{ $temp->title }}</option>
                                     @endforeach
                                 </select>
                             </div>
-                            <div class="form-group">
-                                <label>Advice (???????) <span class="text-danger">*</span></label>
-                                <textarea id="advice_text" class="form-control" rows="4" placeholder="????: ?????? ???? ??? ?????, ?????? ????? ????..."></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- Alert Messages --}}
+        <div id="alertMessage"></div>
+
+        {{-- Main Content --}}
+        <div class="row" id="adviceSection" style="display:none;">
+            {{-- Left: Add Advice Form --}}
+            <div class="col-lg-5">
+                <div class="cc-card cc-card-accent-blue">
+                    <div class="cc-card-header cc-header-blue">
+                        <i class="fas fa-plus-circle mr-2"></i>Add Advice
+                    </div>
+                    <form id="adviceForm">
+                        @csrf
+                        <div class="cc-card-body">
+                            <div class="form-group mb-2">
+                                <label class="cc-label">Advice <span class="text-danger">*</span></label>
+                                <textarea id="advice_text" class="form-control cc-input cc-textarea" rows="5" placeholder="Type advice details here..."></textarea>
                             </div>
                         </div>
-                        <div class="card-footer">
-                            <button type="button" id="btnAddAdvice" class="btn btn-warning btn-block shadow-sm">
-                                <b><i class="fas fa-plus mr-1"></i> Add Advice</b>
+                        <div class="cc-card-footer">
+                            <button type="button" id="btnAddAdvice" class="btn cc-btn-primary btn-sm btn-block">
+                                <i class="fas fa-plus mr-1"></i> Add Advice
                             </button>
                         </div>
                     </form>
                 </div>
             </div>
 
-            <div class="col-md-8">
-                <div class="card card-outline card-secondary">
-                    <div class="card-header">
-                        <h3 class="card-title"><i class="fas fa-list mr-1"></i> Added Advice List</h3>
+            {{-- Right: Added Advice List --}}
+            <div class="col-lg-7">
+                <div class="cc-card">
+                    <div class="cc-card-header cc-header-blue">
+                        <i class="fas fa-list mr-2"></i>Added Advice
+                        <span class="cc-list-count ml-auto" id="adviceCount">0</span>
                     </div>
-                    <div class="card-body p-0">
-                        <div class="table-responsive">
-                            <table class="table table-sm table-bordered table-striped table-hover m-0">
-                                <thead class="bg-light">
-                                    <tr>
-                                        <th style="width: 50px" class="text-center">#</th>
-                                        <th>Advice Detail</th>
-                                        <th style="width: 80px" class="text-center">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="adviceTableBody">
-                                    <tr>
-                                        <td colspan="3" class="text-center p-4 text-muted">Select a template to view advices</td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                    <div class="cc-card-body p-0" id="adviceListContainer">
+                        <div class="cc-empty-state" id="emptyState">
+                            <div class="cc-empty-icon"><i class="fas fa-comment-medical"></i></div>
+                            <div class="cc-empty-title">No Advice Added</div>
+                            <div class="cc-empty-text">Select a template and add medical advice to get started.</div>
                         </div>
+                        <div id="adviceListItems" style="display:none;"></div>
                     </div>
                 </div>
             </div>
         </div>
+
     </div>
 </section>
+
+{{-- Bottom Navigation --}}
+<nav class="cc-bottom-nav">
+    <a href="{{ route('billing.payment.index') }}" class="cc-nav-item">
+        <i class="fas fa-file-invoice"></i>
+        <span>Invoices</span>
+    </a>
+    <a href="{{ route('billing.paylist.index') }}" class="cc-nav-item">
+        <i class="fas fa-credit-card"></i>
+        <span>Payments</span>
+    </a>
+    <a href="{{ route('admin.dashboard') }}" class="cc-nav-item">
+        <i class="fas fa-user-injured"></i>
+        <span>Patients</span>
+    </a>
+    <a href="{{ route('templates.addmedicine') }}" class="cc-nav-item">
+        <i class="fas fa-notes-medical"></i>
+        <span>Templates</span>
+    </a>
+</nav>
+@stop
+
+@section('css')
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css">
+<style>
+:root {
+    --cc-bg: #faf8ff;
+    --cc-primary: #0f52ba;
+    --cc-primary-dark: #0b3d8a;
+    --cc-primary-light: #e8edff;
+    --cc-white: #ffffff;
+    --cc-border: #d9d9e2;
+    --cc-text: #1a1a2e;
+    --cc-muted: #6b7280;
+    --cc-green: #10b981;
+    --cc-green-bg: #ecfdf5;
+    --cc-red: #ef4444;
+    --cc-red-bg: #fef2f2;
+    --cc-amber: #f59e0b;
+    --cc-amber-bg: #fffbeb;
+    --cc-radius: 4px;
+    --cc-font: 'Hanken Grotesk', system-ui, -apple-system, sans-serif;
+}
+
+body {
+    background: var(--cc-bg);
+    font-family: var(--cc-font);
+    padding-bottom: 64px;
+}
+
+/* ── App Bar ── */
+.cc-appbar {
+    background: var(--cc-white);
+    border-bottom: 1px solid var(--cc-border);
+    padding: 12px 24px;
+    margin: -8px -15px 0 -15px;
+}
+.cc-appbar-inner {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+.cc-appbar-brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--cc-primary);
+    letter-spacing: -0.01em;
+}
+.cc-appbar-brand i { font-size: 1.1rem; }
+.cc-appbar-subtitle {
+    font-size: 0.82rem;
+    color: var(--cc-muted);
+    font-weight: 400;
+}
+
+/* ── Page Headline ── */
+.cc-page-headline {
+    padding: 4px 0;
+}
+.cc-page-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--cc-text);
+    margin: 0;
+    letter-spacing: -0.02em;
+}
+.cc-page-desc {
+    font-size: 0.88rem;
+    color: var(--cc-muted);
+    margin: 4px 0 0 0;
+    font-weight: 400;
+}
+
+/* ── Section Wrapper ── */
+.cc-section {
+    padding-top: 12px;
+}
+
+/* ── Base Card ── */
+.cc-card {
+    background: var(--cc-white);
+    border: 1px solid var(--cc-border);
+    border-radius: var(--cc-radius);
+    margin-bottom: 1.25rem;
+    overflow: hidden;
+}
+.cc-card-accent-blue  { border-top: 3px solid var(--cc-primary); }
+
+.cc-card-header {
+    padding: 10px 16px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--cc-border);
+    display: flex;
+    align-items: center;
+}
+.cc-header-blue  { background: var(--cc-primary-light); color: var(--cc-primary-dark); }
+
+.cc-card-body   { padding: 14px 16px; }
+.cc-card-footer { padding: 10px 16px; background: #f8fafc; border-top: 1px solid var(--cc-border); }
+
+/* ── List Count Badge ── */
+.cc-list-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 24px;
+    padding: 0 8px;
+    background: var(--cc-primary);
+    color: var(--cc-white);
+    border-radius: var(--cc-radius);
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+/* ── Labels & Inputs ── */
+.cc-label {
+    display: block;
+    font-size: 0.76rem;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+.cc-input, .cc-select {
+    border: 1px solid var(--cc-border);
+    border-radius: var(--cc-radius);
+    font-size: 0.84rem;
+    color: var(--cc-text);
+    background: var(--cc-white);
+    transition: border-color 0.15s;
+}
+.cc-input:focus, .cc-select:focus {
+    border-color: var(--cc-primary);
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(15,82,186,0.12);
+}
+.cc-textarea {
+    resize: vertical;
+    min-height: 100px;
+    line-height: 1.6;
+}
+
+/* ── Buttons ── */
+.cc-btn-primary { background: var(--cc-primary); border-color: var(--cc-primary); color: var(--cc-white); }
+.cc-btn-primary:hover { background: var(--cc-primary-dark); border-color: var(--cc-primary-dark); color: var(--cc-white); }
+
+/* ── Advice Item Cards ── */
+.cc-advice-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 16px;
+    border-bottom: 1px solid #f1f5fb;
+    transition: background 0.12s;
+}
+.cc-advice-item:last-child { border-bottom: none; }
+.cc-advice-item:hover { background: #f8fafc; }
+
+.cc-advice-num {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--cc-primary-light);
+    color: var(--cc-primary);
+    font-size: 0.75rem;
+    font-weight: 700;
+    border-radius: var(--cc-radius);
+}
+
+.cc-advice-body {
+    flex: 1;
+    min-width: 0;
+}
+.cc-advice-text {
+    font-size: 0.88rem;
+    font-weight: 500;
+    color: var(--cc-text);
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.cc-advice-action {
+    flex-shrink: 0;
+}
+
+/* ── Empty State ── */
+.cc-empty-state {
+    padding: 48px 24px;
+    text-align: center;
+}
+.cc-empty-icon {
+    font-size: 3rem;
+    color: #d1d5db;
+    margin-bottom: 12px;
+}
+.cc-empty-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #9ca3af;
+    margin-bottom: 6px;
+}
+.cc-empty-text {
+    font-size: 0.84rem;
+    color: #b0b7c3;
+    font-weight: 400;
+}
+
+/* ── Delete Button ── */
+.cc-btn-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--cc-border);
+    border-radius: var(--cc-radius);
+    background: var(--cc-white);
+    color: #9ca3af;
+    cursor: pointer;
+    transition: all 0.12s;
+    font-size: 0.85rem;
+}
+.cc-btn-icon:hover {
+    background: var(--cc-red-bg);
+    border-color: var(--cc-red);
+    color: var(--cc-red);
+}
+
+/* ── Alerts ── */
+.alert { border-radius: var(--cc-radius); font-size: 0.86rem; padding: 10px 16px; border: none; }
+.cc-alert-success { background: var(--cc-green-bg); color: #065f46; border-left: 4px solid var(--cc-green); }
+.cc-alert-danger  { background: var(--cc-red-bg); color: #991b1b; border-left: 4px solid var(--cc-red); }
+
+/* ── Select2 overrides ── */
+.select2-container--default .select2-selection--single {
+    border: 1px solid var(--cc-border) !important;
+    border-radius: var(--cc-radius) !important;
+    height: 35px !important;
+    font-size: 0.84rem;
+    font-family: var(--cc-font);
+}
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+    line-height: 33px !important;
+    padding-left: 10px;
+    color: var(--cc-text);
+}
+.select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: 33px !important;
+}
+.select2-container--default .select2-results__option--highlighted {
+    background: var(--cc-primary) !important;
+}
+.select2-dropdown {
+    border: 1px solid var(--cc-border) !important;
+    border-radius: var(--cc-radius) !important;
+    font-family: var(--cc-font);
+    font-size: 0.84rem;
+}
+
+/* ── Bottom Navigation ── */
+.cc-bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 56px;
+    background: var(--cc-white);
+    border-top: 1px solid var(--cc-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    z-index: 1050;
+}
+.cc-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    padding: 6px 12px;
+    color: var(--cc-muted);
+    text-decoration: none;
+    font-size: 0.65rem;
+    font-weight: 600;
+    transition: color 0.15s;
+    border-radius: var(--cc-radius);
+}
+.cc-nav-item i { font-size: 1.15rem; }
+.cc-nav-item:hover { color: var(--cc-primary); text-decoration: none; }
+.cc-nav-item.active { color: var(--cc-primary); }
+
+/* ── Responsive tweaks ── */
+@media (max-width: 767px) {
+    .cc-page-title { font-size: 1.25rem; }
+    .cc-advice-item { padding: 10px 12px; gap: 8px; }
+}
+</style>
 @stop
 
 @section('js')
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
-    $(document).ready(function() {
-        // ???????? ???????? ???? ????? ??? ???
+if (typeof jQuery !== 'undefined') {
+    jQuery(function($) {
+
+        $('#templateid').select2({ width: '100%' });
+
+        var adviceList = [];
+
         $('#templateid').on('change', function() {
-            loadAdviceList();
+            var tid = $(this).val();
+            if (tid) {
+                $('#adviceSection').show();
+                loadAdviceList();
+            } else {
+                $('#adviceSection').hide();
+                adviceList = [];
+            }
         });
 
-        // AJAX ?? ??????? Advice ??? ???
         $('#btnAddAdvice').on('click', function() {
-            let data = {
-                _token: "{{ csrf_token() }}",
-                templateid: $('#templateid').val(),
-                advice: $('#advice_text').val()
-            };
+            var tid = $('#templateid').val();
+            var advice = $('#advice_text').val().trim();
 
-            if(!data.templateid || !data.advice) {
-                alert('Please select a template and enter advice!');
+            if (!tid) { showAlert('Please select a template!', 'error'); return; }
+            if (!advice) { showAlert('Please enter advice text!', 'error'); return; }
+
+            var btn = $(this);
+            btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i> Saving...');
+
+            $.ajax({
+                url: "{{ route('templates.advice.ajax.add') }}",
+                type: 'POST',
+                data: { _token: "{{ csrf_token() }}", templateid: tid, advice: advice },
+                success: function(res) {
+                    if (res.ok) {
+                        showAlert('Advice added successfully.', 'success');
+                        $('#advice_text').val('').focus();
+                        loadAdviceList();
+                    } else {
+                        showAlert('Error: ' + (res.message || 'Could not add advice'), 'error');
+                    }
+                },
+                error: function() { showAlert('Server error!', 'error'); },
+                complete: function() { btn.prop('disabled', false).html('<i class="fas fa-plus mr-1"></i> Add Advice'); }
+            });
+        });
+
+        function loadAdviceList() {
+            var tid = $('#templateid').val();
+            if (!tid) return;
+
+            $.get("{{ route('templates.advice.ajax.list') }}", { templateid: tid }, function(res) {
+                adviceList = res.rows || [];
+                renderAdviceList();
+            });
+        }
+
+        function renderAdviceList() {
+            var $container = $('#adviceListItems');
+            var $empty = $('#emptyState');
+            var $count = $('#adviceCount');
+
+            if (adviceList.length === 0) {
+                $empty.show();
+                $container.hide();
+                $count.text('0');
                 return;
             }
 
-            $.post("{{ route('templates.advice.ajax.add') }}", data, function(res) {
-                if(res.ok) {
-                    $('#advice_text').val('');
-                    loadAdviceList();
-                }
-            }).fail(function(xhr) {
-                alert('Error: ' + (xhr.responseJSON.message || 'Something went wrong'));
+            $empty.hide();
+            $container.show();
+            $count.text(adviceList.length);
+
+            var html = '';
+            adviceList.forEach(function(row, i) {
+                html += '<div class="cc-advice-item">' +
+                    '<div class="cc-advice-num">' + (i + 1) + '</div>' +
+                    '<div class="cc-advice-body">' +
+                        '<div class="cc-advice-text">' + escHtml(row.advice) + '</div>' +
+                    '</div>' +
+                    '<div class="cc-advice-action">' +
+                        '<button onclick="deleteAdvice(' + row.id + ')" class="cc-btn-icon" title="Delete advice">' +
+                            '<i class="fas fa-trash"></i>' +
+                        '</button>' +
+                    '</div>' +
+                '</div>';
             });
-        });
+            $container.html(html);
+        }
+
+        window.deleteAdvice = function(id) {
+            if (!confirm('Are you sure you want to delete this advice?')) return;
+
+            $.ajax({
+                url: '/templates/advice/ajax/' + id,
+                type: 'DELETE',
+                data: { _token: "{{ csrf_token() }}" },
+                success: function(res) {
+                    if (res.ok || res.success) {
+                        showAlert('Advice deleted.', 'success');
+                        loadAdviceList();
+                    } else {
+                        showAlert('Delete failed!', 'error');
+                    }
+                },
+                error: function() { showAlert('Delete failed!', 'error'); }
+            });
+        };
+
+        function showAlert(message, type) {
+            var cls = type === 'success' ? 'cc-alert-success' : 'cc-alert-danger';
+            var icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle';
+            $('#alertMessage').html(
+                '<div class="alert ' + cls + ' alert-dismissible fade show" role="alert">' +
+                    '<i class="fas ' + icon + ' mr-2"></i>' + message +
+                    '<button type="button" class="close" data-dismiss="alert"><span>&times;</span></button>' +
+                '</div>'
+            );
+            setTimeout(function() { $('.alert').fadeOut('slow', function() { $(this).remove(); }); }, 3000);
+        }
+
+        function escHtml(s) {
+            return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        }
+
     });
-
-    // ????? ??? ???? ?????
-    function loadAdviceList() {
-        let tid = $('#templateid').val();
-        if(!tid) return;
-
-        $.get("{{ route('templates.advice.ajax.list') }}", {templateid: tid}, function(res) {
-            let html = '';
-            if(res.rows && res.rows.length > 0) {
-                res.rows.forEach((row, i) => {
-                    html += `<tr>
-                        <td class="text-center">${i+1}</td>
-                        <td class="font-weight-bold text-dark">${row.advice}</td>
-                        <td class="text-center">
-                            <button onclick="deleteAdvice(${row.id})" class="btn btn-xs btn-outline-danger shadow-sm">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </td>
-                    </tr>`;
-                });
-            } else {
-                html = '<tr><td colspan="3" class="text-center">No advice found for this template</td></tr>';
-            }
-            $('#adviceTableBody').html(html);
-        });
-    }
-
-    // ????? ???? ?????
-    function deleteAdvice(id) {
-        if(!confirm('Are you sure you want to delete this advice?')) return;
-
-        $.ajax({
-            url: `/templates/advice/ajax/${id}`,
-            type: 'DELETE',
-            data: { _token: "{{ csrf_token() }}" },
-            success: function() {
-                loadAdviceList();
-            }
-        });
-    }
+}
 </script>
 @stop

@@ -53,6 +53,9 @@ Route::middleware('auth')->group(function () {
     |--------------------------------------------------------------------------
     */
     Route::prefix('appointments')->name('appointments.')->group(function () {
+        Route::get('/list', [AppointmentController::class, 'index'])->name('list');
+        Route::get('/pastappoinments', [AppointmentController::class, 'index'])->name('pastappoinments');
+        Route::get('/pastappointments', [AppointmentController::class, 'index'])->name('pastappointments');
         Route::get('/approve', [AppointmentController::class, 'appointmentapprove'])->name('approve');
         Route::post('/approve', [AppointmentController::class, 'updateStatus'])->name('updateStatus');
         Route::get('/create', [AppointmentController::class, 'create'])->name('create');

@@ -48,4 +48,7 @@
 	  <?php echo " <a href='https://auth-db1498.hstgr.io/' target='_blank'>Database</a>"; ?>
      	      
 	   </div>
+      DB_DATABASE=u972011074_vzeTw <br>
+DB_USERNAME=u972011074_YkczZ <br>
+DB_PASSWORD=I]WCh[dZZ2&6u84G
 @endsection

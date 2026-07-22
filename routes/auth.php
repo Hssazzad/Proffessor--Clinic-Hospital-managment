@@ -46,6 +46,7 @@ Route::middleware('auth')->group(function () {
     Route::get('usermenu/newsubmenu', [UserCreateController::class, 'createSubmenu'])->name('submenu.newsubmenu');
     Route::post('usermenu/storeSubmenu', [UserCreateController::class, 'storeSubmenu'])->name('usermenu.storeSubmenu');
     Route::get('usermenu/next-code/{parent}', [UserCreateController::class, 'nextSubmenuCode'])->name('usermenu.nextcode');
+    Route::get('usermenu/Userlist', [UserCreateController::class, 'Userlist'])->name('usermenu.Userlist');
     
     // Parent Menu Logic
     Route::get('usermenu/newparentmenu', [UserCreateController::class, 'createparentmenu'])->name('submenu.newparentmenu');

@@ -78,6 +78,18 @@ Route::get('/test-payments', function () {
 
 /*
 |--------------------------------------------------------------------------
+| Template Discharge Routes (must be before any wildcard)
+|--------------------------------------------------------------------------
+*/
+Route::middleware(['auth'])->group(function () {
+    Route::post('/templates/discharge/ajax/add', [TemplateController::class, 'ajaxAddDischarge'])
+        ->name('templates.discharge.ajax.add');
+    Route::get('/templates/discharge/ajax/get', [TemplateController::class, 'ajaxGetDischarge'])
+        ->name('templates.discharge.ajax.get');
+});
+
+/*
+|--------------------------------------------------------------------------
 | Auto-load other route files (auth.php, patient.php, etc.)
 | ⚠ Make sure NO other file in routes/ contains toggleSub pointing
 |   to UserCreateController — check with: grep -r "toggleSub" routes/

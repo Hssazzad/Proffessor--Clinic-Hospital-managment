@@ -48,6 +48,35 @@
                 </select>
             </div>
 
+            @php $admissionDoctors = $doctors ?? collect(); @endphp
+            <div class="form-group">
+                <label><b>Select Doctor <span class="text-danger">*</span></b></label>
+                <select name="doctor_id" id="doctor_id" class="form-control select2" {{ $admissionDoctors->isNotEmpty() ? 'required' : '' }}>
+                    <option value="">-- Select Doctor --</option>
+                    @foreach($admissionDoctors as $doctor)
+                        @php
+                            $doctorName = $doctor->doctor_name ?? $doctor->name ?? '';
+                            $doctorText = trim($doctorName . (!empty($doctor->speciality) ? ' - ' . $doctor->speciality : '') . (!empty($doctor->reg_no) ? ' [' . $doctor->reg_no . ']' : ''));
+                        @endphp
+                        <option value="{{ $doctor->id }}" {{ old('doctor_id') == $doctor->id ? 'selected' : '' }}>
+                            {{ $doctorText ?: ('Doctor #' . $doctor->id) }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label><b>Assign Bed</b></label>
+                <select name="bed_id" id="bed_id" class="form-control select2">
+                    <option value="">-- Select Bed --</option>
+                    @foreach($availableBeds ?? [] as $bed)
+                        <option value="{{ $bed->id }}">
+                            {{ $bed->bed_number ?? 'N/A' }} — {{ $bed->bed_type ?? 'N/A' }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+
             <hr>
 
             <div class="form-group">
@@ -232,7 +261,6 @@ $(function () {
             dataType: 'html',
             success: function (html) {
                 $('#ajaxMessage').empty();
-                $('#medicineRows').html(html);
             },
             error: function (xhr) {
                 var msg = 'Medicine loading failed.';

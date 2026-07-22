@@ -89,7 +89,7 @@ class OnAdmissionMedicineService
                 'route'         => $med->route ?? '',
                 'frequency'     => $med->frequency ?? '',
                 'duration'      => $med->duration ?? '',
-                'timing'        => $med->timing ?? '',
+                'timing'        => !empty($med->timing) ? $med->timing : ($med->meal_timing ?? ''),
                 'remarks'       => $med->note ?? '',
                 'common_medicine_id' => $commonMed->id ?? null,
                 'medicine_code' => $commonMed->code ?? '',
@@ -97,7 +97,7 @@ class OnAdmissionMedicineService
                 'strength'      => $commonMed->strength ?? '',
                 'is_from_common' => true
             ];
-        })->values();
+        })->filter(function($item) { return $item !== null; })->values();
         
         return [
             'template_medicines' => $mappedMedicines,

@@ -72,7 +72,12 @@ Route::middleware(['auth'])->group(function () {
     // General Prescriptions (Non-Surgery)
     Route::get('prescriptions/search', [PrescriptionController::class, 'search'])->name('rx.search');
     Route::get('prescriptions/preview-ajax/{id}', [PrescriptionController::class, 'previewAjax'])->name('rx.preview.ajax');
+    Route::get('prescriptions/admission-stage-preview/{admissionId}', [PrescriptionController::class, 'admissionStagePreview'])
+         ->name('prescriptions.admission.stage.preview');
     Route::get('prescriptions/{id}/pdf-inline', [PrescriptionController::class, 'pdf'])->name('rx.pdf.inline');
+    Route::get('prescriptions/surgery-preview/{id}', [PrescriptionController::class, 'surgeryPreview'])->name('prescriptions.surgery.preview');
+    Route::get('prescriptions/print-data/{id}', [PrescriptionController::class, 'printData'])->name('prescriptions.printData');
+    Route::get('prescriptions/admission-print-data', [PrescriptionController::class, 'admissionPrintData'])->name('prescriptions.admissionPrintData');
     
     // Store general prescription
     Route::post('/prescriptions', [PrescriptionController::class, 'store'])->name('prescriptions.store');

@@ -1,108 +1,88 @@
 @extends('adminlte::page')
 
-@section('title', 'Billing — Payment')
+@section('title', 'Billing â€” Payment')
 
 @section('content_header')
-<div class="d-flex align-items-center justify-content-between">
-    <h1 class="m-0" style="font-size:18px; font-weight:600; color:#222;">
-        Billing — Payment
-    </h1>
-    <ol class="breadcrumb float-sm-right mb-0" style="font-size:12px;">
-        <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Home</a></li>
-        <li class="breadcrumb-item active">Payment</li>
+<div class="cc-header-bar">
+    <h1 class="cc-page-title">Billing â€” Payment</h1>
+    <ol class="cc-breadcrumb">
+        <li><a href="{{ route('admin.dashboard') }}">Home</a></li>
+        <li class="cc-bc-active">Payment</li>
     </ol>
 </div>
 @stop
 
 @section('content')
 
-{{-- ============================================================
-     TOP ROW — Pay Due Amount Form (LEFT) + Summary Cards (RIGHT)
-============================================================= --}}
-<div class="top-row-wrap">
+<div class="cc-page">
 
-    {{-- LEFT — Pay Due Amount --}}
-    <div class="pay-form-card">
+    {{-- LEFT COLUMN -- Pay Due Amount Form --}}
+    <div class="cc-left-col">
 
-        <div class="card-header-bar">
-            Pay Due Amount
-        </div>
+        <div class="cc-card">
+            <div class="cc-card-head">
+                <i class="fas fa-credit-card cc-head-icon"></i>
+                Pay Due Amount
+            </div>
+            <div class="cc-card-body">
 
-        <div class="card-body-pad">
-
-            {{-- Invoice Search --}}
-            <div class="ci-row">
-                <div class="ci-label">Search Invoice</div>
-                <div class="ci-colon">:</div>
-                <div class="ci-control">
+                {{-- Invoice Search --}}
+                <div class="cc-field">
+                    <label class="cc-label">Search Invoice</label>
                     <select id="invoiceSelect" style="width:100%;">
-                        <option value="">— Type bill no / name / mobile —</option>
+                        <option value="">â€” Type bill no / name / mobile â€”</option>
                     </select>
                 </div>
-            </div>
 
-            {{-- Invoice Info Box --}}
-            <div id="invoiceInfoBox" style="display:none; background:#e8f5e9; border-radius:5px; padding:8px 10px; font-size:12px;">
-                <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:4px; margin-bottom:6px;">
-                    <div>
-                        <span style="background:#00bfa5;color:#fff;font-size:11px;padding:1px 7px;border-radius:10px;font-weight:600;" id="infoBillNo">—</span>
-                        <strong id="infoPatientName" style="margin-left:6px; font-size:13px;">—</strong>
-                        <span id="infoTypeBadge" style="margin-left:6px;font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px;display:inline-block;"></span>
+                {{-- Invoice Info Box --}}
+                <div id="invoiceInfoBox" class="cc-info-box" style="display:none;">
+                    <div class="cc-info-top">
+                        <div>
+                            <span class="cc-info-badge" id="infoBillNo">â€”</span>
+                            <strong class="cc-info-name" id="infoPatientName">â€”</strong>
+                            <span class="cc-info-type" id="infoTypeBadge"></span>
+                        </div>
+                        <button type="button" id="btnClearInvoice" class="cc-btn cc-btn-clear">&times; Clear</button>
                     </div>
-                    <button type="button" id="btnClearInvoice"
-                            style="background:none;border:1px solid #e57373;color:#e57373;border-radius:3px;font-size:11px;padding:1px 8px;cursor:pointer;">
-                        &times; Clear
-                    </button>
-                </div>
-                <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                    <div style="flex:1;min-width:70px;background:#fff;border:1px solid #c8e6c9;border-radius:4px;padding:6px 8px;text-align:center;">
-                        <div style="font-size:10px;color:#888;">Total Bill</div>
-                        <div style="font-size:14px;font-weight:700;color:#222;" id="infoTotal">&#2547; 0</div>
-                    </div>
-                    <div style="flex:1;min-width:70px;background:#fff;border:1px solid #c8e6c9;border-radius:4px;padding:6px 8px;text-align:center;">
-                        <div style="font-size:10px;color:#888;">Paid</div>
-                        <div style="font-size:14px;font-weight:700;color:#2e7d32;" id="infoPaid">&#2547; 0</div>
-                    </div>
-                    <div style="flex:1;min-width:70px;background:#fff3e0;border:1px solid #ffcc80;border-radius:4px;padding:6px 8px;text-align:center;">
-                        <div style="font-size:10px;color:#e65100;">Due</div>
-                        <div style="font-size:14px;font-weight:700;color:#e65100;" id="infoDue">&#2547; 0</div>
-                    </div>
-                </div>
-            </div>
-
-            <input type="hidden" id="selectedInvoiceId">
-
-            <div id="invoiceRequiredNotice"
-                 style="background:#fff3e0;border:1px solid #ffcc80;border-radius:4px;padding:6px 10px;font-size:12px;color:#e65100;">
-                <i class="fas fa-exclamation-triangle mr-1"></i>
-                Please select an invoice with due amount.
-            </div>
-
-            {{-- Payment Fields --}}
-            <div id="paymentFields" style="display:none; flex-direction:column; gap:9px;">
-
-                <div class="ci-row">
-                    <div class="ci-label">Paying Amount (&#2547;)</div>
-                    <div class="ci-colon">:</div>
-                    <div class="ci-control">
-                        <input type="number" id="payingAmountInput" class="ci-input" placeholder="0" min="1" step="1">
-                        <div id="payingError" style="display:none;color:#e53935;font-size:11px;margin-top:2px;"></div>
+                    <div class="cc-info-stats">
+                        <div class="cc-info-stat">
+                            <span class="cc-info-stat-label">Total Bill</span>
+                            <span class="cc-info-stat-val" id="infoTotal">&#2547; 0</span>
+                        </div>
+                        <div class="cc-info-stat cc-info-stat-paid">
+                            <span class="cc-info-stat-label">Paid</span>
+                            <span class="cc-info-stat-val cc-green" id="infoPaid">&#2547; 0</span>
+                        </div>
+                        <div class="cc-info-stat cc-info-stat-due">
+                            <span class="cc-info-stat-label">Due</span>
+                            <span class="cc-info-stat-val cc-amber" id="infoDue">&#2547; 0</span>
+                        </div>
                     </div>
                 </div>
 
-                <div class="ci-row">
-                    <div class="ci-label">Payment Date</div>
-                    <div class="ci-colon">:</div>
-                    <div class="ci-control">
-                        <input type="date" id="payDateInput" class="ci-input" value="{{ date('Y-m-d') }}">
-                    </div>
+                <input type="hidden" id="selectedInvoiceId">
+
+                <div id="invoiceRequiredNotice" class="cc-notice cc-notice-warn">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Please select an invoice with due amount.
                 </div>
 
-                <div class="ci-row">
-                    <div class="ci-label">Pay Method</div>
-                    <div class="ci-colon">:</div>
-                    <div class="ci-control">
-                        <select id="payMethodInput" class="ci-select">
+                {{-- Payment Fields --}}
+                <div id="paymentFields" class="cc-pay-fields" style="display:none;">
+                    <div class="cc-field">
+                        <label class="cc-label">Paying Amount (&#2547;)</label>
+                        <input type="number" id="payingAmountInput" class="cc-input" placeholder="0" min="1" step="1">
+                        <div id="payingError" class="cc-field-error" style="display:none;"></div>
+                    </div>
+
+                    <div class="cc-field">
+                        <label class="cc-label">Payment Date</label>
+                        <input type="date" id="payDateInput" class="cc-input" value="{{ date('Y-m-d') }}">
+                    </div>
+
+                    <div class="cc-field">
+                        <label class="cc-label">Pay Method</label>
+                        <select id="payMethodInput" class="cc-input">
                             <option value="cash">Cash</option>
                             <option value="mobile_banking">Mobile Banking</option>
                             <option value="card">Card</option>
@@ -110,287 +90,659 @@
                             <option value="cheque">Cheque</option>
                         </select>
                     </div>
-                </div>
 
-                <div class="ci-row">
-                    <div class="ci-label">Collected By</div>
-                    <div class="ci-colon">:</div>
-                    <div class="ci-control">
-                        <input type="text" id="collectedByInput" class="ci-input" placeholder="Staff name">
+                    <div class="cc-field">
+                        <label class="cc-label">Collected By</label>
+                        <input type="text" id="collectedByInput" class="cc-input" placeholder="Staff name">
                     </div>
                 </div>
 
+                <button type="button" id="btnPayNow" disabled class="cc-btn cc-btn-primary cc-btn-block">
+                    Confirm Payment
+                </button>
+
             </div>
         </div>
 
-        <div style="padding:4px 14px 14px;">
-            <button type="button" id="btnPayNow" disabled
-                    style="width:100%;background:#00bfa5;color:#fff;border:none;border-radius:4px;
-                           padding:9px 0;font-size:13px;font-weight:600;cursor:pointer;letter-spacing:.3px;">
-                Confirm Payment
+    </div>{{-- /LEFT COLUMN --}}
+
+
+    {{-- RIGHT COLUMN -- Summary + List --}}
+    <div class="cc-right-col">
+
+        {{-- Summary Card --}}
+        <div class="cc-card cc-card-summary">
+            <div class="cc-summary-icon">
+                <i class="fas fa-file-invoice-dollar"></i>
+            </div>
+            <div class="cc-summary-body">
+                <div class="cc-summary-label">Total Due</div>
+                <div class="cc-summary-value" id="sumTotalDue">&#2547; 0</div>
+                <div class="cc-summary-count" id="sumTotalCount">0 invoices</div>
+            </div>
+        </div>
+
+        {{-- Export Toolbar --}}
+        <div class="cc-export-row">
+            <button id="btnExportExcel" class="cc-btn cc-btn-export cc-btn-excel">
+                <i class="fas fa-file-excel"></i> Excel
             </button>
-        </div>
-    </div>{{-- /LEFT --}}
-
-
-    {{-- RIGHT — Summary Card + Search --}}
-    <div class="right-col">
-
-        <div style="display:flex; gap:12px;">
-            <div class="summary-card" style="border-left:4px solid #e65100;">
-                <div class="summary-icon" style="background:#fff3e0; color:#e65100;">
-                    <i class="fas fa-file-invoice-dollar"></i>
-                </div>
-                <div>
-                    <div class="summary-label">Total Due</div>
-                    <div class="summary-value" id="sumTotalDue">&#2547; 0</div>
-                    <div class="summary-count" id="sumTotalCount">0 invoices</div>
-                </div>
-            </div>
+            <button id="btnExportCsv" class="cc-btn cc-btn-export cc-btn-csv">
+                <i class="fas fa-file-csv"></i> CSV
+            </button>
+            <button id="btnPrintList" class="cc-btn cc-btn-export cc-btn-print">
+                <i class="fas fa-print"></i> Print
+            </button>
+            <span id="activeTabDueSummary" class="cc-due-summary"></span>
         </div>
 
-        {{-- Search bar --}}
-        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-            <input type="text" id="listSearchInput" class="ci-input"
-                   placeholder="Search name / bill no / mobile..."
-                   style="flex:1; min-width:160px; height:32px;">
-            <label style="font-size:12px;color:#555;display:flex;align-items:center;gap:4px;cursor:pointer;white-space:nowrap;">
-                <input type="checkbox" id="showAllChk" style="cursor:pointer;">
-                Show Paid Also
+        {{-- Search --}}
+        <div class="cc-search-row">
+            <input type="text" id="listSearchInput" class="cc-input" placeholder="Search name / bill no / mobile...">
+            <label class="cc-toggle-label">
+                <input type="checkbox" id="showAllChk">
+                <span class="cc-toggle-text">Show Paid Also</span>
             </label>
         </div>
 
-    </div>{{-- /RIGHT --}}
+        {{-- Card List --}}
+        <div id="dueCardList" class="cc-card-list"></div>
 
-</div>{{-- /TOP ROW --}}
-
-
-{{-- ============================================================
-     BOTTOM — Due List Table
-============================================================= --}}
-<div style="border:2px solid #00bfa5; border-radius:6px; background:#fff; overflow:hidden;">
-
-    {{-- Export Toolbar --}}
-    <div class="export-toolbar">
-        <div style="font-size:12px; color:#555;">
-            Due List
-            <span id="activeTabDueSummary" style="margin-left:8px; color:#e65100; font-weight:600;"></span>
+        {{-- Load More --}}
+        <div id="loadMoreWrap" class="cc-load-more-wrap" style="display:none;">
+            <button id="loadMoreBtn" class="cc-btn cc-btn-load-more">Load More</button>
         </div>
-        <div style="display:flex; gap:6px; flex-wrap:wrap;">
-            <button id="btnExportExcel"
-                    style="background:#217346;color:#fff;border:none;border-radius:4px;
-                           padding:5px 14px;font-size:12px;font-weight:600;cursor:pointer;">
-                <i class="fas fa-file-excel mr-1"></i> Excel
-            </button>
-            <button id="btnExportCsv"
-                    style="background:#e65100;color:#fff;border:none;border-radius:4px;
-                           padding:5px 14px;font-size:12px;font-weight:600;cursor:pointer;">
-                <i class="fas fa-file-csv mr-1"></i> CSV
-            </button>
-            <button id="btnPrintList"
-                    style="background:#1565c0;color:#fff;border:none;border-radius:4px;
-                           padding:5px 14px;font-size:12px;font-weight:600;cursor:pointer;">
-                <i class="fas fa-print mr-1"></i> Print
-            </button>
-        </div>
-    </div>
 
-    {{-- Table --}}
-    <div style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
-        <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:600px;" id="dueTable">
-            <thead>
-                <tr style="background:#f5f5f5;">
-                    <th class="inv-th" style="width:28px;">#</th>
-                    <th class="inv-th">Bill No</th>
-                    <th class="inv-th">Patient</th>
-                    <th class="inv-th">Date</th>
-                    <th class="inv-th" style="text-align:right;">Total (&#2547;)</th>
-                    <th class="inv-th" style="text-align:right;">Paid (&#2547;)</th>
-                    <th class="inv-th" style="text-align:right; color:#e65100;">Due (&#2547;)</th>
-                    <th class="inv-th" style="text-align:center;">Status</th>
-                    <th class="inv-th" style="text-align:center;">Action</th>
-                </tr>
-            </thead>
-            <tbody id="dueTableBody">
-                <tr>
-                    <td colspan="9" style="text-align:center;color:#aaa;padding:30px;font-size:12px;border:1px solid #ddd;">
-                        <i class="fas fa-spinner fa-spin mr-1"></i> Loading...
-                    </td>
-                </tr>
-            </tbody>
-            <tfoot id="dueTableFoot" style="display:none;">
-                <tr style="background:#e8f5e9; font-weight:700;">
-                    <td colspan="4" class="inv-th" style="text-align:right;color:#555;">Total (this page):</td>
-                    <td class="inv-th" style="text-align:right;" id="footTotal">&#2547; 0</td>
-                    <td class="inv-th" style="text-align:right;color:#2e7d32;" id="footPaid">&#2547; 0</td>
-                    <td class="inv-th" style="text-align:right;color:#e65100;font-weight:700;" id="footDue">&#2547; 0</td>
-                    <td colspan="2" class="inv-th"></td>
-                </tr>
-            </tfoot>
-        </table>
-    </div>
+    </div>{{-- /RIGHT COLUMN --}}
 
-    {{-- Pagination --}}
-    <div id="paginationWrap" style="padding:8px 14px; font-size:12px; color:#555;"></div>
+</div>{{-- /cc-page --}}
 
-</div>
+{{-- Bottom Navigation --}}
+<nav class="cc-bottom-nav">
+    <a href="{{ route('admin.dashboard') }}" class="cc-nav-item">
+        <i class="fas fa-home"></i>
+        <span>Home</span>
+    </a>
+    <a href="{{ route('billing.payment.index') }}" class="cc-nav-item cc-nav-active">
+        <i class="fas fa-credit-card"></i>
+        <span>Payments</span>
+    </a>
+    <a href="{{ route('billing.duelist.index') }}" class="cc-nav-item">
+        <i class="fas fa-file-invoice"></i>
+        <span>Due List</span>
+    </a>
+    <a href="{{ route('billing.discharge.index') }}" class="cc-nav-item">
+        <i class="fas fa-sign-out-alt"></i>
+        <span>Discharge</span>
+    </a>
+    <a href="{{ route('billing.paynow.index') }}" class="cc-nav-item">
+        <i class="fas fa-hand-holding-usd"></i>
+        <span>Pay Now</span>
+    </a>
+</nav>
+<div class="cc-bottom-spacer"></div>
 
 @stop
 
 
 @section('css')
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css">
 <style>
-    .content-wrapper { background: #f4f6f8 !important; }
+:root {
+    --cc-bg: #faf8ff;
+    --cc-primary: #0f52ba;
+    --cc-primary-dark: #0b3d8a;
+    --cc-primary-light: #e8edff;
+    --cc-white: #ffffff;
+    --cc-border: #d9d9e2;
+    --cc-text: #1a1a2e;
+    --cc-muted: #6b7280;
+    --cc-green: #10b981;
+    --cc-green-bg: #ecfdf5;
+    --cc-red: #ef4444;
+    --cc-red-bg: #fef2f2;
+    --cc-amber: #f59e0b;
+    --cc-amber-bg: #fffbeb;
+    --cc-radius: 4px;
+    --cc-font: 'Hanken Grotesk', system-ui, -apple-system, sans-serif;
+}
 
-    /* -- Layout -- */
-    .top-row-wrap {
-        display: flex;
-        gap: 16px;
-        padding: 4px 0 14px;
-        align-items: flex-start;
-        flex-wrap: wrap;
-    }
-    .pay-form-card {
-        flex: 0 0 38%;
-        min-width: 280px;
-        border: 2px solid #00bfa5;
-        border-radius: 6px;
-        background: #fff;
-        overflow: hidden;
-    }
-    .right-col {
-        flex: 1;
-        min-width: 240px;
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-    }
-    .card-header-bar {
-        padding: 10px 14px;
-        border-bottom: 1px solid #e0e0e0;
-        font-size: 15px;
-        font-weight: 600;
-        color: #222;
-    }
-    .card-body-pad {
-        padding: 12px 14px;
-        display: flex;
-        flex-direction: column;
-        gap: 9px;
-    }
-    .export-toolbar {
-        padding: 8px 14px;
-        background: #fafafa;
-        border-bottom: 1px solid #eee;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 8px;
-        flex-wrap: wrap;
-    }
+.content-wrapper {
+    background: var(--cc-bg) !important;
+    font-family: var(--cc-font);
+    padding-bottom: 70px !important;
+}
 
-    /* -- Select2 -- */
-    .select2-container--default .select2-selection--single {
-        border:1px solid #ccc !important; border-radius:4px !important; height:30px !important;
-    }
-    .select2-container--default .select2-selection--single .select2-selection__rendered {
-        line-height:28px !important; font-size:12px !important; padding-left:8px !important;
-    }
-    .select2-container--default .select2-selection--single .select2-selection__arrow { height:28px !important; }
-    .select2-container--default.select2-container--focus .select2-selection--single,
-    .select2-container--default.select2-container--open  .select2-selection--single {
-        border-color:#00bfa5 !important; box-shadow:0 0 0 2px rgba(0,191,165,.15) !important;
-    }
-    .select2-dropdown { border:1px solid #b2dfdb !important; border-radius:5px !important; font-size:12px !important; z-index:99999 !important; }
-    .select2-container--default .select2-results__option--highlighted[aria-selected] { background:#e0f2f1 !important; color:#004d40 !important; }
-    .select2-results__option { padding:6px 10px !important; }
+* { box-sizing: border-box; }
 
-    /* -- Form rows -- */
-    .ci-row    { display:flex; align-items:center; min-height:28px; flex-wrap:wrap; gap:4px; }
-    .ci-label  { flex:0 0 120px; font-size:12px; color:#555; }
-    .ci-colon  { flex:0 0 12px; color:#888; font-size:12px; }
-    .ci-control{ flex:1; min-width:140px; }
-    .ci-select, .ci-input {
-        width:100%; border:1px solid #ccc; border-radius:4px;
-        padding:5px 8px; font-size:12px; color:#222; background:#fff;
-        height:30px; outline:none; transition:border-color .15s;
-        box-sizing:border-box;
-    }
-    .ci-select:focus, .ci-input:focus { border-color:#00bfa5; }
-    #paymentFields { display:flex; }
-    #btnPayNow:disabled { background:#80cbc4 !important; cursor:not-allowed !important; }
+/* -- Header -- */
+.cc-header-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+.cc-page-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--cc-text);
+    margin: 0;
+}
+.cc-breadcrumb {
+    list-style: none;
+    display: flex;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    font-size: 12px;
+}
+.cc-breadcrumb a { color: var(--cc-primary); text-decoration: none; }
+.cc-breadcrumb a:hover { text-decoration: underline; }
+.cc-bc-active { color: var(--cc-muted); }
+.cc-breadcrumb li + li::before {
+    content: '/';
+    margin-right: 6px;
+    color: #bbb;
+}
 
-    /* -- Summary cards -- */
-    .summary-card {
-        flex:1; background:#fff; border-radius:6px; padding:12px 14px;
-        display:flex; align-items:center; gap:12px;
-        box-shadow:0 1px 4px rgba(0,0,0,.08);
-    }
-    .summary-icon {
-        width:40px; height:40px; border-radius:50%;
-        display:flex; align-items:center; justify-content:center;
-        font-size:17px; flex-shrink:0;
-    }
-    .summary-label { font-size:11px; color:#888; }
-    .summary-value { font-size:17px; font-weight:700; color:#222; line-height:1.3; }
-    .summary-count { font-size:10px; color:#aaa; }
+/* -- Layout -- */
+.cc-page {
+    display: flex;
+    gap: 16px;
+    padding: 4px 0 14px;
+    align-items: flex-start;
+}
+.cc-left-col {
+    flex: 0 0 38%;
+    min-width: 280px;
+}
+.cc-right-col {
+    flex: 1;
+    min-width: 240px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
 
-    /* -- Table -- */
-    .inv-th { border:1px solid #ccc; padding:6px 8px; font-weight:600; font-size:11px; color:#333; white-space:nowrap; }
-    #dueTableBody td { border:1px solid #ddd; padding:5px 8px; font-size:12px; color:#222; vertical-align:middle; }
-    #dueTableFoot td { border:1px solid #ccc; padding:5px 8px; font-size:12px; }
+/* -- Card -- */
+.cc-card {
+    background: var(--cc-white);
+    border: 1px solid var(--cc-border);
+    border-radius: var(--cc-radius);
+    overflow: hidden;
+}
+.cc-card-head {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--cc-border);
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--cc-text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.cc-head-icon { color: var(--cc-primary); font-size: 14px; }
+.cc-card-body {
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
 
-    /* -- Status badges -- */
-    .status-badge { display:inline-block; font-size:10px; font-weight:700; padding:2px 8px; border-radius:10px; white-space:nowrap; }
-    .status-paid      { background:#e8f5e9; color:#2e7d32; }
-    .status-partial   { background:#fff8e1; color:#f57f17; }
-    .status-due       { background:#fce4ec; color:#c62828; }
-    .status-confirmed { background:#e3f2fd; color:#1565c0; }
+/* -- Fields -- */
+.cc-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.cc-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--cc-muted);
+}
+.cc-input {
+    width: 100%;
+    border: 1px solid var(--cc-border);
+    border-radius: var(--cc-radius);
+    padding: 7px 10px;
+    font-size: 13px;
+    font-family: var(--cc-font);
+    color: var(--cc-text);
+    background: var(--cc-white);
+    height: 34px;
+    outline: none;
+    transition: border-color .15s;
+}
+.cc-input:focus { border-color: var(--cc-primary); }
+select.cc-input { appearance: auto; }
+.cc-field-error {
+    font-size: 11px; color: var(--cc-red); margin-top: 2px;
+}
 
-    /* -- Action buttons -- */
-    .btn-select-inv {
-        background:#2979ff;color:#fff;border:none;border-radius:3px;
-        padding:3px 10px;font-size:11px;cursor:pointer;font-weight:600;white-space:nowrap;
-    }
-    .btn-print-inv {
-        background:#00bfa5;color:#fff;border:none;border-radius:3px;
-        padding:3px 8px;font-size:11px;cursor:pointer;
-    }
+/* -- Buttons -- */
+.cc-btn {
+    border: none;
+    border-radius: var(--cc-radius);
+    cursor: pointer;
+    font-family: var(--cc-font);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px 16px;
+    transition: background .15s, opacity .15s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+.cc-btn-primary {
+    background: var(--cc-primary);
+    color: var(--cc-white);
+}
+.cc-btn-primary:hover { background: var(--cc-primary-dark); }
+.cc-btn-primary:disabled {
+    background: #a0b8d6 !important;
+    cursor: not-allowed !important;
+    opacity: .7;
+}
+.cc-btn-block { width: 100%; }
+.cc-btn-clear {
+    background: none;
+    border: 1px solid var(--cc-red);
+    color: var(--cc-red);
+    font-size: 11px;
+    padding: 2px 10px;
+    border-radius: var(--cc-radius);
+}
+.cc-btn-clear:hover { background: var(--cc-red-bg); }
 
-    /* -- Pagination -- */
-    .page-btn { border:1px solid #ddd;background:#fff;padding:3px 9px;border-radius:4px;font-size:12px;cursor:pointer;color:#333; }
-    .page-btn.active { background:#00bfa5;color:#fff;border-color:#00bfa5;font-weight:600; }
-    .page-btn:hover:not(.active) { background:#f5f5f5; }
-    #paginationWrap { overflow-x:auto; }
+/* -- Export buttons -- */
+.cc-export-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+.cc-btn-export {
+    font-size: 12px;
+    padding: 5px 12px;
+    color: var(--cc-white);
+    border-radius: var(--cc-radius);
+}
+.cc-btn-excel { background: #217346; }
+.cc-btn-excel:hover { background: #1a5c38; }
+.cc-btn-csv { background: #d97706; }
+.cc-btn-csv:hover { background: #b45309; }
+.cc-btn-print { background: var(--cc-primary); }
+.cc-btn-print:hover { background: var(--cc-primary-dark); }
+.cc-due-summary {
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--cc-amber);
+    font-weight: 600;
+    white-space: nowrap;
+}
 
-    /* -- Mobile: stack columns -- */
-    @media (max-width: 768px) {
-        .top-row-wrap { flex-direction: column; }
-        .pay-form-card { flex: none; width: 100%; }
-        .right-col { width: 100%; }
-        .summary-value { font-size: 15px; }
-        .export-toolbar { flex-direction: column; align-items: flex-start; }
-        .ci-label { flex: 0 0 105px; }
-    }
+/* -- Search -- */
+.cc-search-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+.cc-search-row .cc-input {
+    flex: 1;
+    min-width: 160px;
+    height: 34px;
+}
+.cc-toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--cc-text);
+    white-space: nowrap;
+}
+.cc-toggle-label input[type="checkbox"] { cursor: pointer; }
 
-    @media (max-width: 480px) {
-        .ci-row { flex-direction: column; align-items: flex-start; }
-        .ci-colon { display: none; }
-        .ci-label { flex: none; font-weight: 600; margin-bottom: 2px; }
-        .ci-control { width: 100%; }
-    }
+/* -- Invoice Info Box -- */
+.cc-info-box {
+    background: var(--cc-primary-light);
+    border: 1px solid #c5d5f0;
+    border-radius: var(--cc-radius);
+    padding: 10px 12px;
+    font-size: 12px;
+}
+.cc-info-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 8px;
+}
+.cc-info-badge {
+    background: var(--cc-primary);
+    color: var(--cc-white);
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 600;
+}
+.cc-info-name { margin-left: 6px; font-size: 13px; color: var(--cc-text); }
+.cc-info-type {
+    margin-left: 6px;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 10px;
+    display: inline-block;
+}
+.cc-info-stats {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.cc-info-stat {
+    flex: 1;
+    min-width: 70px;
+    background: var(--cc-white);
+    border: 1px solid var(--cc-border);
+    border-radius: var(--cc-radius);
+    padding: 6px 8px;
+    text-align: center;
+}
+.cc-info-stat-paid { border-color: #a7f3d0; }
+.cc-info-stat-due { background: var(--cc-amber-bg); border-color: #fcd34d; }
+.cc-info-stat-label { font-size: 10px; color: var(--cc-muted); }
+.cc-info-stat-val { font-size: 14px; font-weight: 700; color: var(--cc-text); line-height: 1.3; }
+.cc-green { color: var(--cc-green); }
+.cc-amber { color: var(--cc-amber); }
 
-    /* -- Print -- */
-    @media print {
-        .content-header, .main-sidebar, .main-header,
-        #btnExportExcel, #btnExportCsv, #btnPrintList,
-        .btn-select-inv, .btn-print-inv, #paginationWrap,
-        .pay-form-card, .right-col { display:none !important; }
-        body, .content-wrapper { background:#fff !important; }
-        #dueTableFoot { display:table-footer-group !important; }
-    }
+/* -- Notice -- */
+.cc-notice {
+    padding: 8px 12px;
+    border-radius: var(--cc-radius);
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.cc-notice-warn {
+    background: var(--cc-amber-bg);
+    border: 1px solid #fcd34d;
+    color: #92400e;
+}
+
+/* -- Payment fields wrapper -- */
+.cc-pay-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* -- Summary Card -- */
+.cc-card-summary {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+}
+.cc-summary-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--cc-primary-light);
+    color: var(--cc-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+}
+.cc-summary-body { display: flex; flex-direction: column; gap: 2px; }
+.cc-summary-label { font-size: 11px; color: var(--cc-muted); }
+.cc-summary-value { font-size: 18px; font-weight: 700; color: var(--cc-text); line-height: 1.3; }
+.cc-summary-count { font-size: 11px; color: var(--cc-muted); }
+
+/* -- Card List -- */
+.cc-card-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* -- Invoice Card -- */
+.cc-inv-card {
+    background: var(--cc-white);
+    border: 1px solid var(--cc-border);
+    border-radius: var(--cc-radius);
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.cc-inv-card-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+}
+.cc-inv-card-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+}
+.cc-inv-billno {
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--cc-text);
+}
+.cc-inv-name {
+    font-size: 12px;
+    color: var(--cc-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.cc-inv-card-details { display: flex; flex-direction: column; gap: 4px; }
+.cc-inv-card-amounts {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.cc-inv-amount { display: flex; flex-direction: column; gap: 1px; }
+.cc-inv-amount-label { font-size: 10px; color: var(--cc-muted); text-transform: uppercase; letter-spacing: .3px; }
+.cc-inv-amount-value { font-size: 14px; font-weight: 700; color: var(--cc-text); }
+.cc-inv-amount-paid { color: var(--cc-green); }
+.cc-inv-amount-due { color: var(--cc-amber); }
+.cc-inv-card-meta {
+    font-size: 11px;
+    color: var(--cc-muted);
+}
+.cc-inv-card-actions {
+    display: flex;
+    gap: 6px;
+    justify-content: flex-end;
+    padding-top: 6px;
+    border-top: 1px solid #eee;
+}
+
+/* -- Status Badges (new Clinical Clarity) -- */
+.cc-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 10px;
+    border-radius: 10px;
+    white-space: nowrap;
+    line-height: 1.5;
+}
+.cc-badge-paid { background: var(--cc-green-bg); color: var(--cc-green); }
+.cc-badge-partial, .cc-badge-due { background: var(--cc-red-bg); color: var(--cc-red); }
+.cc-badge-pending { background: var(--cc-amber-bg); color: var(--cc-amber); }
+.cc-badge-confirmed { background: var(--cc-primary-light); color: var(--cc-primary); }
+
+/* -- Action buttons in cards -- */
+.cc-btn-sm {
+    font-size: 11px;
+    padding: 4px 12px;
+    border-radius: var(--cc-radius);
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    font-family: var(--cc-font);
+}
+.cc-btn-pay {
+    background: var(--cc-primary);
+    color: var(--cc-white);
+}
+.cc-btn-pay:hover { background: var(--cc-primary-dark); }
+.cc-btn-outline {
+    background: var(--cc-white);
+    color: var(--cc-muted);
+    border: 1px solid var(--cc-border);
+}
+.cc-btn-outline:hover { background: #f5f5f5; }
+
+/* -- Load More -- */
+.cc-load-more-wrap {
+    text-align: center;
+    padding: 4px 0;
+}
+.cc-btn-load-more {
+    background: var(--cc-white);
+    color: var(--cc-primary);
+    border: 1px solid var(--cc-primary);
+    border-radius: var(--cc-radius);
+    padding: 8px 28px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: var(--cc-font);
+}
+.cc-btn-load-more:hover {
+    background: var(--cc-primary-light);
+}
+
+/* -- Empty / Loading state -- */
+.cc-list-state {
+    text-align: center;
+    color: var(--cc-muted);
+    padding: 28px 16px;
+    font-size: 12px;
+    background: var(--cc-white);
+    border: 1px solid var(--cc-border);
+    border-radius: var(--cc-radius);
+}
+
+/* -- Select2 overrides -- */
+.select2-container--default .select2-selection--single {
+    border: 1px solid var(--cc-border) !important;
+    border-radius: var(--cc-radius) !important;
+    height: 34px !important;
+}
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+    line-height: 32px !important;
+    font-size: 13px !important;
+    font-family: var(--cc-font) !important;
+    padding-left: 10px !important;
+    color: var(--cc-text) !important;
+}
+.select2-container--default .select2-selection--single .select2-selection__arrow { height: 32px !important; }
+.select2-container--default.select2-container--focus .select2-selection--single,
+.select2-container--default.select2-container--open .select2-selection--single {
+    border-color: var(--cc-primary) !important;
+    box-shadow: 0 0 0 2px rgba(15,82,186,.15) !important;
+}
+.select2-dropdown {
+    border: 1px solid var(--cc-border) !important;
+    border-radius: var(--cc-radius) !important;
+    font-size: 12px !important;
+    font-family: var(--cc-font) !important;
+    z-index: 99999 !important;
+}
+.select2-container--default .select2-results__option--highlighted[aria-selected] {
+    background: var(--cc-primary-light) !important;
+    color: var(--cc-primary-dark) !important;
+}
+.select2-results__option { padding: 6px 10px !important; }
+
+/* -- Bottom Nav -- */
+.cc-bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 56px;
+    background: var(--cc-white);
+    border-top: 1px solid var(--cc-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    z-index: 999;
+    padding: 0 4px;
+}
+.cc-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    color: var(--cc-muted);
+    text-decoration: none;
+    font-size: 10px;
+    font-weight: 500;
+    padding: 4px 10px;
+    border-radius: var(--cc-radius);
+    transition: color .15s;
+    min-width: 0;
+    flex: 1;
+    text-align: center;
+}
+.cc-nav-item i { font-size: 16px; }
+.cc-nav-item span { line-height: 1.2; }
+.cc-nav-item:hover { color: var(--cc-primary); }
+.cc-nav-active {
+    color: var(--cc-primary);
+    font-weight: 600;
+}
+.cc-bottom-spacer { height: 64px; }
+
+/* -- Print styles -- */
+@media print {
+    .content-header, .main-sidebar, .main-header,
+    .cc-bottom-nav, .cc-bottom-spacer,
+    .cc-left-col, .cc-export-row, .cc-search-row,
+    .cc-btn, .cc-load-more-wrap, .cc-btn-load-more,
+    .btn-select-inv, .btn-print-inv { display: none !important; }
+    body, .content-wrapper { background: #fff !important; }
+    .cc-right-col { width: 100% !important; }
+    .cc-inv-card { break-inside: avoid; page-break-inside: avoid; }
+}
+
+/* -- Responsive -- */
+@media (max-width: 992px) {
+    .cc-page { flex-direction: column; }
+    .cc-left-col { flex: none; width: 100%; }
+    .cc-right-col { width: 100%; }
+}
+@media (max-width: 600px) {
+    .cc-summary-value { font-size: 16px; }
+    .cc-export-row { gap: 4px; }
+    .cc-btn-export { font-size: 11px; padding: 4px 10px; }
+    .cc-due-summary { margin-left: 0; width: 100%; text-align: right; }
+    .cc-inv-card { padding: 10px 12px; }
+    .cc-inv-card-amounts { gap: 8px; }
+}
 </style>
 @stop
 
@@ -416,7 +768,7 @@ let selectedInvoice = null;
 let allLoadedRows   = [];
 
 // ----------------------------------------------------------
-// 1. Invoice Select2 — search due invoices
+// 1. Invoice Select2 â€” search due invoices
 // ----------------------------------------------------------
 $('#invoiceSelect').select2({
     placeholder        : 'Type bill no / name / mobile...',
@@ -433,28 +785,28 @@ $('#invoiceSelect').select2({
             const due = (data.data || []).filter(i => parseFloat(i.DueAmount) > 0);
             return {
                 results: due.map(function(inv){
-                    return { id: inv.ID, text: inv.BillNo + ' — ' + inv.PatientName, data: inv };
+                    return { id: inv.ID, text: inv.BillNo + ' â€” ' + inv.PatientName, data: inv };
                 })
             };
         },
         cache: false,
     },
     templateResult: function(item){
-        if (item.loading) return $('<span style="color:#00897b;font-size:12px;">Searching...</span>');
+        if (item.loading) return $('<span style="color:#0f52ba;font-size:12px;">Searching...</span>');
         if (!item.data)   return item.text;
         const inv = item.data;
         const due = parseFloat(inv.DueAmount) || 0;
         return $(
             `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:2px 0;flex-wrap:wrap;">
                 <div>
-                    <span style="font-weight:600;color:#1a3c5e;font-size:12px;">${inv.BillNo}</span>
-                    <span style="color:#555;font-size:11px;margin-left:6px;">${inv.PatientName}</span>
-                    <span style="background:#e0f2f1;color:#00695c;font-size:10px;font-weight:600;
+                    <span style="font-weight:600;color:#1a1a2e;font-size:12px;">${inv.BillNo}</span>
+                    <span style="color:#6b7280;font-size:11px;margin-left:6px;">${inv.PatientName}</span>
+                    <span style="background:#e8edff;color:#0f52ba;font-size:10px;font-weight:600;
                                  padding:1px 6px;border-radius:8px;margin-left:4px;">
                         ${inv.InvoiceType || ''}
                     </span>
                 </div>
-                <span style="background:#fce4ec;color:#c62828;font-size:10px;font-weight:700;
+                <span style="background:#fef2f2;color:#ef4444;font-size:10px;font-weight:700;
                              padding:1px 7px;border-radius:10px;white-space:nowrap;">
                     Due &#2547;${parseInt(due).toLocaleString()}
                 </span>
@@ -463,7 +815,7 @@ $('#invoiceSelect').select2({
     },
     templateSelection: function(item){
         if (!item.data) return item.text;
-        return item.data.BillNo + ' — ' + item.data.PatientName;
+        return item.data.BillNo + ' â€” ' + item.data.PatientName;
     },
     language:{ noResults:()=>'No due invoices found', searching:()=>'Searching...' },
 });
@@ -483,7 +835,7 @@ function selectInvoice(inv){
 
     $('#infoBillNo').text(inv.BillNo);
     $('#infoPatientName').text(inv.PatientName);
-    $('#infoTypeBadge').text(inv.InvoiceType || '').css({ background: '#e0f2f1', color: '#00695c' });
+    $('#infoTypeBadge').text(inv.InvoiceType || '').css({ background: '#e8edff', color: '#0f52ba' });
     $('#infoTotal').html('&#2547; ' + parseInt(net).toLocaleString());
     $('#infoPaid').html('&#2547; '  + parseInt(paid).toLocaleString());
     $('#infoDue').html('&#2547; '   + parseInt(due).toLocaleString());
@@ -493,7 +845,7 @@ function selectInvoice(inv){
 
     if (due > 0) {
         $('#payingAmountInput').val(parseInt(due)).attr('max', parseInt(due));
-        $('#paymentFields').show().css({ display:'flex', 'flex-direction':'column', gap:'9px' });
+        $('#paymentFields').show().css({ display:'flex', 'flex-direction':'column', gap:'10px' });
         $('#btnPayNow').prop('disabled', false);
     } else {
         $('#paymentFields').hide();
@@ -580,19 +932,20 @@ $('#btnPayNow').on('click', function(){
 });
 
 // ----------------------------------------------------------
-// 4. Load Due List
+// 4. Load Due List (renders cards, supports Load More)
 // ----------------------------------------------------------
-function loadDueList(page){
+function loadDueList(page, append){
     page = page || 1;
     currentPage = page;
 
     const q       = $('#listSearchInput').val().trim();
     const showAll = $('#showAllChk').is(':checked') ? 1 : 0;
-    const $body   = $('#dueTableBody');
+    const $list   = $('#dueCardList');
 
-    $body.html(`<tr><td colspan="9" style="text-align:center;color:#aaa;padding:20px;border:1px solid #ddd;">
-        <i class="fas fa-spinner fa-spin mr-1"></i> Loading...</td></tr>`);
-    $('#dueTableFoot').hide();
+    if (!append) {
+        $list.html('<div class="cc-list-state"><i class="fas fa-spinner fa-spin"></i> Loading...</div>');
+        $('#loadMoreWrap').hide();
+    }
 
     $.get('{{ route("billing.invoice.list") }}', {
         q,
@@ -602,15 +955,16 @@ function loadDueList(page){
     }, function(res){
         const rows = res.data || [];
         const meta = res.meta || {};
-        allLoadedRows = rows;
 
-        $body.empty();
+        if (!append) {
+            allLoadedRows = rows;
+            $list.empty();
+        } else {
+            allLoadedRows = allLoadedRows.concat(rows);
+        }
 
-        if (!rows.length) {
-            $body.html(`<tr><td colspan="9"
-                style="text-align:center;color:#aaa;padding:30px;border:1px solid #ddd;font-size:12px;">
-                No due invoices found.</td></tr>`);
-            $('#paginationWrap').empty();
+        if (!rows.length && !append) {
+            $list.html('<div class="cc-list-state">No due invoices found.</div>');
             $('#activeTabDueSummary').text('');
             return;
         }
@@ -625,57 +979,71 @@ function loadDueList(page){
             sumTotal += net; sumPaid += paid; sumDue += due;
 
             const statusMap = {
-                paid      : '<span class="status-badge status-paid">Paid</span>',
-                partial   : '<span class="status-badge status-partial">Partial</span>',
-                confirmed : '<span class="status-badge status-confirmed">Confirmed</span>',
-                due       : '<span class="status-badge status-due">Due</span>',
+                paid      : '<span class="cc-badge cc-badge-paid">Paid</span>',
+                partial   : '<span class="cc-badge cc-badge-partial">Partial</span>',
+                confirmed : '<span class="cc-badge cc-badge-confirmed">Confirmed</span>',
+                due       : '<span class="cc-badge cc-badge-due">Due</span>',
             };
-            const badge  = statusMap[status] || `<span class="status-badge status-due">${inv.Status}</span>`;
-            const rowNum = ((meta.current_page || 1) - 1) * (meta.per_page || 20) + idx + 1;
+            const badge  = statusMap[status] || '<span class="cc-badge cc-badge-pending">' + (inv.Status || '') + '</span>';
             const invEsc = JSON.stringify(inv).replace(/'/g, '&#39;');
 
-            $body.append(`
-                <tr>
-                    <td style="color:#888;text-align:center;">${rowNum}</td>
-                    <td style="font-weight:600;white-space:nowrap;">${inv.BillNo}</td>
-                    <td>
-                        <div style="font-weight:500;">${inv.PatientName}</div>
-                        <div style="font-size:11px;color:#888;">
-                            ${inv.PatientCode || ''}
-                            ${inv.MobileNo ? ' &middot; ' + inv.MobileNo : ''}
+            const cardHtml = `
+                <div class="cc-inv-card" data-id="${inv.ID}">
+                    <div class="cc-inv-card-head">
+                        <div class="cc-inv-card-info">
+                            <span class="cc-inv-billno">${inv.BillNo}</span>
+                            <span class="cc-inv-name">${inv.PatientName}</span>
                         </div>
-                    </td>
-                    <td style="color:#666;white-space:nowrap;">${inv.PaymentDate || '—'}</td>
-                    <td style="text-align:right;white-space:nowrap;">&#2547; ${parseInt(net).toLocaleString()}</td>
-                    <td style="text-align:right;color:#2e7d32;font-weight:600;white-space:nowrap;">&#2547; ${parseInt(paid).toLocaleString()}</td>
-                    <td style="text-align:right;color:#e65100;font-weight:700;white-space:nowrap;">&#2547; ${parseInt(due).toLocaleString()}</td>
-                    <td style="text-align:center;">${badge}</td>
-                    <td style="text-align:center;">
-                        <div style="display:flex;gap:4px;justify-content:center;">
-                            ${due > 0
-                                ? `<button class="btn-select-inv" data-inv='${invEsc}'>Pay</button>`
-                                : ''}
-                            <button class="btn-print-inv"
-                                    onclick="window.open('{{ url('Billing/payment') }}/${inv.ID}/print','_blank')">
-                                <i class="fas fa-print"></i>
-                            </button>
+                        ${badge}
+                    </div>
+                    <div class="cc-inv-card-details">
+                        <div class="cc-inv-card-amounts">
+                            <div class="cc-inv-amount">
+                                <span class="cc-inv-amount-label">Total</span>
+                                <span class="cc-inv-amount-value">&#2547; ${parseInt(net).toLocaleString()}</span>
+                            </div>
+                            <div class="cc-inv-amount">
+                                <span class="cc-inv-amount-label">Paid</span>
+                                <span class="cc-inv-amount-value cc-inv-amount-paid">&#2547; ${parseInt(paid).toLocaleString()}</span>
+                            </div>
+                            <div class="cc-inv-amount">
+                                <span class="cc-inv-amount-label">Due</span>
+                                <span class="cc-inv-amount-value cc-inv-amount-due">&#2547; ${parseInt(due).toLocaleString()}</span>
+                            </div>
                         </div>
-                    </td>
-                </tr>
-            `);
+                        <div class="cc-inv-card-meta">
+                            ${inv.PaymentDate || 'â€”'}
+                            ${inv.InvoiceType ? ' Â· ' + inv.InvoiceType : ''}
+                            ${inv.MobileNo ? ' Â· ' + inv.MobileNo : ''}
+                            ${inv.PatientCode ? ' Â· ' + inv.PatientCode : ''}
+                        </div>
+                    </div>
+                    <div class="cc-inv-card-actions">
+                        ${due > 0
+                            ? '<button class="cc-btn-sm cc-btn-pay btn-select-inv" data-inv=\'' + invEsc + '\'>Pay</button>'
+                            : ''}
+                        <button class="cc-btn-sm cc-btn-outline" onclick="window.open(\'{{ url("Billing/payment") }}/${inv.ID}/print\',\'_blank\')">
+                            <i class="fas fa-print"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            $list.append(cardHtml);
         });
 
-        $('#footTotal').html('&#2547; ' + parseInt(sumTotal).toLocaleString());
-        $('#footPaid').html('&#2547; '  + parseInt(sumPaid).toLocaleString());
-        $('#footDue').html('&#2547; '   + parseInt(sumDue).toLocaleString());
-        $('#dueTableFoot').show();
-
         $('#activeTabDueSummary').text(
-            '— Page Due: \u09f3' + parseInt(sumDue).toLocaleString()
+            'Due: \u09f3' + parseInt(sumDue).toLocaleString()
             + ' (' + rows.length + ' records)'
         );
 
-        renderPagination(meta);
+        const hasMore = meta.current_page < meta.last_page;
+        if (hasMore) {
+            $('#loadMoreBtn').data('next-page', meta.current_page + 1);
+            $('#loadMoreWrap').show();
+        } else {
+            $('#loadMoreWrap').hide();
+        }
 
     }).fail(function(){
         toastr.error('Failed to load invoices.');
@@ -700,32 +1068,11 @@ function loadSummaryCards(){
 }
 
 // ----------------------------------------------------------
-// 6. Pagination
+// 6. Load More
 // ----------------------------------------------------------
-function renderPagination(meta){
-    const $wrap = $('#paginationWrap');
-    $wrap.empty();
-    if (!meta.last_page || meta.last_page <= 1) return;
-
-    let html = `<div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;">`;
-    if (meta.current_page > 1)
-        html += `<button class="page-btn" data-page="${meta.current_page - 1}">&lsaquo; Prev</button>`;
-    for (let i = 1; i <= meta.last_page; i++) {
-        if (i === meta.current_page)
-            html += `<button class="page-btn active" data-page="${i}">${i}</button>`;
-        else if (i === 1 || i === meta.last_page || Math.abs(i - meta.current_page) <= 1)
-            html += `<button class="page-btn" data-page="${i}">${i}</button>`;
-        else if (Math.abs(i - meta.current_page) === 2)
-            html += `<span style="color:#aaa;">&hellip;</span>`;
-    }
-    if (meta.current_page < meta.last_page)
-        html += `<button class="page-btn" data-page="${meta.current_page + 1}">Next &rsaquo;</button>`;
-    html += `<span style="margin-left:8px;color:#888;">Showing ${meta.from}&ndash;${meta.to} of ${meta.total}</span></div>`;
-    $wrap.html(html);
-}
-
-$(document).on('click', '.page-btn', function(){
-    loadDueList(parseInt($(this).data('page')));
+$(document).on('click', '#loadMoreBtn', function(){
+    const nextPage = $(this).data('next-page') || currentPage + 1;
+    loadDueList(nextPage, true);
 });
 
 // ----------------------------------------------------------
@@ -825,62 +1172,50 @@ $('#btnPrintList').on('click', function(){
             </td>
             <td>${r['Date']}</td>
             <td style="text-align:right;">&#2547; ${r['Total (BDT)'].toLocaleString()}</td>
-            <td style="text-align:right;color:#2e7d32;">&#2547; ${r['Paid (BDT)'].toLocaleString()}</td>
-            <td style="text-align:right;color:#c62828;font-weight:700;">&#2547; ${r['Due (BDT)'].toLocaleString()}</td>
+            <td style="text-align:right;color:#10b981;">&#2547; ${r['Paid (BDT)'].toLocaleString()}</td>
+            <td style="text-align:right;color:#ef4444;font-weight:700;">&#2547; ${r['Due (BDT)'].toLocaleString()}</td>
             <td>${r['Status']}</td>
         </tr>`).join('');
 
     const win = window.open('', '_blank', 'width=960,height=720');
-    win.document.write(`<!DOCTYPE html><html><head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <title>Due List</title>
-        <style>
-            * { box-sizing:border-box; margin:0; padding:0; }
-            body  { font-family:Arial,sans-serif; font-size:12px; padding:20px; color:#222; }
-            .hdr  { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; flex-wrap:wrap; gap:8px; }
-            .hdr h2 { font-size:16px; }
-            .hdr .sub { font-size:11px; color:#888; margin-top:3px; }
-            .hdr .badge { font-size:11px; font-weight:700; padding:3px 10px; border-radius:12px;
-                          background:#fff3e0; color:#e65100; }
-            table { width:100%; border-collapse:collapse; margin-top:4px; }
-            th { background:#f5f5f5; border:1px solid #ccc; padding:6px 8px; font-size:11px; text-align:left; }
-            td { border:1px solid #ddd; padding:5px 8px; }
-            tfoot td { background:#e8f5e9; font-weight:700; border:1px solid #ccc; }
-            small { font-size:10px; color:#888; }
-            @media print { body { padding:10px; } }
-        </style>
-    </head><body>
-        <div class="hdr">
-            <div>
-                <h2>Due Invoice List</h2>
-                <div class="sub">Printed: ${today} &nbsp;|&nbsp; Records: ${data.length}</div>
-            </div>
-            <span class="badge">Due List</span>
-        </div>
-        <table>
-            <thead>
-                <tr>
-                    <th>#</th><th>Bill No</th><th>Patient</th><th>Date</th>
-                    <th style="text-align:right;">Total (&#2547;)</th>
-                    <th style="text-align:right;">Paid (&#2547;)</th>
-                    <th style="text-align:right;">Due (&#2547;)</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody>${rows}</tbody>
-            <tfoot>
-                <tr>
-                    <td colspan="4" style="text-align:right;">Total:</td>
-                    <td style="text-align:right;">&#2547; ${totalBill.toLocaleString()}</td>
-                    <td style="text-align:right;color:#2e7d32;">&#2547; ${totalPaid.toLocaleString()}</td>
-                    <td style="text-align:right;color:#c62828;">&#2547; ${totalDue.toLocaleString()}</td>
-                    <td></td>
-                </tr>
-            </tfoot>
-        </table>
-        <script>window.onload = function(){ window.print(); window.close(); };<\/script>
-    </body></html>`);
+    win.document.write('<!DOCTYPE html><html><head>'
+        + '<meta charset="UTF-8">'
+        + '<meta name="viewport" content="width=device-width, initial-scale=1">'
+        + '<title>Due List</title>'
+        + '<style>'
+        + '* { box-sizing:border-box; margin:0; padding:0; }'
+        + 'body  { font-family:Arial,sans-serif; font-size:12px; padding:20px; color:#222; }'
+        + '.hdr  { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; flex-wrap:wrap; gap:8px; }'
+        + '.hdr h2 { font-size:16px; }'
+        + '.hdr .sub { font-size:11px; color:#888; margin-top:3px; }'
+        + '.hdr .badge { font-size:11px; font-weight:700; padding:3px 10px; border-radius:12px; background:#fffbeb; color:#f59e0b; }'
+        + 'table { width:100%; border-collapse:collapse; margin-top:4px; }'
+        + 'th { background:#f5f5f5; border:1px solid #ccc; padding:6px 8px; font-size:11px; text-align:left; }'
+        + 'td { border:1px solid #ddd; padding:5px 8px; }'
+        + 'tfoot td { background:#ecfdf5; font-weight:700; border:1px solid #ccc; }'
+        + 'small { font-size:10px; color:#888; }'
+        + '@media print { body { padding:10px; } }'
+        + '</style>'
+        + '</head><body>'
+        + '<div class="hdr">'
+        + '<div><h2>Due Invoice List</h2><div class="sub">Printed: ' + today + ' &nbsp;|&nbsp; Records: ' + data.length + '</div></div>'
+        + '<span class="badge">Due List</span>'
+        + '</div>'
+        + '<table><thead><tr>'
+        + '<th>#</th><th>Bill No</th><th>Patient</th><th>Date</th>'
+        + '<th style="text-align:right;">Total (&#2547;)</th>'
+        + '<th style="text-align:right;">Paid (&#2547;)</th>'
+        + '<th style="text-align:right;">Due (&#2547;)</th><th>Status</th>'
+        + '</tr></thead><tbody>' + rows + '</tbody>'
+        + '<tfoot><tr>'
+        + '<td colspan="4" style="text-align:right;">Total:</td>'
+        + '<td style="text-align:right;">&#2547; ' + totalBill.toLocaleString() + '</td>'
+        + '<td style="text-align:right;color:#10b981;">&#2547; ' + totalPaid.toLocaleString() + '</td>'
+        + '<td style="text-align:right;color:#ef4444;">&#2547; ' + totalDue.toLocaleString() + '</td><td></td>'
+        + '</tr></tfoot></table>'
+        + '<script>window.onload = function(){ window.print(); window.close(); };<\/script>'
+        + '</body></html>'
+    );
     win.document.close();
 });
 
