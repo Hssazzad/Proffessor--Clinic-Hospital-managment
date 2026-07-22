@@ -1361,6 +1361,8 @@ public function dischargeList(Request $request)
     $roundMedicines = collect();
     $freshMedicines = collect();
     $discharge = null;
+    $dischargeDoctor = null;
+    $dischargeBed = null;
     $savedMedicines = collect();
     $commonMedicines = Schema::hasTable('common_medicine')
         ? DB::table('common_medicine')->orderBy('name')->get()

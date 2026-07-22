@@ -216,4 +216,16 @@ class AppointmentController extends Controller
         $patients = DB::table('patients')->orderBy('patientname')->get();
         return view('appointments.create', compact('patients'));
     }
+
+    // ৮. অ্যাপয়েন্টমেন্ট ডিলিট করা
+    public function destroy($id)
+    {
+        $deleted = DB::table('appointments')->where('id', $id)->delete();
+
+        if ($deleted) {
+            return back()->with('success', 'Appointment deleted successfully!');
+        }
+
+        return back()->with('error', 'Appointment not found or already deleted.');
+    }
 }

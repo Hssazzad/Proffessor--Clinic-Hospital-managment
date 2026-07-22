@@ -44,4 +44,8 @@ Route::prefix('appointments')->group(function () {
 
     Route::get('/check-patient-date', [AppointmentController::class, 'checkPatientDate'])
         ->name('appointments.checkPatientDate');
+
+    // ৪. অ্যাপয়েন্টমেন্ট ডিলিট
+    Route::delete('/delete/{id}', [AppointmentController::class, 'destroy'])
+        ->name('appointments.destroy');
 });

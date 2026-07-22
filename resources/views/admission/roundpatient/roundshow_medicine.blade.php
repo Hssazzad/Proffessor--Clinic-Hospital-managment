@@ -1,6 +1,6 @@
 @extends('adminlte::page')
 
-@section('title', 'Patient Medicine')
+@section('title', 'Round Patient Medicine')
 
 @section('content_header')
 @stop
@@ -8,337 +8,670 @@
 @section('content')
 
 {{-- ════════════════════════════════════════════════════════
-     CLINICAL CLARITY V2  —  Round Medicine
+     MEDICATION RECONCILIATION UI — Round Patient Medicine
 ════════════════════════════════════════════════════════ --}}
-<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 
 <style>
-/* ── TOKENS ── */
+/* ── DESIGN TOKENS ── */
 :root{
-    --p:#0f52ba;--p-dk:#0a3d8f;--p-lt:#e8effc;
-    --surf:#ffffff;--dim:#f3f3fc;
-    --out:#e5e7eb;--bdr:#d0d8f0;
-    --txt:#111827;--muted:#6b7280;
-    --red:#dc2626;--red-lt:#fef2f2;--red-bdr:#fecaca;
-    --grn:#059669;--grn-lt:#ecfdf5;--grn-bdr:#6ee7b7;
-    --warn:#d97706;--warn-lt:#fffbeb;--warn-bdr:#fcd34d;
-    --r:4px;
-    --font:'Hanken Grotesk',Arial,sans-serif;
+    --bg:#f0f4f8;
+    --surf:#ffffff;
+    --surf-hover:#f8fafc;
+    --bdr:#e2e8f0;
+    --bdr-strong:#cbd5e1;
+    --txt:#1e293b;
+    --txt-secondary:#64748b;
+    --txt-muted:#94a3b8;
+    --primary:#0f52ba;
+    --primary-dk:#0a3d8f;
+    --primary-lt:#e0ecfb;
+    --primary-badge:#dbeafe;
+    --red:#b91c1c;
+    --red-bg:#fef2f2;
+    --red-bdr:#fecaca;
+    --red-badge:#dc2626;
+    --green:#059669;
+    --green-bg:#ecfdf5;
+    --green-bdr:#a7f3d0;
+    --amber:#d97706;
+    --amber-bg:#fffbeb;
+    --amber-bdr:#fde68a;
+    --r:10px;
+    --r-sm:6px;
+    --r-pill:9999px;
+    --shadow-sm:0 1px 2px rgba(0,0,0,.05);
+    --shadow:0 1px 3px rgba(0,0,0,.1),0 1px 2px rgba(0,0,0,.06);
+    --shadow-md:0 4px 6px -1px rgba(0,0,0,.1),0 2px 4px -2px rgba(0,0,0,.1);
+    --font:'Inter',system-ui,-apple-system,sans-serif;
 }
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+*,*::before,*::after{box-sizing:border-box;}
 body,input,select,textarea,button{font-family:var(--font)!important;}
 
-/* ── PAGE SHELL ── */
-.cc-page{padding:0 0 48px;}
+/* ── PAGE WRAPPER ── */
+.mr-page{padding:0 0 60px;background:var(--bg);min-height:100vh;}
 
-/* ── STICKY HEADER ── */
-.cc-header{
+/* ── STICKY HEADER BAR ── */
+.mr-header{
     position:sticky;top:0;z-index:100;
-    background:var(--p);
-    display:flex;align-items:center;justify-content:space-between;
-    padding:13px 20px;
-    box-shadow:0 2px 8px rgba(15,82,186,.25);
-}
-.cc-header-left{display:flex;align-items:center;gap:12px;}
-.cc-back-btn{
-    background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.3);
-    color:#fff;border-radius:var(--r);padding:6px 12px;
-    font-size:12px;font-weight:700;cursor:pointer;
-    display:flex;align-items:center;gap:6px;text-decoration:none;
-    transition:background .15s;
-}
-.cc-back-btn:hover{background:rgba(255,255,255,.28);color:#fff;text-decoration:none;}
-.cc-page-title{
-    color:#fff;font-size:15px;font-weight:800;
-    letter-spacing:.3px;
-}
-.cc-stage-badge{
-    background:rgba(255,255,255,.22);color:#fff;
-    border:1px solid rgba(255,255,255,.35);
-    border-radius:99px;padding:4px 12px;
-    font-size:11px;font-weight:700;letter-spacing:.5px;
-    white-space:nowrap;
-}
-
-/* ── ACTION TOOLBAR ── */
-.cc-toolbar{
     background:var(--surf);
-    border-bottom:1px solid var(--out);
-    padding:12px 20px;
-    display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+    border-bottom:1px solid var(--bdr);
+    padding:12px 24px;
+    display:flex;align-items:center;justify-content:space-between;
+    gap:16px;
+    box-shadow:var(--shadow-sm);
 }
-.cc-btn{
-    display:inline-flex;align-items:center;gap:7px;
-    border-radius:var(--r);padding:8px 18px;
-    font-size:13px;font-weight:700;cursor:pointer;
-    border:none;transition:all .15s;letter-spacing:.2px;
+.mr-header-left{display:flex;align-items:center;gap:14px;}
+.mr-back-btn{
+    display:inline-flex;align-items:center;gap:6px;
+    background:var(--surf);color:var(--txt-secondary);
+    border:1px solid var(--bdr);border-radius:var(--r-sm);
+    padding:7px 14px;font-size:13px;font-weight:600;
+    text-decoration:none;cursor:pointer;
+    transition:all .15s;
+}
+.mr-back-btn:hover{background:var(--surf-hover);color:var(--txt);border-color:var(--bdr-strong);text-decoration:none;}
+.mr-page-title{font-size:16px;font-weight:800;color:var(--txt);letter-spacing:-.2px;}
+.mr-patient-tag{
+    font-size:13px;font-weight:500;color:var(--txt-secondary);
+    margin-left:4px;
+}
+.mr-stage-badge{
+    display:inline-flex;align-items:center;gap:6px;
+    background:var(--primary-lt);color:var(--primary);
+    border:1px solid #bfdbfe;
+    border-radius:var(--r-pill);padding:5px 14px;
+    font-size:12px;font-weight:700;letter-spacing:.3px;
     white-space:nowrap;
 }
-.cc-btn-outline{
-    background:var(--surf);color:var(--p);
-    border:1.5px solid var(--p);
-}
-.cc-btn-outline:hover{background:var(--p-lt);}
-.cc-btn-primary{background:var(--p);color:#fff;}
-.cc-btn-primary:hover{background:var(--p-dk);}
-.cc-btn-danger{background:var(--red);color:#fff;}
-.cc-btn-danger:hover{background:#b91c1c;}
-.cc-btn-sm{padding:5px 12px;font-size:12px;}
-
-/* ── LAYOUT ── */
-.cc-layout{
-    padding:20px;
-    display:grid;
-    grid-template-columns:360px 1fr;
-    gap:20px;
-    align-items:start;
-}
-@media(max-width:900px){
-    .cc-layout{grid-template-columns:1fr;}
+.mr-stage-badge .dot{
+    width:7px;height:7px;border-radius:50%;
+    background:var(--primary);
 }
 
-/* ── CARD ── */
-.cc-card{
+/* ── LAYOUT: SINGLE COLUMN COMPACT ── */
+.mr-layout{
+    max-width:1100px;
+    margin:0 auto;
+    padding:20px 24px;
+}
+
+
+/* ── CARD BASE ── */
+.mr-card{
     background:var(--surf);
     border:1px solid var(--bdr);
     border-radius:var(--r);
     overflow:hidden;
-    margin-bottom:20px;
+    box-shadow:var(--shadow-sm);
 }
-.cc-card-head{
-    background:var(--dim);
-    border-bottom:1px solid var(--bdr);
-    padding:12px 16px;
+.mr-card+.mr-card{margin-top:16px;}
+
+/* ── ALLERGY CARD ── */
+.mr-allergy-card{
+    border:1.5px solid var(--red-bdr);
+    border-radius:var(--r);
+    background:var(--red-bg);
+    overflow:hidden;
+}
+.mr-allergy-header{
+    background:var(--red);
+    padding:10px 14px;
     display:flex;align-items:center;justify-content:space-between;
     gap:8px;
 }
-.cc-card-head-title{
+.mr-allergy-header-left{
+    display:flex;align-items:center;gap:8px;
+    color:#fff;font-size:12px;font-weight:800;
+    letter-spacing:.8px;text-transform:uppercase;
+}
+.mr-allergy-header-left i{font-size:14px;}
+.mr-allergy-badge{
+    background:rgba(255,255,255,.2);color:#fff;
+    border:1px solid rgba(255,255,255,.3);
+    border-radius:var(--r-sm);padding:2px 10px;
     font-size:11px;font-weight:800;
-    letter-spacing:1.5px;text-transform:uppercase;
-    color:var(--p);
 }
-.cc-card-body{padding:16px;}
+.mr-allergy-item{
+    padding:12px 14px;
+    border-bottom:1px solid var(--red-bdr);
+    display:flex;align-items:center;justify-content:space-between;
+}
+.mr-allergy-item:last-child{border-bottom:none;}
+.mr-allergy-name{font-size:15px;font-weight:700;color:var(--red);}
+.mr-allergy-reaction{font-size:11px;color:#991b1b;font-weight:500;margin-top:2px;}
+.mr-allergy-edit{
+    background:transparent;border:none;
+    color:#991b1b;font-size:14px;cursor:pointer;
+    padding:4px;opacity:.6;transition:opacity .15s;
+}
+.mr-allergy-edit:hover{opacity:1;}
+.mr-allergy-footer{
+    padding:10px 14px;
+    text-align:center;
+}
+.mr-allergy-report-btn{
+    display:inline-flex;align-items:center;gap:6px;
+    background:transparent;color:var(--red);
+    border:1.5px dashed var(--red-bdr);border-radius:var(--r-sm);
+    padding:6px 14px;font-size:12px;font-weight:700;
+    cursor:pointer;transition:all .15s;width:100%;justify-content:center;
+}
+.mr-allergy-report-btn:hover{background:rgba(185,28,28,.05);border-color:var(--red);}
 
-/* ── FORM ── */
-.cc-form-group{margin-bottom:13px;}
-.cc-label{
-    display:block;font-size:10px;font-weight:800;
-    letter-spacing:1px;text-transform:uppercase;
-    color:var(--muted);margin-bottom:5px;
+/* ── PATIENT INFO BAR (horizontal) ── */
+.mr-patient-bar{
+    background:var(--surf);
+    border:1px solid var(--bdr);
+    border-radius:var(--r);
+    padding:14px 20px;
+    display:flex;align-items:center;flex-wrap:wrap;
+    gap:24px;
+    box-shadow:var(--shadow-sm);
+    margin-bottom:18px;
 }
-.cc-label .req{color:var(--red);}
-.cc-input,.cc-select{
-    width:100%;border:1px solid var(--bdr);border-radius:var(--r);
-    padding:8px 11px;font-size:13px;font-weight:600;
+.mr-patient-bar-title{
+    font-size:10px;font-weight:800;
+    letter-spacing:1.2px;text-transform:uppercase;
+    color:var(--txt-muted);
+    margin-right:8px;
+    display:flex;align-items:center;gap:6px;
+}
+.mr-patient-bar-title i{font-size:14px;color:var(--primary);}
+.mr-pinfo{display:flex;flex-direction:column;gap:1px;}
+.mr-pinfo-label{font-size:10px;font-weight:600;color:var(--txt-muted);letter-spacing:.5px;text-transform:uppercase;}
+.mr-pinfo-value{font-size:13px;font-weight:700;color:var(--txt);}
+
+/* ── MAIN CONTENT AREA ── */
+.mr-main{}
+
+/* ── FORM CARD (Add Medicine) ── */
+.mr-form-card{
+    background:var(--surf);
+    border:1px solid var(--bdr);
+    border-radius:var(--r);
+    overflow:hidden;
+    box-shadow:var(--shadow-sm);
+    margin-bottom:20px;
+}
+.mr-form-header{
+    padding:16px 20px;
+    border-bottom:1px solid var(--bdr);
+    display:flex;align-items:center;justify-content:space-between;
+    gap:12px;
+}
+.mr-form-header-left{display:flex;align-items:center;gap:10px;}
+.mr-form-title{font-size:16px;font-weight:800;color:var(--txt);letter-spacing:-.2px;}
+.mr-form-subtitle{font-size:13px;color:var(--txt-secondary);font-weight:500;}
+.mr-form-actions{display:flex;align-items:center;gap:8px;}
+.mr-form-body{padding:20px;}
+
+/* ── FORM ELEMENTS ── */
+.mr-form-grid{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:14px;
+}
+@media(max-width:1100px){
+    .mr-form-grid{grid-template-columns:repeat(2,1fr);}
+}
+@media(max-width:600px){
+    .mr-form-grid{grid-template-columns:1fr;}
+}
+.mr-form-group{}
+.mr-form-group.span-2{grid-column:span 2;}
+.mr-form-group.span-3{grid-column:span 3;}
+.mr-form-group.span-4{grid-column:span 4;}
+.mr-label{
+    display:block;font-size:11px;font-weight:700;
+    letter-spacing:.5px;text-transform:uppercase;
+    color:var(--txt-secondary);margin-bottom:5px;
+}
+.mr-label .req{color:var(--red-badge);}
+.mr-input,.mr-select{
+    width:100%;border:1px solid var(--bdr);border-radius:var(--r-sm);
+    padding:9px 12px;font-size:13px;font-weight:500;
     color:var(--txt);background:var(--surf);
     transition:border-color .15s,box-shadow .15s;
+}
+.mr-input:focus,.mr-select:focus{
+    outline:none;border-color:var(--primary);
+    box-shadow:0 0 0 3px rgba(15,82,186,.1);
+}
+.mr-select{
     appearance:none;-webkit-appearance:none;
-}
-.cc-input:focus,.cc-select:focus{
-    outline:none;border-color:var(--p);
-    box-shadow:0 0 0 3px rgba(15,82,186,.12);
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat:no-repeat;
+    background-position:right 12px center;
+    padding-right:32px;
 }
 
-/* Dose grid M-N-N */
-.dose-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
-.dose-cell{text-align:center;}
-.dose-cell .cc-label{text-align:center;}
-.dose-cell .cc-input{text-align:center;font-size:14px;font-weight:800;color:var(--p);}
+/* Dose grid */
+.mr-dose-grid{
+    display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;
+}
+.mr-dose-cell{text-align:center;}
+.mr-dose-cell .mr-label{text-align:center;font-size:9px;}
+.mr-dose-cell .mr-input{
+    text-align:center;font-size:15px;font-weight:800;
+    color:var(--primary);padding:8px 6px;
+}
 
-/* ── ALERT ── */
+/* ── BUTTONS ── */
+.mr-btn{
+    display:inline-flex;align-items:center;gap:7px;
+    border-radius:var(--r-sm);padding:9px 20px;
+    font-size:13px;font-weight:700;cursor:pointer;
+    border:none;transition:all .15s;letter-spacing:.2px;
+    white-space:nowrap;
+}
+.mr-btn-primary{background:var(--primary);color:#fff;}
+.mr-btn-primary:hover{background:var(--primary-dk);}
+.mr-btn-outline{background:var(--surf);color:var(--primary);border:1.5px solid var(--primary);}
+.mr-btn-outline:hover{background:var(--primary-lt);}
+.mr-btn-success{background:var(--green);color:#fff;}
+.mr-btn-success:hover{background:#047857;}
+.mr-btn-danger{background:var(--red-badge);color:#fff;}
+.mr-btn-danger:hover{background:var(--red);}
+.mr-btn-ghost{background:transparent;color:var(--txt-secondary);border:1px solid var(--bdr);}
+.mr-btn-ghost:hover{background:var(--surf-hover);border-color:var(--bdr-strong);}
+.mr-btn-sm{padding:5px 12px;font-size:12px;}
+.mr-btn-xs{padding:4px 8px;font-size:11px;}
+
+/* ── MEDICATION TABLE ── */
+.mr-med-card{
+    background:var(--surf);
+    border:1px solid var(--bdr);
+    border-radius:var(--r);
+    overflow:hidden;
+    box-shadow:var(--shadow-sm);
+}
+.mr-med-header{
+    padding:16px 20px;
+    border-bottom:1px solid var(--bdr);
+    display:flex;align-items:center;justify-content:space-between;
+    flex-wrap:wrap;gap:12px;
+}
+.mr-med-header-left{display:flex;align-items:center;gap:10px;}
+.mr-med-title{font-size:16px;font-weight:800;color:var(--txt);}
+.mr-tab-pills{display:flex;gap:6px;}
+.mr-tab-pill{
+    padding:5px 14px;border-radius:var(--r-pill);
+    font-size:12px;font-weight:700;cursor:pointer;
+    border:1px solid var(--bdr);background:var(--surf);
+    color:var(--txt-secondary);transition:all .15s;
+}
+.mr-tab-pill.active{
+    background:var(--primary);color:#fff;border-color:var(--primary);
+}
+.mr-table-wrap{overflow-x:auto;}
+.mr-table{
+    width:100%;border-collapse:collapse;font-size:13px;
+}
+.mr-table thead tr{background:#f8fafc;}
+.mr-table thead th{
+    padding:10px 14px;
+    font-size:10px;font-weight:800;
+    letter-spacing:1px;text-transform:uppercase;
+    color:var(--txt-muted);
+    border-bottom:1.5px solid var(--bdr);
+    text-align:left;white-space:nowrap;
+}
+.mr-table tbody tr{
+    border-bottom:1px solid var(--bdr);
+    transition:background .1s;
+}
+.mr-table tbody tr:hover{background:var(--surf-hover);}
+.mr-table tbody tr:last-child{border-bottom:none;}
+.mr-table tbody td{
+    padding:12px 14px;vertical-align:middle;
+    color:var(--txt);font-weight:500;
+}
+.mr-med-name{
+    font-size:14px;font-weight:700;color:var(--primary);
+    line-height:1.3;
+}
+.mr-med-dosage{
+    font-size:11px;color:var(--txt-secondary);font-weight:500;
+    margin-top:2px;
+}
+.mr-freq-text{font-weight:600;color:var(--txt);}
+.mr-last-taken{font-size:12px;color:var(--txt-secondary);font-weight:500;}
+
+/* Reconciliation action buttons */
+.mr-recon-actions{display:flex;align-items:center;gap:4px;}
+.mr-action-btn{
+    width:28px;height:28px;border-radius:var(--r-sm);
+    display:inline-flex;align-items:center;justify-content:center;
+    font-size:12px;cursor:pointer;border:none;
+    transition:all .15s;
+}
+.mr-action-check{background:var(--green-bg);color:var(--green);border:1px solid var(--green-bdr);}
+.mr-action-check:hover{background:var(--green);color:#fff;}
+.mr-action-edit{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-bdr);}
+.mr-action-edit:hover{background:var(--amber);color:#fff;}
+.mr-action-delete{background:var(--red-bg);color:var(--red-badge);border:1px solid var(--red-bdr);}
+.mr-action-delete:hover{background:var(--red-badge);color:#fff;}
+.mr-action-resume{
+    background:var(--primary);color:#fff;
+    border:none;border-radius:var(--r-sm);
+    padding:5px 12px;font-size:11px;font-weight:700;
+    display:inline-flex;align-items:center;gap:5px;
+    cursor:pointer;transition:all .15s;
+}
+.mr-action-resume:hover{background:var(--primary-dk);}
+
+/* ── RECONCILIATION FOOTER ── */
+.mr-recon-footer{
+    padding:14px 20px;
+    border-top:1px solid var(--bdr);
+    display:flex;align-items:center;justify-content:flex-end;
+    gap:14px;
+    background:#f8fafc;
+}
+.mr-recon-count{
+    font-size:13px;font-weight:600;color:var(--green);
+    font-style:italic;
+}
+
+/* ── BOTTOM STATUS BAR ── */
+.mr-status-bar{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:16px;
+    padding:0 24px;
+    margin-top:20px;
+}
+@media(max-width:768px){
+    .mr-status-bar{grid-template-columns:1fr;}
+}
+.mr-status-card{
+    background:var(--surf);
+    border:1px solid var(--bdr);
+    border-radius:var(--r);
+    padding:14px 18px;
+    display:flex;align-items:center;gap:14px;
+    box-shadow:var(--shadow-sm);
+    transition:box-shadow .15s;
+}
+.mr-status-card:hover{box-shadow:var(--shadow);}
+.mr-status-icon{
+    width:42px;height:42px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    font-size:16px;flex-shrink:0;
+}
+.mr-status-icon.rx{background:var(--primary-lt);color:var(--primary);border:1.5px solid #bfdbfe;}
+.mr-status-icon.interact{background:var(--green-bg);color:var(--green);border:1.5px solid var(--green-bdr);}
+.mr-status-icon.pharm{background:#f1f5f9;color:var(--txt-secondary);border:1.5px solid var(--bdr);}
+.mr-status-label{font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--txt-muted);}
+.mr-status-value{font-size:14px;font-weight:700;color:var(--txt);margin-top:2px;}
+
+/* ── ALERT MESSAGE ── */
 #ajaxMessage .alert{
-    border-radius:var(--r);font-size:13px;
+    border-radius:var(--r-sm);font-size:13px;
     font-weight:600;padding:10px 16px;margin-bottom:0;
+    border:none;
 }
-.info-box-cc{
-    background:var(--warn-lt);border:1px solid var(--warn-bdr);
-    color:var(--warn);padding:10px 16px;font-size:13px;font-weight:600;
-    border-radius:var(--r);margin:20px 20px 0 20px;
-    display:flex;align-items:center;gap:8px;
+#ajaxMessage .alert-success{background:var(--green-bg);color:#065f46;border:1px solid var(--green-bdr);}
+#ajaxMessage .alert-danger{background:var(--red-bg);color:var(--red);border:1px solid var(--red-bdr);}
+
+/* ── MODAL OVERRIDES ── */
+.modal-content{border-radius:var(--r);border:1px solid var(--bdr);overflow:hidden;}
+.modal-header.bg-primary{background:var(--primary)!important;}
+.modal-header{border-radius:0;}
+.form-control{border-radius:var(--r-sm)!important;border-color:var(--bdr)!important;font-family:var(--font)!important;}
+.form-control:focus{border-color:var(--primary)!important;box-shadow:0 0 0 3px rgba(15,82,186,.1)!important;}
+
+/* ── EMPTY STATE ── */
+.mr-empty{
+    padding:48px 20px;text-align:center;color:var(--txt-muted);
 }
+.mr-empty i{font-size:36px;opacity:.3;margin-bottom:12px;display:block;}
+.mr-empty p{font-size:13px;font-weight:500;}
 
 /* ── PRINT ── */
 @media print{.no-print{display:none!important;}}
 </style>
 
+{{-- hidden inputs (logic unchanged) --}}
 <div id="ajaxMessage" class="px-3 pt-3 no-print"></div>
-
-{{-- Info Banner --}}
-<div class="info-box-cc no-print">
-    <i class="fas fa-info-circle"></i> 
-    <span>Round stage: Add daily medicines manually below.</span>
-</div>
-
-{{-- Hidden Inputs --}}
-<input type="hidden" id="patientcode" value="{{ $patientcode }}">
-<input type="hidden" id="print_patientname" value="{{ $patient->patientname ?? '' }}">
-<input type="hidden" id="print_mobile" value="{{ $patient->mobile_no ?? '' }}">
+<input type="hidden" id="patientcode"        value="{{ $patientcode }}">
+<input type="hidden" id="print_patientname"  value="{{ $patient->patientname ?? '' }}">
+<input type="hidden" id="print_mobile"       value="{{ $patient->mobile_no ?? '' }}">
 <input type="hidden" id="print_admissiondate" value="{{ $admission ? date('d-m-Y', strtotime($admission->created_at)) : date('d-m-Y') }}">
 
-<div class="cc-page">
+<div class="mr-page">
 
     {{-- ══ STICKY HEADER ══ --}}
-    <div class="cc-header no-print">
-        <div class="cc-header-left">
-            <a href="{{ url()->previous() }}" class="cc-back-btn">
+    <div class="mr-header no-print">
+        <div class="mr-header-left">
+            <a href="{{ url()->previous() }}" class="mr-back-btn">
                 <i class="fas fa-arrow-left"></i> Back
             </a>
-            <span class="cc-page-title">
-                Round Medicine
-                <span style="opacity:.6;font-weight:500;font-size:13px;margin-left:6px;">
-                    — Code: {{ $patientcode }}
-                </span>
+            <span class="mr-page-title">
+                Round Patient Medicine
+                <span class="mr-patient-tag">— {{ $patient->patientname ?? '' }} ({{ $patientcode }})</span>
             </span>
         </div>
         @if(isset($admission) && $admission)
             @php
-                $stageNames = [1=>'Admit Medicine',2=>'Pre Surgery',3=>'Post Surgery',4=>'Round Patient',5=>'Fresh Prescription',6=>'Release Patient'];
-                $s = (int)($admission->status ?? 4);
+                $stageNames=[1=>'Admit Medicine',2=>'Pre Surgery',3=>'Post Surgery',4=>'Round Patient',5=>'Fresh Prescription',6=>'Release Patient'];
+                $s=(int)($admission->status??4);
             @endphp
-            <span class="cc-stage-badge">Stage {{ $s }}: {{ $stageNames[$s] ?? 'Round Patient' }}</span>
+            <span class="mr-stage-badge"><span class="dot"></span> Stage {{ $s }}: {{ $stageNames[$s] ?? 'Round Patient' }}</span>
         @endif
     </div>
 
-    {{-- ══ ACTION TOOLBAR ══ --}}
-    <div class="cc-toolbar no-print">
-        <button type="button" class="cc-btn cc-btn-outline" id="addMedicineBtn">
-            <i class="fas fa-plus-circle"></i> Add New Medicine
-        </button>
-        <button type="button" class="cc-btn cc-btn-primary btn-save-print-next">
-            <i class="fas fa-print"></i> Save &amp; Print (Stay in Round)
-        </button>
-        
-        <div style="flex-grow:1;"></div>
-        
-        <button type="button" class="cc-btn cc-btn-danger" id="completeRoundBtn">
-            <i class="fas fa-check-circle"></i> Complete Round &amp; Next
-        </button>
-    </div>
+    {{-- ══ COMPACT SINGLE-COLUMN LAYOUT ══ --}}
+    <div class="mr-layout">
 
-    {{-- ══ TWO-COLUMN LAYOUT ══ --}}
-    <div class="cc-layout">
-
-        {{-- ── LEFT: Add Form Card ── --}}
-        <div class="cc-card no-print">
-            <div class="cc-card-head">
-                <span class="cc-card-head-title"><i class="fas fa-pills" style="opacity:.7;margin-right:4px;"></i> Quick Add</span>
+        {{-- ── Patient Info Bar (horizontal) ── --}}
+        <div class="mr-patient-bar no-print">
+            <span class="mr-patient-bar-title"><i class="fas fa-user-injured"></i> Patient</span>
+            <div class="mr-pinfo">
+                <span class="mr-pinfo-label">Name</span>
+                <span class="mr-pinfo-value">{{ $patient->patientname ?? 'N/A' }}</span>
             </div>
-            <div class="cc-card-body">
-                <form id="medicineFormInline">
-                    @csrf
-                    <input type="hidden" name="id"           id="inf_id">
-                    <input type="hidden" name="patientcode"  id="inf_patientcode" value="{{ $patientcode }}">
-                    <input type="hidden" name="order_type"   id="inf_order_type"  value="round">
-                    <input type="hidden" name="templeteid"   id="inf_templeteid"  value="TPL-000001">
-
-                    <div class="cc-form-group">
-                        <label class="cc-label">Medicine Name <span class="req">*</span></label>
-                        <input type="text" name="name" id="inf_name" class="cc-input" required placeholder="e.g. Paracetamol">
-                    </div>
-                    <div class="cc-form-group">
-                        <label class="cc-label">Strength</label>
-                        <input type="text" name="strength" id="inf_strength" class="cc-input" placeholder="e.g. 500mg">
-                    </div>
-                    <div class="cc-form-group">
-                        <label class="cc-label">Dose (Morning · Noon · Night)</label>
-                        <div class="dose-grid">
-                            <div class="dose-cell">
-                                <label class="cc-label" style="font-size:9px;">Morning</label>
-                                <input type="text" name="morning" id="inf_morning" class="cc-input" placeholder="1">
-                            </div>
-                            <div class="dose-cell">
-                                <label class="cc-label" style="font-size:9px;">Noon</label>
-                                <input type="text" name="noon" id="inf_noon" class="cc-input" placeholder="0">
-                            </div>
-                            <div class="dose-cell">
-                                <label class="cc-label" style="font-size:9px;">Night</label>
-                                <input type="text" name="night" id="inf_night" class="cc-input" placeholder="1">
-                            </div>
-                        </div>
-                    </div>
-                    <div class="cc-form-group">
-                        <label class="cc-label">Dose Instruction</label>
-                        <input type="text" name="dose" id="inf_dose" class="cc-input" placeholder="e.g. 1 Tablet">
-                    </div>
-                    <div class="cc-form-group">
-                        <label class="cc-label">Days</label>
-                        <input type="text" name="duration" id="inf_duration" class="cc-input" placeholder="e.g. 5">
-                    </div>
-
-                    <div style="display:flex;gap:8px;margin-top:12px;">
-                        <button type="submit" class="cc-btn cc-btn-primary" style="flex:1;">
-                            <i class="fas fa-plus"></i> Add Medicine
-                        </button>
-                        <button type="reset" class="cc-btn cc-btn-outline cc-btn-sm">
-                            <i class="fas fa-undo"></i>
-                        </button>
-                    </div>
-                </form>
+            <div class="mr-pinfo">
+                <span class="mr-pinfo-label">Code</span>
+                <span class="mr-pinfo-value">{{ $patientcode }}</span>
+            </div>
+            <div class="mr-pinfo">
+                <span class="mr-pinfo-label">Mobile</span>
+                <span class="mr-pinfo-value">{{ $patient->mobile_no ?? 'N/A' }}</span>
+            </div>
+            <div class="mr-pinfo">
+                <span class="mr-pinfo-label">Admission Date</span>
+                <span class="mr-pinfo-value">{{ $admission ? date('d M Y', strtotime($admission->created_at)) : date('d M Y') }}</span>
             </div>
         </div>
 
-        {{-- ── RIGHT: Data Area ── --}}
-        <div>
-            {{-- History Card --}}
-            @if(isset($roundHistory) && $roundHistory->count() > 0)
-            <div class="cc-card no-print">
-                <div class="cc-card-head" style="background:#e0f2fe; border-bottom-color:#bae6fd;">
-                    <span class="cc-card-head-title" style="color:#0369a1;">
-                        <i class="fas fa-history"></i> Round History ({{ $roundHistory->count() }} round{{ $roundHistory->count() > 1 ? 's' : '' }})
-                    </span>
-                </div>
-                <div class="cc-card-body" style="padding:0;">
-                    <table class="table table-sm mb-0" style="font-size:12px;">
-                        <thead style="background:#f0f9ff; color:#0c4a6e;">
-                            <tr>
-                                <th style="padding:8px 16px;">#</th>
-                                <th>Date</th>
-                                <th>Medicines Count</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach($roundHistory as $i => $round)
-                            <tr style="border-bottom:1px solid var(--out);">
-                                <td style="padding:8px 16px;">{{ $i + 1 }}</td>
-                                <td>{{ \Carbon\Carbon::parse($round->round_date)->format('d-m-Y') }}</td>
-                                <td><span class="badge badge-info">{{ $round->medicine_count }}</span></td>
-                            </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
+        {{-- History Card --}}
+        @if(isset($roundHistory) && $roundHistory->count() > 0)
+        <div class="mr-card no-print" style="margin-bottom: 20px;">
+            <div class="mr-form-header" style="background:#e0f2fe; border-bottom-color:#bae6fd; padding:12px 20px;">
+                <div class="mr-form-header-left">
+                    <span class="mr-form-title" style="color:#0369a1; font-size:14px;"><i class="fas fa-history"></i> Round History ({{ $roundHistory->count() }} round{{ $roundHistory->count() > 1 ? 's' : '' }})</span>
                 </div>
             </div>
-            @endif
+            <div class="mr-form-body" style="padding:0;">
+                <table class="mr-table">
+                    <thead style="background:#f0f9ff; color:#0c4a6e;">
+                        <tr>
+                            <th style="padding:8px 16px;">#</th>
+                            <th>Date</th>
+                            <th>Medicines Count</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($roundHistory as $i => $round)
+                        <tr>
+                            <td style="padding:8px 16px;">{{ $i + 1 }}</td>
+                            <td>{{ \Carbon\Carbon::parse($round->round_date)->format('d-m-Y') }}</td>
+                            <td><span class="mr-stage-badge" style="padding:2px 8px;">{{ $round->medicine_count }}</span></td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        @endif
 
-            {{-- Medicine List Card --}}
-            <div class="cc-card">
-                <div class="cc-card-head">
-                    <span class="cc-card-head-title"><i class="fas fa-list" style="opacity:.7;margin-right:4px;"></i> Current Medication List</span>
+        {{-- ── MAIN CONTENT ── --}}
+
+            {{-- ▸ Add Medicine Form ▸ --}}
+            <div class="mr-form-card no-print">
+                <div class="mr-form-header">
+                    <div class="mr-form-header-left">
+                        <i class="fas fa-pills" style="color:var(--primary);font-size:18px;"></i>
+                        <div>
+                            <div class="mr-form-title">Add New Medicine</div>
+                            <div class="mr-form-subtitle">Fill in the details to add a medicine to this admission</div>
+                        </div>
+                    </div>
+                    <div class="mr-form-actions">
+                        <button type="button" class="mr-btn mr-btn-success btn-save-print-next">
+                            <i class="fas fa-print"></i> Save & Print
+                        </button>
+                        <button type="button" class="mr-btn mr-btn-danger" id="completeRoundBtn">
+                            <i class="fas fa-check-circle"></i> Complete Round & Next Stage
+                        </button>
+                    </div>
                 </div>
-                <div class="cc-card-body" style="padding:0;" id="medicineTableArea">
+                <div class="mr-form-body">
+                    <form id="medicineFormInline">
+                        @csrf
+                        <input type="hidden" name="id"           id="inf_id">
+                        <input type="hidden" name="patientcode"  id="inf_patientcode" value="{{ $patientcode }}">
+                        <input type="hidden" name="order_type"   id="inf_order_type"  value="round">
+                        <input type="hidden" name="templeteid"   id="inf_templeteid"  value="TPL-000001">
+
+                        <div class="mr-form-grid">
+                            <div class="mr-form-group span-2">
+                                <label class="mr-label">Medicine Name <span class="req">*</span></label>
+                                <input type="text" name="name" id="inf_name" class="mr-input" required placeholder="e.g. Paracetamol, Metformin...">
+                            </div>
+                            <div class="mr-form-group">
+                                <label class="mr-label">Strength</label>
+                                <input type="text" name="strength" id="inf_strength" class="mr-input" placeholder="e.g. 500mg">
+                            </div>
+                            <div class="mr-form-group">
+                                <label class="mr-label">Dose</label>
+                                <input type="text" name="dose" id="inf_dose" class="mr-input" placeholder="e.g. 1 Tablet">
+                            </div>
+
+                            <div class="mr-form-group">
+                                <label class="mr-label">Dose Schedule (M · N · N)</label>
+                                <div class="mr-dose-grid">
+                                    <div class="mr-dose-cell">
+                                        <label class="mr-label">AM</label>
+                                        <input type="text" name="morning" id="inf_morning" class="mr-input" placeholder="1">
+                                    </div>
+                                    <div class="mr-dose-cell">
+                                        <label class="mr-label">Noon</label>
+                                        <input type="text" name="noon" id="inf_noon" class="mr-input" placeholder="0">
+                                    </div>
+                                    <div class="mr-dose-cell">
+                                        <label class="mr-label">PM</label>
+                                        <input type="text" name="night" id="inf_night" class="mr-input" placeholder="1">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mr-form-group">
+                                <label class="mr-label">Meal Timing</label>
+                                <select name="timing" id="inf_timing" class="mr-input mr-select">
+                                    <option value="">-- Select --</option>
+                                    <option value="before">Before Meal</option>
+                                    <option value="after">After Meal</option>
+                                    <option value="with">With Meal</option>
+                                    <option value="empty">Empty Stomach</option>
+                                </select>
+                            </div>
+                            <div class="mr-form-group">
+                                <label class="mr-label">Duration</label>
+                                <input type="text" name="duration" id="inf_duration" class="mr-input" placeholder="e.g. 7 Days">
+                            </div>
+                            <div class="mr-form-group">
+                                <label class="mr-label">Special Instructions</label>
+                                <input type="text" name="instruction" id="inf_instruction" class="mr-input" placeholder="Any special notes...">
+                            </div>
+                        </div>
+
+                        <div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end;">
+                            <button type="reset" class="mr-btn mr-btn-ghost mr-btn-sm">
+                                <i class="fas fa-undo"></i> Reset
+                            </button>
+                            <button type="submit" class="mr-btn mr-btn-primary">
+                                <i class="fas fa-plus-circle"></i> Add Medicine
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            {{-- ▸ Medicine List Table ▸ --}}
+            <div class="mr-med-card">
+                <div class="mr-med-header">
+                    <div class="mr-med-header-left">
+                        <span class="mr-med-title">Active Admission Medications</span>
+                    </div>
+                    <div class="mr-tab-pills">
+                        <span class="mr-tab-pill active">All ({{ isset($medicines) ? $medicines->count() : 0 }})</span>
+                    </div>
+                </div>
+                <div id="medicineTableArea">
                     @include('admission.roundpatient.roundmedicine_rows')
                 </div>
             </div>
-        </div>
 
+    </div>{{-- /mr-layout --}}
+
+    {{-- ══ BOTTOM STATUS BAR ══ --}}
+    <div class="mr-status-bar no-print">
+        <div class="mr-status-card">
+            <div class="mr-status-icon rx">
+                <i class="fas fa-file-prescription"></i>
+            </div>
+            <div>
+                <div class="mr-status-label">New RX Request</div>
+                <div class="mr-status-value">Awaiting Signature</div>
+            </div>
+        </div>
+        <div class="mr-status-card">
+            <div class="mr-status-icon interact">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <div>
+                <div class="mr-status-label">Interactions</div>
+                <div class="mr-status-value">0 Contradictions Found</div>
+            </div>
+        </div>
+        <div class="mr-status-card">
+            <div class="mr-status-icon pharm">
+                <i class="fas fa-clipboard-list"></i>
+            </div>
+            <div>
+                <div class="mr-status-label">Pharmacy Status</div>
+                <div class="mr-status-value">Verify Order Set</div>
+            </div>
+        </div>
     </div>
-</div>
+
+</div>{{-- /mr-page --}}
 
 {{-- ══════════════════════════════════════════════════
-     MODAL (Kept for Edit compatibility)
+     MODAL (kept for editMedicineBtn compatibility)
 ══════════════════════════════════════════════════ --}}
 <div class="modal fade" id="medicineModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <form id="medicineForm">
             @csrf
-            <input type="hidden" name="id" id="medicine_id">
+            <input type="hidden" name="id"          id="medicine_id">
             <input type="hidden" name="patientcode" id="modal_patientcode" value="{{ $patientcode }}">
-            <div class="modal-content" style="border-radius:4px; border:1px solid #d0d8f0;">
-                <div class="modal-header text-white" style="background:#0f52ba; border-radius:4px 4px 0 0;">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
                     <h5 class="modal-title" id="modalTitle">Edit Medicine</h5>
-                    <button type="button" class="close text-white" data-dismiss="modal">
-                        <span>&times;</span>
-                    </button>
+                    <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
                 </div>
                 <div class="modal-body">
                     <div class="row">
@@ -367,8 +700,22 @@ body,input,select,textarea,button{font-family:var(--font)!important;}
                             <input type="text" name="night" id="night" class="form-control">
                         </div>
                         <div class="col-md-6 form-group">
-                            <label>Days</label>
-                            <input type="text" name="duration" id="duration" class="form-control">
+                            <label>Meal Timing</label>
+                            <select name="timing" id="timing" class="form-control">
+                                <option value="">-- Select --</option>
+                                <option value="before">Before Meal</option>
+                                <option value="after">After Meal</option>
+                                <option value="with">With Meal</option>
+                                <option value="empty">Empty Stomach</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 form-group">
+                            <label>Duration</label>
+                            <input type="text" name="duration" id="duration" class="form-control" placeholder="e.g. 7 Days">
+                        </div>
+                        <div class="col-md-12 form-group">
+                            <label>Instruction</label>
+                            <input type="text" name="instruction" id="instruction" class="form-control">
                         </div>
                         <input type="hidden" name="order_type" id="order_type" value="round">
                         <div class="col-md-6 form-group">
@@ -378,7 +725,7 @@ body,input,select,textarea,button{font-family:var(--font)!important;}
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="submit" class="btn btn-primary btn-sm" style="background:#0f52ba; border-color:#0f52ba;">Save</button>
+                    <button type="submit" class="btn btn-primary btn-sm">Save</button>
                     <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Close</button>
                 </div>
             </div>
@@ -389,8 +736,9 @@ body,input,select,textarea,button{font-family:var(--font)!important;}
 @endsection
 
 @section('js')
+@include('admission.partials.print_prescription_helpers')
 <script>
-var logoUrl = '{{ config('app.logo_url') }}';
+var logoUrl = @json(config('app.logo_url'));
 
 function escapeHtml(value) {
     return $('<div>').text(value || '').html();
@@ -407,74 +755,63 @@ function ajaxErrorMessage(xhr, fallback) {
     return fallback;
 }
 
-function printSlip() {
-    var rows = '';
-    var i = 1;
-
-    $('#medicineTableArea table tbody tr').each(function () {
-        var tds = $(this).find('td');
-        if (tds.length > 0) {
-            rows += admissionPrintMedicineRow(
-                tds.eq(1).text().trim(),
-                tds.eq(3).text().trim(),
-                tds.eq(4).text().trim(),
-                tds.eq(5).text().trim(),
-                tds.eq(2).text().trim()
-            );
-            i++;
+function getSlipHtml(){
+    var rows='';var i=1;
+    $('#medicineTableArea table tbody tr').each(function(){
+        var row=$(this);var tds=$(this).find('td');
+        if(tds.length>=7){
+            rows+=admissionPrintMedicineRow(
+                tds.eq(1).text().trim(),tds.eq(2).text().trim(),
+                tds.eq(3).text().trim(),tds.eq(4).text().trim(),
+                row.data('strength')||'',
+                row.data('timing')||tds.eq(5).text().trim(),
+                row.data('duration')||tds.eq(6).text().trim(),
+                row.data('instruction')||''
+            );i++;
         }
     });
-
-    rows += admissionPrintBlankMedicineRows(Math.max(0, 8 - (i - 1)));
-
-    var patientname   = $('#print_patientname').val();
-    var mobile        = $('#print_mobile').val();
-    var admissiondate = $('#print_admissiondate').val();
-    var patientcode   = $('#patientcode').val();
-
-    var printWindow = window.open('', '_blank', 'width=1000,height=700');
-    printWindow.document.open();
-    printWindow.document.write(admissionPrintPrescriptionHtml({
-        title: 'Round Patient Medicine Prescription',
-        stageTitle: 'Round Patient Medicine Prescription',
-        patientCode: patientcode,
-        patientName: patientname,
-        mobile: mobile,
-        admissionDate: admissiondate,
-        logoUrl: logoUrl,
-        doctorName: @json($printDoctor->doctor_name ?? $printDoctor->name ?? ''),
-        doctorSpeciality: @json($printDoctor->speciality ?? $printDoctor->Posting ?? ''),
-        doctorRegNo: @json($printDoctor->reg_no ?? ''),
-        doctorContact: @json($printDoctor->contact ?? ''),
-        rows: rows
-    }));
-    printWindow.document.close();
-    var now = new Date();
-    var today = now.toLocaleDateString('en-GB').replace(/\//g, '-');
-    var time = now.getHours().toString().padStart(2,'0') + '-' + now.getMinutes().toString().padStart(2,'0') + '-' + now.getSeconds().toString().padStart(2,'0');
-    printWindow.document.title = 'Round_Medicine_' + patientname + '_' + today + '_' + time;
-    printWindow.onload = function () {
-        printWindow.focus();
-        printWindow.print();
-        setTimeout(function () { printWindow.close(); }, 500);
-    };
+    rows+=admissionPrintBlankMedicineRows(Math.max(0,8-(i-1)));
+    return admissionPrintPrescriptionHtml({
+        title:'Round Patient Medicine Prescription',
+        stageTitle:'Round Patient Medicine Prescription',
+        patientCode:$('#patientcode').val(),
+        patientName:$('#print_patientname').val(),
+        mobile:$('#print_mobile').val(),
+        admissionDate:$('#print_admissiondate').val(),
+        logoUrl:logoUrl,
+        doctorName:@json($printDoctor->doctor_name ?? $printDoctor->name ?? ''),
+        doctorSpeciality:@json($printDoctor->speciality ?? $printDoctor->Posting ?? ''),
+        doctorRegNo:@json($printDoctor->reg_no ?? ''),
+        doctorContact:@json($printDoctor->contact ?? ''),
+        rows:rows
+    });
 }
 
-function savePrintNext() {
+function printSlip(){
+    var html=getSlipHtml();
+    var pname=$('#print_patientname').val();
+    var pw=window.open('','_blank','width=1000,height=700');
+    pw.document.open();pw.document.write(html);pw.document.close();
+    var today=new Date().toLocaleDateString('en-GB').replace(/\//g,'-');
+    pw.document.title='Round_Medicine_'+pname+'_'+today;
+    pw.onload=function(){pw.focus();pw.print();setTimeout(function(){pw.close();},500);};
+}
+
+function savePrintNext(){
     $.ajax({
-        url: "{{ route('admission.roundmedicineSaveAll.save') }}",
-        type: "POST",
-        data: { _token: "{{ csrf_token() }}", patientcode: $('#patientcode').val() },
-        success: function (response) {
-            if (response.success) {
+        url:"{{ route('admission.roundmedicineSaveAll.save') }}",
+        type:"POST",
+        data:{_token:"{{ csrf_token() }}",patientcode:$('#patientcode').val()},
+        success:function(response){
+            if(response.success){
                 printSlip();
                 loadMedicineTable();
                 showAjaxMessage('success', response.message || 'Saved & Printed.');
-            } else {
+            }else{
                 showAjaxMessage('danger', response.message || 'Save failed.');
             }
         },
-        error: function (xhr) {
+        error:function(xhr){
             showAjaxMessage('danger', ajaxErrorMessage(xhr, 'Save failed.'));
         }
     });
@@ -482,26 +819,27 @@ function savePrintNext() {
 </script>
 @endsection
 
-@include('admission.partials.print_prescription_helpers')
-
 @push('js')
 <script>
-$(document).ready(function () {
-
-    /* ── Toolbar buttons ── */
-    $(document).on('click', '.btn-save-print-next', function () {
-        savePrintNext();
+function loadMedicineTable(){
+    $.ajax({
+        url:"{{ route('admission.roundmedicineList.list') }}",
+        type:"POST",
+        data:{_token:"{{ csrf_token() }}",patientcode:$('#patientcode').val()},
+        success:function(response){$('#medicineTableArea').html(response);}
     });
+}
 
-    $('#addMedicineBtn').on('click', function () {
-        $('#inf_name').focus();
-        $('html,body').animate({scrollTop:$('#inf_name').offset().top-80},300);
+$(document).ready(function(){
+
+    /* ── Save & Print toolbar button ── */
+    $(document).on('click','.btn-save-print-next',function(){
+        savePrintNext();
     });
 
     /* ── Complete Round & Next Stage ── */
     $('#completeRoundBtn').on('click', function () {
         if (!confirm('Are you sure? Patient will move to Fresh Prescription stage.')) return;
-
         $.ajax({
             url: "{{ route('admission.nextStage') }}",
             type: "POST",
@@ -515,37 +853,38 @@ $(document).ready(function () {
                     showAjaxMessage('success', res.message);
                     setTimeout(function(){ location.reload(); }, 1500);
                 } else {
-                    showAjaxMessage('danger', escapeHtml(res.message || 'Stage update failed.'));
+                    showAjaxMessage('danger', res.message || 'Stage update failed.');
                 }
             },
             error: function (xhr) {
-                showAjaxMessage('danger', escapeHtml(ajaxErrorMessage(xhr, 'Stage update failed.')));
+                showAjaxMessage('danger', ajaxErrorMessage(xhr, 'Stage update failed.'));
             }
         });
     });
 
     /* ── Inline form: Add New Medicine ── */
-    $('#medicineFormInline').on('submit', function(e){
+    $('#medicineFormInline').on('submit',function(e){
         e.preventDefault();
-        var data = {
-            _token: "{{ csrf_token() }}",
-            id: $('#inf_id').val(),
-            patientcode: $('#patientcode').val(),
-            name: $('#inf_name').val(),
-            strength: $('#inf_strength').val(),
-            dose: $('#inf_dose').val(),
-            morning: $('#inf_morning').val(),
-            noon: $('#inf_noon').val(),
-            night: $('#inf_night').val(),
-            duration: $('#inf_duration').val(),
-            order_type: 'round',
-            templeteid: $('#inf_templeteid').val()
+        var data={
+            _token:"{{ csrf_token() }}",
+            id:$('#inf_id').val(),
+            patientcode:$('#patientcode').val(),
+            name:$('#inf_name').val(),
+            strength:$('#inf_strength').val(),
+            dose:$('#inf_dose').val(),
+            morning:$('#inf_morning').val(),
+            noon:$('#inf_noon').val(),
+            night:$('#inf_night').val(),
+            timing:$('#inf_timing').val(),
+            duration:$('#inf_duration').val(),
+            instruction:$('#inf_instruction').val(),
+            order_type:'round',
+            templeteid:$('#inf_templeteid').val()
         };
         $.ajax({
-            url: "{{ route('admission.roundmedicineSave.save') }}",
-            type: "POST",
-            data: data,
-            success: function(response){
+            url:"{{ route('admission.roundmedicineSave.save') }}",
+            type:"POST",data:data,
+            success:function(response){
                 if (!response.success) {
                     showAjaxMessage('danger', response.message || 'Save failed.');
                     return;
@@ -555,20 +894,25 @@ $(document).ready(function () {
                 $('#inf_id').val('');
                 loadMedicineTable();
             },
-            error: function(xhr){
+            error:function(xhr){
                 showAjaxMessage('danger', ajaxErrorMessage(xhr, 'Something went wrong.'));
             }
         });
     });
 
-    /* ── Modal Form (Edit) ── */
-    $('#medicineForm').on('submit', function (e) {
+    /* ── addMedicineBtn → scroll to / focus inline form ── */
+    $('#addMedicineBtn').on('click',function(){
+        $('#inf_name').focus();
+        $('html,body').animate({scrollTop:$('#inf_name').offset().top-80},300);
+    });
+
+    /* ── Modal form: Edit ── */
+    $('#medicineForm').on('submit',function(e){
         e.preventDefault();
         $.ajax({
-            url: "{{ route('admission.roundmedicineSave.save') }}",
-            type: "POST",
-            data: $(this).serialize(),
-            success: function (response) {
+            url:"{{ route('admission.roundmedicineSave.save') }}",
+            type:"POST",data:$(this).serialize(),
+            success:function(response){
                 if (!response.success) {
                     showAjaxMessage('danger', response.message || 'Medicine save failed.');
                     return;
@@ -577,14 +921,14 @@ $(document).ready(function () {
                 showAjaxMessage('success', response.message);
                 loadMedicineTable();
             },
-            error: function (xhr) {
+            error:function(xhr){
                 showAjaxMessage('danger', ajaxErrorMessage(xhr, 'Something went wrong.'));
             }
         });
     });
 
-    /* ── Actions: Edit & Delete ── */
-    $(document).on('click', '.editMedicineBtn', function () {
+    /* ── Edit button (in table rows) ── */
+    $(document).on('click','.editMedicineBtn',function(){
         $('#medicine_id').val($(this).data('id'));
         $('#name').val($(this).data('name'));
         $('#strength').val($(this).data('strength'));
@@ -592,21 +936,24 @@ $(document).ready(function () {
         $('#morning').val($(this).data('morning'));
         $('#noon').val($(this).data('noon'));
         $('#night').val($(this).data('night'));
+        $('#timing').val($(this).data('timing'));
         $('#duration').val($(this).data('duration'));
+        $('#instruction').val($(this).data('instruction'));
         $('#templeteid').val($(this).data('templeteid'));
         $('#order_type').val($(this).data('order_type') || 'round');
         $('#modalTitle').text('Edit Medicine');
         $('#medicineModal').modal('show');
     });
 
-    $(document).on('click', '.deleteMedicineBtn', function () {
-        if (!confirm('Are you sure you want to delete this medicine?')) return;
-        var id = $(this).data('id');
+    /* ── Delete button ── */
+    $(document).on('click','.deleteMedicineBtn',function(){
+        if(!confirm('Are you sure you want to delete this medicine?'))return;
+        var id=$(this).data('id');
         $.ajax({
-            url: "{{ route('admission.roundmedicine.delete') }}",
-            type: "POST",
-            data: { _token: "{{ csrf_token() }}", id: id },
-            success: function (response) {
+            url:"{{ route('admission.roundmedicine.delete') }}",
+            type:"POST",
+            data:{_token:"{{ csrf_token() }}",id:id},
+            success:function(response){
                 if (!response.success) {
                     showAjaxMessage('danger', response.message || 'Delete failed.');
                     return;
@@ -614,22 +961,11 @@ $(document).ready(function () {
                 showAjaxMessage('success', response.message);
                 loadMedicineTable();
             },
-            error: function (xhr) {
+            error:function(xhr){
                 showAjaxMessage('danger', ajaxErrorMessage(xhr, 'Delete failed.'));
             }
         });
     });
-
-    function loadMedicineTable() {
-        $.ajax({
-            url: "{{ route('admission.roundmedicineList.list') }}",
-            type: "POST",
-            data: { _token: "{{ csrf_token() }}", patientcode: $('#patientcode').val() },
-            success: function (response) {
-                $('#medicineTableArea').html(response);
-            }
-        });
-    }
 
 });
 </script>
@@ -638,11 +974,11 @@ $(document).ready(function () {
 @push('js')
 @if(isset($activeMenu))
 <script>
-$(document).ready(function () {
-    let menu = $('a[href*="{{ $activeMenu }}"]');
+$(document).ready(function(){
+    let menu=$('a[href*="{{ $activeMenu }}"]');
     menu.addClass('active');
     menu.closest('.nav-item').addClass('menu-open');
-    menu.closest('.nav-treeview').css('display', 'block');
+    menu.closest('.nav-treeview').css('display','block');
 });
 </script>
 @endif
