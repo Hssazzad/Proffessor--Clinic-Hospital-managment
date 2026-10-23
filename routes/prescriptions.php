@@ -6,12 +6,9 @@ use App\Http\Controllers\PrescriptionWizardController;
 use App\Http\Controllers\PrescriptionController;
 use App\Http\Controllers\PreConAssessmentController;
 use App\Http\Controllers\SurgeryPrescriptionController;
+use App\Http\Controllers\AdmissionPrintOptionsController;
 
-/*
-|--------------------------------------------------------------------------
-| Web Routes
-|--------------------------------------------------------------------------
-*/
+
 
 // --- Master Prescription Wizard (server-side tabs) ---
 Route::get('/prescriptions/wizard', [PrescriptionWizardController::class, 'show'])->name('rx.wizard');
@@ -54,11 +51,35 @@ Route::post('/rx/med/ajax', [PrescriptionWizardController::class, 'ajaxMedicine'
 Route::post('/rx/complain/save', [PrescriptionWizardController::class, 'saveComplain'])->name('rx.complain.save');   
 Route::post('/rx/complain/ajax', [PrescriptionWizardController::class, 'ajaxComplain'])->name('rx.complain.ajax');
 Route::post('/rx/finish/new', [PrescriptionWizardController::class, 'finishNew'])->name('rx.finish.new');
+Route::post('/rx/oe-ajax', [PrescriptionWizardController::class, 'oeAjax'])->name('rx.oe.ajax');
+Route::get('/ajax/filtered-medicines', [PrescriptionWizardController::class, 'filteredMedicines'])->name('ajax.filtered.medicines');
+
+// Sub medicine types for the prescription filter cascade (public, same level as filtered-medicines)
+Route::get('/ajax/medicine-sub-types', [PrescriptionWizardController::class, 'subTypes'])->name('ajax.medicine.subtypes');
+Route::get('/ajax/commonly-used-medicines', [PrescriptionWizardController::class, 'commonlyUsedMedicines'])->name('ajax.commonly.used.medicines');
+Route::post('/ajax/quick-add-medicine', [PrescriptionWizardController::class, 'quickAddMedicine'])->name('ajax.quick.add.medicine');
 
 Route::get('/ajax/load-medicines', function () {
-    return DB::table('common_medicine')
-        ->orderBy('name')
-        ->get(['id','name','strength','GroupName']);
+    if (!DB::getSchemaBuilder()->hasTable('common_medicine')) {
+        return response()->json([]);
+    }
+
+    $columns = DB::getSchemaBuilder()->getColumnListing('common_medicine');
+    $select = array_values(array_intersect(['id', 'name', 'strength', 'GroupName'], $columns));
+
+    $query = DB::table('common_medicine')->select($select)->orderBy('name');
+    if (in_array('active', $columns, true)) {
+        $query->where(function ($q) {
+            $q->where('active', 1)->orWhereNull('active');
+        });
+    }
+
+    return $query->get()->map(fn ($m) => [
+        'id' => $m->id ?? null,
+        'name' => $m->name ?? '',
+        'strength' => $m->strength ?? '',
+        'GroupName' => $m->GroupName ?? '',
+    ])->values();
 })->name('ajax.load.medicines');
 
 // --- Patient History & Main PDFs ---
@@ -71,13 +92,33 @@ Route::middleware(['auth'])->group(function () {
 
     // General Prescriptions (Non-Surgery)
     Route::get('prescriptions/search', [PrescriptionController::class, 'search'])->name('rx.search');
-    Route::get('prescriptions/preview-ajax/{id}', [PrescriptionController::class, 'previewAjax'])->name('rx.preview.ajax');
+
+    // Preview AJAX route — canonical name
+    Route::get('prescriptions/preview-ajax/{id}', [PrescriptionController::class, 'previewAjax'])
+        ->name('prescriptions.preview.ajax');
+
+    // Additional alias for older internal usage (if some code uses rx.preview.ajax)
+    Route::get('rx/preview-ajax/{id}', [PrescriptionController::class, 'previewAjax'])
+        ->name('rx.preview.ajax');
+
     Route::get('prescriptions/admission-stage-preview/{admissionId}', [PrescriptionController::class, 'admissionStagePreview'])
          ->name('prescriptions.admission.stage.preview');
+
     Route::get('prescriptions/{id}/pdf-inline', [PrescriptionController::class, 'pdf'])->name('rx.pdf.inline');
+
+    // NEW: Print view (browser print, not PDF)
+    Route::get('prescriptions/print/{id}', [PrescriptionController::class, 'printView'])
+         ->name('prescriptions.print');
+
+    // Fix / compatibility: admin route alias used somewhere in theme/menu — add it to avoid RouteNotFound
+    Route::get('admin/preconassessment/create', [PreConAssessmentController::class, 'create'])
+         ->name('admin.preconassessment.create');
+
     Route::get('prescriptions/surgery-preview/{id}', [PrescriptionController::class, 'surgeryPreview'])->name('prescriptions.surgery.preview');
     Route::get('prescriptions/print-data/{id}', [PrescriptionController::class, 'printData'])->name('prescriptions.printData');
     Route::get('prescriptions/admission-print-data', [PrescriptionController::class, 'admissionPrintData'])->name('prescriptions.admissionPrintData');
+    Route::get('admission/print-options', [AdmissionPrintOptionsController::class, 'options'])->name('admission.print.options');
+    Route::post('admission/print-selection', [AdmissionPrintOptionsController::class, 'saveSelection'])->name('admission.print.selection');
     
     // Store general prescription
     Route::post('/prescriptions', [PrescriptionController::class, 'store'])->name('prescriptions.store');
@@ -103,37 +144,37 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/create', [SurgeryPrescriptionController::class, 'create'])->name('create');
         Route::post('/store', [SurgeryPrescriptionController::class, 'store'])->name('store');
         
-        // ============ TEMPLATE & DOCTOR ROUTES ============
+    
         
-        // টেমপ্লেট লিস্ট (ড্রপডাউনের জন্য)
+       
         Route::get('/get-templates', [SurgeryPrescriptionController::class, 'getTemplates'])->name('get-templates');
         
-        // ডাক্তার লিস্ট (ড্রপডাউনের জন্য)
+       
         Route::get('/get-doctors', [SurgeryPrescriptionController::class, 'getDoctors'])->name('get-doctors');
         
-        // টেমপ্লেট ডাটা লোড - প্যারামিটার সহ
+       
         Route::get('/get-template-data/{id}', [SurgeryPrescriptionController::class, 'getTemplateData'])
             ->name('get-template-data')
             ->where('id', '[0-9]+');
         
-        // পেশেন্ট সার্চ
+        
         Route::get('/search-patients', [SurgeryPrescriptionController::class, 'searchPatients'])->name('search-patients');
         
-        // মেডিসিন সার্চ
+        
         Route::get('/search-medicines', [SurgeryPrescriptionController::class, 'searchMedicines'])->name('search-medicines');
         
-        // PDF routes
+        
         Route::get('/{id}/pdf', [SurgeryPrescriptionController::class, 'viewPDF'])->name('pdf');
         Route::get('/{id}/download', [SurgeryPrescriptionController::class, 'generatePDF'])->name('download');
         
-        // ============ EXISTING DATA SEARCH ROUTES ============
+        
         Route::get('/search-diagnoses', [SurgeryPrescriptionController::class, 'searchDiagnoses'])->name('search-diagnoses');
         Route::get('/search-investigations', [SurgeryPrescriptionController::class, 'searchInvestigations'])->name('search-investigations');
         Route::get('/search-advices', [SurgeryPrescriptionController::class, 'searchAdvices'])->name('search-advices');
         Route::get('/search-fresh-prescriptions', [SurgeryPrescriptionController::class, 'searchFreshPrescriptions'])->name('search-fresh-prescriptions');
         Route::get('/search-discharge-summaries', [SurgeryPrescriptionController::class, 'searchDischargeSummaries'])->name('search-discharge-summaries');
         
-        // Test route
+        
         Route::get('/test', [SurgeryPrescriptionController::class, 'test'])->name('test');
     });
 

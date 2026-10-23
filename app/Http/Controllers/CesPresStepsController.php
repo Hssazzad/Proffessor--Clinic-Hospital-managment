@@ -8,10 +8,6 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Illuminate\Http\JsonResponse;
 use App\Models\Patient;
-use Barryvdh\DomPDF\Facade\Pdf;
-use Mpdf\Mpdf;
-use Mpdf\Config\ConfigVariables;
-use Mpdf\Config\FontVariables;
 
 class CesPresStepsController extends Controller
 {
@@ -49,7 +45,7 @@ public function show(Request $r)
     }
 
     // ===== Tab-specific lists =====
-    // Investigations (correct name: prescriptions_investigations)
+    // Investigations
     $investigations = collect();
     if ($pid && Schema::hasTable('prescriptions_investigations')) {
         $investigations = DB::table('prescriptions_investigations')
@@ -76,7 +72,7 @@ public function show(Request $r)
             ->get(['id','name','strength','dose','route','frequency','duration','timing','note']);
     }
 
-    // Complaints (for preview + complain tab)
+    // Complaints
     $complaints = collect();
     if ($pid && Schema::hasTable('prescriptions_complain')) {
         $complaints = DB::table('prescriptions_complain')
@@ -85,7 +81,7 @@ public function show(Request $r)
             ->get(['id','complaint','note']);
     }
 
-    // ===== Master lists (for tabs that need dropdowns) =====
+    // ===== Master lists =====
     $commonInvestigations = collect();
     if (Schema::hasTable('common_investigation')) {
         $q = DB::table('common_investigation')->orderBy('name');
@@ -107,46 +103,122 @@ public function show(Request $r)
         $commonMedicines = $q->get();
     }
 
-    // If you also maintain a common complaints list, load it here (optional)
-    $commoncomplain = collect(); // keep as you already pass it
+    $commoncomplain = collect();
     if (Schema::hasTable('common_complain')) {
         $q = DB::table('common_complain')->orderBy('name');
         if (Schema::hasColumn('common_complain','active')) $q->where('active',1);
         $commoncomplain = $q->get();
     }
 
-    // ===== Enrich $rx for preview (without changing table design) =====
- /*   if ($pid) {
-        // Chief complaint: prefer prescriptions.chief_complaint; otherwise collapse from complaints table
-        if ($rx && empty($rx->chief_complaint) && $complaints->count()) {
-            $rx->chief_complaint = $complaints->map(function($c){
-                return trim($c->complaint . ($c->note ? " ({$c->note})" : ""));
-            })->filter()->values()->join('; ');
+    // ===== O/E List (dropdown এর জন্য) =====
+    $oeList = collect();
+    if ($patient && !empty($patient->patientcode)) {
+        if (Schema::hasTable('preconassessment')) {
+            $oeList = DB::table('preconassessment')
+                ->where('patientcode', $patient->patientcode)
+                ->orderByDesc('id')
+                ->limit(20)
+                ->get();
         }
-
-        // Diagnosis: prefer prescriptions.diagnosis; otherwise collapse from diagnoses table
-        if ($rx && empty($rx->diagnosis) && $diagnoses->count()) {
-            $rx->diagnosis = $diagnoses->map(function($d){
-                return trim($d->name . ($d->note ? " ({$d->note})" : ""));
-            })->filter()->values()->join('; ');
+        if ($oeList->isEmpty() && Schema::hasTable('nursing_admissions')) {
+            $oeList = DB::table('nursing_admissions')
+                ->where('patient_code', $patient->patientcode)
+                ->orderByDesc('id')
+                ->limit(20)
+                ->get();
         }
     }
-*/
+
+    // ===== Extra data required by the SHARED tab views =====
+
+    // Saved doctors for this prescription
+    $rxDoctors = collect();
+    if ($pid && Schema::hasTable('prescription_doctors') && Schema::hasTable('doctors')) {
+        $q = DB::table('prescription_doctors as pd')
+            ->join('doctors as d', 'd.id', '=', 'pd.doctor_id')
+            ->where('pd.prescription_id', $pid)
+            ->orderBy('pd.id')
+            ->select([
+                'pd.id', 'pd.prescription_id', 'pd.doctor_id', 'pd.role', 'pd.note', 'pd.active',
+                'd.doctor_name as doctor_name', 'd.speciality',
+            ]);
+        if (Schema::hasColumn('prescription_doctors', 'active')) $q->where('pd.active', 1);
+        if (Schema::hasColumn('doctors', 'active')) $q->where('d.active', 1);
+        $rxDoctors = $q->get() ?? collect();
+    }
+
+    // Doctor master list
+    $commonDoctors = collect();
+    if (Schema::hasTable('doctors')) {
+        $q = DB::table('doctors')->orderBy('doctor_name');
+        if (Schema::hasColumn('doctors', 'active')) $q->where('active', 1);
+        $commonDoctors = $q->get() ?? collect();
+    }
+
+    // Medicine tab filters + Quick Add
+    $companies = collect();
+    if (Schema::hasTable('companies')) {
+        $q = DB::table('companies')->orderBy('name');
+        if (Schema::hasColumn('companies', 'active')) $q->where('active', 1);
+        $companies = $q->get(['id', 'name']);
+    }
+
+    $medicineTypes = collect();
+    if (Schema::hasTable('medicine_types')) {
+        $q = DB::table('medicine_types')->orderBy('type_name');
+        if (Schema::hasColumn('medicine_types', 'active')) $q->where('active', 1);
+        $medicineTypes = $q->get(['id', 'type_name']);
+    }
+
+    $dosageForms = collect();
+    if (Schema::hasTable('dosage_forms')) {
+        $q = DB::table('dosage_forms')->orderBy('dosage_name');
+        if (Schema::hasColumn('dosage_forms', 'active')) $q->where('active', 1);
+        $dosageForms = $q->get(['id', 'dosage_name']);
+    }
+
+    // Latest vitals (Medicine tab patient summary)
+    $vitals = null;
+    if ($patient && !empty($patient->patientcode) && Schema::hasTable('preconassessment')) {
+        $vitals = DB::table('preconassessment')
+            ->where('patientcode', $patient->patientcode)
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    // Incomplete prescription draft (for the draft-recovery popup)
+    $hasDraft = false;
+    $draftForPopup = null;
+    if ($patientId && Schema::hasTable('prescriptions')) {
+        $draft = DB::table('prescriptions')
+            ->where('patient_id', $patientId)
+            ->where('status', 0)
+            ->orderByDesc('id')
+            ->first();
+        if ($draft) {
+            $hasDraft = true;
+            $draftForPopup = $draft;
+        }
+    }
+
     return view('Cesprescriptions.wizard-master', compact(
         'tab','pid','patientId','patient','rx',
         'patients','commoncomplain',
         'complaints','investigations','diagnoses','medicines',
-        'commonInvestigations','commonDiagnoses','commonMedicines'
+        'commonInvestigations','commonDiagnoses','commonMedicines',
+        'oeList',
+        'rxDoctors','commonDoctors','companies','medicineTypes','dosageForms',
+        'vitals','hasDraft','draftForPopup'
     ));
 }    
+
     // ---- Master: server-side only ----
 public function show1(Request $r)
 {
     $tab       = $r->query('tab', 'patients');
-    $pid       = $r->query('id');           // prescriptions.id
-    $patientId = $r->query('patient');      // optional
+    $pid       = $r->query('id');
+    $patientId = $r->query('patient');
 
-    // Common data
     $patient = null; 
     $rx = null;
 
@@ -164,7 +236,6 @@ public function show1(Request $r)
         $rx = DB::table('prescriptions')->find($pid);
     }
 
-    // ✅ Preload ALL patients for the dropdown (no AJAX)
     $patients = collect();
     if (Schema::hasTable('patients')) {
         $patients = DB::table('patients')
@@ -172,9 +243,7 @@ public function show1(Request $r)
             ->get(['id', 'patientname', 'mobile_no', 'patientcode']);
     }
 
-    // Tab-specific loads
     $investigations = collect();
-    // ⚠️ IMPORTANT: Correct table name is prescriptions_investigations
     if ($pid && Schema::hasTable('prescriptions_investigations')) {
         $investigations = DB::table('prescriptions_investigations')
             ->where('prescription_id', $pid)
@@ -198,7 +267,6 @@ public function show1(Request $r)
             ->get();
     }
 
-    // Common master lists
     $commonInvestigations = collect();
     if (Schema::hasTable('common_investigation')) {
         $q = DB::table('common_investigation')->orderBy('name');
@@ -226,20 +294,41 @@ public function show1(Request $r)
         if (Schema::hasColumn('common_medicine', 'active')) $q->where('active', 1);
         $commoncomplain = $q->get();
     }
+
+    // O/E List
+    $oeList = collect();
+    if ($patient && !empty($patient->patientcode)) {
+        if (Schema::hasTable('preconassessment')) {
+            $oeList = DB::table('preconassessment')
+                ->where('patientcode', $patient->patientcode)
+                ->orderByDesc('id')
+                ->limit(20)
+                ->get();
+        }
+        if ($oeList->isEmpty() && Schema::hasTable('nursing_admissions')) {
+            $oeList = DB::table('nursing_admissions')
+                ->where('patient_code', $patient->patientcode)
+                ->orderByDesc('id')
+                ->limit(20)
+                ->get();
+        }
+    }
     
     return view('Cesprescriptions.wizard-master', compact(
         'tab','pid','patientId','patient','rx',
-        'patients','commoncomplain', // ✅ pass to Blade
+        'patients','commoncomplain',
         'investigations','diagnoses','medicines',
-        'commonInvestigations','commonDiagnoses','commonMedicines'
+        'commonInvestigations','commonDiagnoses','commonMedicines',
+        'oeList'
     ));
 }
+
     // ------- Helpers -------
     private function nextTab(string $current): string
     {
-        $order = ['patients','complain','investigations','diagnosis','medicine','preview'];
+        $order = ['patients', 'complain', 'oe', 'investigations', 'diagnosis', 'medicine', 'preview'];
         $i = array_search($current, $order, true);
-        return $order[min($i+1, count($order)-1)] ?? 'preview';
+        return $order[min($i + 1, count($order) - 1)] ?? 'preview';
     }
 
     private function makePatientCode(): string
@@ -257,7 +346,7 @@ public function show1(Request $r)
     private function go(Request $r, string $fromTab, int $pid, ?int $patientId = null)
     {
         $to = $r->input('next', $this->nextTab($fromTab));
-        return redirect()->route('rx.wizard', [
+        return redirect()->route('ces.wizard', [
             'id' => $pid,
             'patient' => $patientId,
             'tab' => $to,
@@ -270,7 +359,6 @@ public function show1(Request $r)
         $v = $r->validate([
             'prescription_id' => 'nullable|integer|exists:prescriptions,id',
             'patient_id'      => 'nullable|integer|exists:patients,id',
-
             'patientcode'     => 'nullable|string|max:30',
             'patientname'     => 'required|string|max:150',
             'mobile_no'       => 'nullable|string|max:20',
@@ -335,7 +423,7 @@ public function savePatient(Request $r)
         'prescription_id'           => 'nullable|integer|exists:prescriptions,id',
         'patient_id'                => 'required|integer|exists:patients,id',
         'previous_prescription_id'  => 'nullable|integer|exists:prescriptions,id',
-        'next'                      => 'nullable|string|in:patients,complain,investigations,diagnoses,medicines,preview',
+        'next'                      => 'nullable|string|in:patients,complain,oe,investigations,diagnoses,medicines,preview',
     ]);
 
     $now        = now();
@@ -347,16 +435,12 @@ public function savePatient(Request $r)
         ->where('id', $patientId)
         ->value('patientcode');
 
-    // ------------------------------------------------------------
-    // CASE A: previous Rx selected -> CREATE NEW prescription ALWAYS
-    // ------------------------------------------------------------
     if ($prevRxId) {
 
         $newPid = null;
 
         DB::transaction(function() use ($patientId, $prevRxId, $patientCode, $now, &$newPid){
 
-            // 1) Create a brand-new prescription
             $tmpNo = 'TMP-' . $now->timestamp;
             $newPid = DB::table('prescriptions')->insertGetId([
                 'patient_id'      => $patientId,
@@ -366,17 +450,14 @@ public function savePatient(Request $r)
                 'updated_at'      => $now,
             ]);
 
-            // 2) Fetch previous prescription
             $prevRx = DB::table('prescriptions')->where('id', $prevRxId)->first();
 
-            // Copy advices directly into new one if exists
             if ($prevRx && !empty($prevRx->advices)) {
                 DB::table('prescriptions')
                     ->where('id', $newPid)
                     ->update(['advices' => $prevRx->advices]);
             }
 
-            // 3) Copy COMPLAINS
             $prevComplains = DB::table('prescriptions_complain')
                 ->where('prescription_id', $prevRxId)
                 ->where('active', 1)
@@ -396,7 +477,6 @@ public function savePatient(Request $r)
                 ]);
             }
 
-            // 4) Copy DIAGNOSIS
             $prevDiagnosis = DB::table('prescriptions_diagnosis')
                 ->where('prescription_id', $prevRxId)
                 ->where('active', 1)
@@ -415,7 +495,6 @@ public function savePatient(Request $r)
                 ]);
             }
 
-            // 5) Copy INVESTIGATIONS (prescription_id is varchar in your table)
             $prevInv = DB::table('prescriptions_investigations')
                 ->where('prescription_id', (string)$prevRxId)
                 ->get();
@@ -431,7 +510,6 @@ public function savePatient(Request $r)
                 ]);
             }
 
-            // 6) Copy MEDICINES
             $prevMeds = DB::table('prescriptions_medicine')
                 ->where('prescription_id', $prevRxId)
                 ->get();
@@ -453,21 +531,16 @@ public function savePatient(Request $r)
                 ]);
             }
 
-            // OPTIONAL (if you really want to mark old one inactive):
             DB::table('prescriptions')->where('id', $prevRxId)->update(['status' => 0]);
 
         });
 
         $nextTab = $r->input('next', 'complain');
 
-        // Redirect wizard to NEW prescription
         return $this->go($r, $nextTab, $newPid, $patientId)
             ->with('success', "Previous prescription loaded into NEW RX #{$newPid}. Now edit/add/delete as needed.");
     }
 
-    // ------------------------------------------------------------
-    // CASE B: no previous Rx -> old behavior (update/create normal)
-    // ------------------------------------------------------------
     if ($pid) {
         DB::table('prescriptions')->where('id', $pid)->update([
             'patient_id' => $patientId,
@@ -522,12 +595,170 @@ public function saveComplain(Request $r)
         }
     }
 
-    $nextTab = $r->input('next','investigations'); // go to investigations tab
+    // ✅ এখন complain এর পর O/E ট্যাবে যাবে
+    $nextTab = $r->input('next', 'oe');
 
     return $this->go($r, $nextTab, $pid, $patientId);
 }
-    // ------- TAB 2: Investigations (single row CRUD) -------
-   // Store ONE investigation (stay on the same tab)
+
+// ✅ নতুন O/E Save মেথড
+public function saveOe(Request $r)
+{
+    $data = $r->validate([
+        'prescription_id' => 'required|integer|exists:prescriptions,id',
+        'patient_id'      => 'required|integer|exists:patients,id',
+        'nursing_id'      => 'nullable|integer',
+        'oe'              => 'nullable|array',
+        'oe.*'            => 'nullable|string|max:255',
+        'next'            => 'nullable|string',
+    ]);
+
+    $pid      = (int) $data['prescription_id'];
+    $oeValues = $data['oe'] ?? [];
+
+    // Map O/E Master fields to legacy prescription columns (print compatibility)
+    $legacyMap = [
+        'pulse'  => 'oe_pulse',
+        'bp'     => 'oe_bp',
+        'temp'   => 'oe_temp',
+        'weight' => 'oe_weight',
+    ];
+
+    $update = [
+        'oe_nursing_id' => $data['nursing_id'] ?? null,
+        'updated_at'    => now(),
+    ];
+
+    $canLegacy = Schema::hasTable('prescriptions')
+        && Schema::hasColumn('prescriptions', 'oe_pulse');
+
+    if (count($oeValues) > 0) {
+        $masters = collect();
+        if (Schema::hasTable('oe_master')) {
+            $masters = DB::table('oe_master')->whereIn('id', array_keys($oeValues))->get();
+        }
+
+        // Persist dynamic O/E values into prescription_oe (the print sheet reads these)
+        if (Schema::hasTable('prescription_oe')) {
+            foreach ($oeValues as $masterId => $value) {
+                $masterId = (int) $masterId;
+                $value    = trim((string) $value);
+                $clean    = $value !== '' ? $value : null;
+
+                $existing = DB::table('prescription_oe')
+                    ->where('prescription_id', $pid)
+                    ->where('oe_master_id', $masterId)
+                    ->first();
+
+                if ($existing) {
+                    DB::table('prescription_oe')->where('id', $existing->id)->update([
+                        'value'      => $clean,
+                        'updated_at' => now(),
+                    ]);
+                } else {
+                    DB::table('prescription_oe')->insert([
+                        'prescription_id' => $pid,
+                        'oe_master_id'    => $masterId,
+                        'value'           => $clean,
+                        'created_at'      => now(),
+                        'updated_at'      => now(),
+                    ]);
+                }
+            }
+        }
+
+        // Mirror the standard vitals (Pulse/BP/Temp/Weight) into the legacy prescriptions
+        // columns so they still print even when prescription_oe is absent on the server.
+        if ($canLegacy) {
+            foreach ($oeValues as $masterId => $value) {
+                $masterId = (int) $masterId;
+                $value    = trim((string) $value);
+                $clean    = $value !== '' ? $value : null;
+
+                $master = $masters->firstWhere('id', $masterId);
+                if ($master) {
+                    $key = strtolower(trim((string) ($master->short_name ?? $master->name)));
+                    if (isset($legacyMap[$key])) {
+                        $update[$legacyMap[$key]] = $clean;
+                    }
+                }
+            }
+        }
+    }
+
+    DB::table('prescriptions')->where('id', $pid)->update($update);
+
+    // Shared business method: return to the wizard that submitted the form.
+    $base = $r->routeIs('ces.*') ? 'ces.wizard' : 'rx.wizard';
+    return redirect()->route($base, [
+        'id'      => $pid,
+        'patient' => $data['patient_id'],
+        'tab'     => $r->input('next', $this->nextTab('oe')),
+    ])->with('success', 'Saved.');
+}
+
+public function ajaxOe(Request $r)
+{
+    $r->validate([
+        'prescription_id' => 'required|integer|exists:prescriptions,id',
+        'patient_id'      => 'nullable|integer|exists:patients,id',
+    ]);
+    $pid = (int) $r->prescription_id;
+
+    try {
+        $action = (string) $r->input('action', 'list');
+
+        switch ($action) {
+            case 'list':
+            default:
+                $patient = null;
+                if ($r->filled('patient_id')) {
+                    $patient = DB::table('patients')->where('id', $r->patient_id)->first();
+                }
+                if (!$patient && $pid) {
+                    $patient = DB::table('patients')
+                        ->join('prescriptions', 'prescriptions.patient_id', '=', 'patients.id')
+                        ->where('prescriptions.id', $pid)
+                        ->select('patients.*')
+                        ->first();
+                }
+
+                $rows = collect();
+                if ($patient && !empty($patient->patientcode)) {
+                    if (Schema::hasTable('preconassessment')) {
+                        $rows = DB::table('preconassessment')
+                            ->where('patientcode', $patient->patientcode)
+                            ->orderByDesc('id')
+                            ->limit(20)
+                            ->get();
+                    }
+                    if ($rows->isEmpty() && Schema::hasTable('nursing_admissions')) {
+                        $rows = DB::table('nursing_admissions')
+                            ->where('patient_code', $patient->patientcode)
+                            ->orderByDesc('id')
+                            ->limit(20)
+                            ->get();
+                    }
+                }
+
+                $rx = DB::table('prescriptions')->where('id', $pid)->first();
+                return response()->json([
+                    'ok'    => true,
+                    'rows'  => $rows,
+                    'saved' => $rx ? [
+                        'oe_pulse'  => $rx->oe_pulse ?? null,
+                        'oe_bp'     => $rx->oe_bp ?? null,
+                        'oe_temp'   => $rx->oe_temp ?? null,
+                        'oe_weight' => $rx->oe_weight ?? null,
+                    ] : null,
+                ]);
+        }
+    } catch (\Throwable $e) {
+        return response()->json(['ok' => false, 'error' => $e->getMessage()], 500);
+    }
+}
+
+    // ------- TAB 2: Investigations -------
         public function storeInvestigation(Request $r)
         {
             $data = $r->validate([
@@ -545,15 +776,13 @@ public function saveComplain(Request $r)
                 'updated_at'      => now(),
             ]);
 
-            // STAY on Investigations
-            return redirect()->route('rx.wizard', [
+            return redirect()->route('ces.wizard', [
                 'id'      => $data['prescription_id'],
                 'patient' => $data['patient_id'] ?? null,
                 'tab'     => 'investigations',
             ])->with('success','Investigation added.');
         }
 
-        // Update ONE investigation (stay on the same tab)
         public function updateInvestigation(Request $r, int $invId)
         {
             $data = $r->validate([
@@ -575,15 +804,13 @@ public function saveComplain(Request $r)
                 'updated_at' => now(),
             ]);
 
-            // STAY on Investigations
-            return redirect()->route('rx.wizard', [
+            return redirect()->route('ces.wizard', [
                 'id'      => $data['prescription_id'],
                 'patient' => $data['patient_id'] ?? null,
                 'tab'     => 'investigations',
             ])->with('success','Investigation updated.');
         }
 
-        // Delete ONE investigation (stay on the same tab)
         public function destroyInvestigation(Request $r, int $invId)
         {
             $data = $r->validate([
@@ -599,8 +826,7 @@ public function saveComplain(Request $r)
 
             DB::table('prescriptions_investigations')->where('id',$invId)->delete();
 
-            // STAY on Investigations
-            return redirect()->route('rx.wizard', [
+            return redirect()->route('ces.wizard', [
                 'id'      => $data['prescription_id'],
                 'patient' => $data['patient_id'] ?? null,
                 'tab'     => 'investigations',
@@ -663,7 +889,7 @@ public function saveComplain(Request $r)
 
         DB::table('prescription_diagnoses')->where('id',$diag)->delete();
 
-        return redirect()->route('rx.wizard', [
+        return redirect()->route('ces.wizard', [
             'id'=>$data['prescription_id'],'patient'=>$data['patient_id']??null,'tab'=>'diagnosis'
         ])->with('success','Deleted.');
     }
@@ -743,14 +969,13 @@ public function saveComplain(Request $r)
 
         DB::table('prescription_medicines')->where('id',$med)->delete();
 
-        return redirect()->route('rx.wizard', [
+        return redirect()->route('ces.wizard', [
             'id'=>$data['prescription_id'],'patient'=>$data['patient_id']??null,'tab'=>'medicine'
         ])->with('success','Deleted.');
     }
     
    public function ajaxInvestigation(Request $r)
 {
-    // ensure table exists
     if (!Schema::hasTable('prescriptions_investigations')) {
         return response()->json(['ok'=>false,'error'=>'Table prescriptions_investigations not found'], 500);
     }
@@ -820,9 +1045,8 @@ public function saveComplain(Request $r)
 
 private function diagTable(): ?string
 {
-    // Try plural first (recommended), then legacy singular
     if (Schema::hasTable('prescriptions_diagnosis')) return 'prescriptions_diagnosis';
-    if (Schema::hasTable('prescriptions_diagnosis'))  return 'prescriptions_diagnosis';
+    if (Schema::hasTable('prescription_diagnoses'))  return 'prescription_diagnoses';
     return null;
 }
 
@@ -830,7 +1054,7 @@ public function ajaxDiagnosis(Request $r)
 {
     $tbl = $this->diagTable();
     if (!$tbl) {
-        return response()->json(['ok'=>false,'error'=>'Diagnosis table not found (expected prescriptions_diagnoses or prescription_diagnoses)'], 500);
+        return response()->json(['ok'=>false,'error'=>'Diagnosis table not found'], 500);
     }
 
     $r->validate([
@@ -897,9 +1121,8 @@ public function ajaxDiagnosis(Request $r)
 
 private function medTable(): ?string
 {
-    // Prefer plural; fall back to legacy singular if your DB uses it
     if (Schema::hasTable('prescriptions_medicine')) return 'prescriptions_medicine';
-    if (Schema::hasTable('prescriptions_medicine'))  return 'prescriptions_medicine';
+    if (Schema::hasTable('prescription_medicines'))  return 'prescription_medicines';
     return null;
 }
 
@@ -907,7 +1130,7 @@ public function ajaxMedicine(Request $r)
 {
     $tbl = $this->medTable();
     if (!$tbl) {
-        return response()->json(['ok'=>false,'error'=>'Medicine table not found (expected prescriptions_medicines or prescription_medicines)'], 500);
+        return response()->json(['ok'=>false,'error'=>'Medicine table not found'], 500);
     }
 
     $r->validate([
@@ -947,6 +1170,7 @@ public function ajaxMedicine(Request $r)
             case 'update':
                 $r->validate([
                     'id'        => 'required|integer',
+                    'name'      => 'required|integer',
                     'name'      => 'required|string|max:150',
                     'strength'  => 'nullable|string|max:80',
                     'dose'      => 'nullable|string|max:80',
@@ -995,6 +1219,7 @@ public function ajaxMedicine(Request $r)
         return response()->json(['ok'=>false,'error'=>$e->getMessage()], 500);
     }
 }
+
 public function finishNew(Request $r)
 {
     $data = $r->validate([
@@ -1009,7 +1234,6 @@ public function finishNew(Request $r)
         $patientId = (int) $data['patient_id'];
     }
 
-    // ✅ First close (complete) the active prescription if exists
     if ($patientId) {
         $prefix = 'RX-' . now()->format('Ymd') . '-';
         $lastRx = DB::table('prescriptions')
@@ -1036,10 +1260,9 @@ public function finishNew(Request $r)
             ]);
     }
 
-    // If same patient, go to investigations, else start at patients tab
     $tab = $patientId ? 'patients' : 'patients';
 
-    return redirect()->route('rx.wizard', [
+    return redirect()->route('ces.wizard', [
         'patient' => $patientId,
         'tab'     => $tab,
     ])->with('success', 'Prescription completed. New prescription started.');
@@ -1058,11 +1281,11 @@ public function patientsSearchAjax(Request $request)
         ->limit(15)
         ->get(['id','patientname','mobile_no','patientcode']);
 }
+
 public function ajaxComplain(Request $r)
 {
-    // table: prescription_complaints (same one you use in saveComplain())
     if (!Schema::hasTable('prescriptions_complain')) {
-        return response()->json(['ok'=>false,'error'=>'Table prescription_complaints not found'], 500);
+        return response()->json(['ok'=>false,'error'=>'Table prescriptions_complain not found'], 500);
     }
 
     $action = (string) $r->input('action', 'list');
@@ -1194,190 +1417,6 @@ public function previousPrescriptionDetails($rxId)
             'medicines'      => $medicines,
         ]
     ]);
-}
-
-public function pdf($id, Request $r)
-{
-    $pid = (int) $id;
-
-    $rx = DB::table('prescriptions')->where('id', $pid)->first();
-    if (!$rx) abort(404, 'Prescription not found');
-
-    $patient = DB::table('patients')->where('id', $rx->patient_id)->first();
-
-    $complaints = DB::table('prescriptions_complain')
-        ->where('prescription_id', $pid)
-        ->where('active', 1)
-        ->orderBy('id')
-        ->get();
-
-    $diagnoses = DB::table('prescriptions_diagnosis')
-        ->where('prescription_id', $pid)
-        ->where('active', 1)
-        ->orderBy('id')
-        ->get();
-
-    $investigations = DB::table('prescriptions_investigations')
-        ->where('prescription_id', (string)$pid) // varchar column
-        ->orderBy('id')
-        ->get();
-
-    $medicines = DB::table('prescriptions_medicine')
-        ->where('prescription_id', $pid)
-        ->orderBy('id')
-        ->get();
-
-    // ---- OPTIONAL: clean weird private-use chars from DB (recommended) ----
-    $cleanBangla = function ($text) {
-        if (!$text) return $text;
-        // remove private-use unicode (causes    etc.)
-        $text = preg_replace('/[\x{E000}-\x{F8FF}]/u', '', $text);
-        // remove zero-width chars
-        $text = preg_replace('/[\x{200B}-\x{200D}\x{FEFF}]/u', '', $text);
-        return trim($text);
-    };
-
-    $rx->chief_complaint = $cleanBangla($rx->chief_complaint ?? '');
-    $rx->diagnosis       = $cleanBangla($rx->diagnosis ?? '');
-    $rx->advice          = $cleanBangla($rx->advice ?? '');
-
-    foreach ($complaints as $c) {
-        $c->complaint = $cleanBangla($c->complaint ?? '');
-        $c->note      = $cleanBangla($c->note ?? '');
-    }
-    foreach ($diagnoses as $d) {
-        $d->name = $cleanBangla($d->name ?? '');
-        $d->note = $cleanBangla($d->note ?? '');
-    }
-    foreach ($investigations as $i) {
-        $i->name = $cleanBangla($i->name ?? '');
-        $i->note = $cleanBangla($i->note ?? '');
-    }
-
-    $data = compact('pid','rx','patient','complaints','diagnoses','investigations','medicines');
-
-    $html = view('prescriptions.pdf', $data)->render();
-
-    // --- mPDF font setup ---
-    $defaultConfig = (new ConfigVariables())->getDefaults();
-    $fontDirs = $defaultConfig['fontDir'];
-
-    $defaultFontConfig = (new FontVariables())->getDefaults();
-    $fontData = $defaultFontConfig['fontdata'];
-
-    $mpdf = new Mpdf([
-        'mode' => 'utf-8',
-        'format' => 'A4',
-        'orientation' => 'P',
-        'margin_left' => 8,
-        'margin_right' => 8,
-        'margin_top' => 8,
-        'margin_bottom' => 8,
-
-        // add your public/fonts folder
-        'fontDir' => array_merge($fontDirs, [
-            base_path('public/fonts'),
-        ]),
-
-        // register SolaimanLipi
-        'fontdata' => $fontData + [
-            'solaimanlipi' => [
-                'R'  => 'SolaimanLipi.ttf',
-                'B'  => 'SolaimanLipi_Bold.ttf',
-                'I'  => 'SolaimanLipi.ttf',
-                'BI' => 'SolaimanLipi.ttf',
-            ],
-        ],
-
-        'default_font' => 'solaimanlipi',
-
-        // Bangla shaping / ligatures ON
-        'useOTL' => 1,
-        'autoScriptToLang' => true,
-        'autoLangToFont' => true,
-    ]);
-
-    $mpdf->WriteHTML($html);
-
-    return response($mpdf->Output("prescription-{$pid}.pdf", 'S'))
-        ->header('Content-Type', 'application/pdf');
-}
-
-public function admissionSearch(Request $r)
-{
-    $patientId = $r->query('patient');
-
-    $patients = collect();
-    if (Schema::hasTable('patients')) {
-        $patients = DB::table('patients')
-            ->orderBy('patientname')
-            ->get(['id', 'patientname', 'mobile_no', 'patientcode']);
-    }
-
-    $selectedPatient = null;
-    $admissions      = collect();
-
-    if ($patientId) {
-        $selectedPatient = DB::table('patients')->where('id', $patientId)->first();
-
-        if ($selectedPatient && Schema::hasTable('tbl_patient_admission')) {
-            $admissions = DB::table('tbl_patient_admission')
-                ->where('patient_id', $patientId)
-                ->orderByDesc('id')
-                ->get(['id', 'admission_no', 'admission_date', 'discharge_date', 'stage', 'status']);
-        }
-    }
-
-    return view('prescriptions.admission-search', compact(
-        'patients', 'selectedPatient', 'admissions', 'patientId'
-    ));
-}
-
-public function admissionStagePreview($admissionId)
-{
-    $admission = DB::table('tbl_patient_admission')->where('id', $admissionId)->first();
-    if (!$admission) abort(404);
-
-    $patient = DB::table('patients')->where('id', $admission->patient_id)->first();
-
-    $onAdmissionMeds = collect();
-    $preSurgeryMeds  = collect();
-    $postSurgeryMeds = collect();
-    $roundMeds       = collect();
-    $freshMeds       = collect();
-    $dischargeMeds   = collect();
-
-    $tables = [
-        'admit'     => ['tbl' => 'patient_admission_medicines',  'col' => 'patient_admission_id'],
-        'preorder'  => ['tbl' => 'patient_preop_medicines',      'col' => 'patient_admission_id'],
-        'postorder' => ['tbl' => 'patient_postop_medicines',     'col' => 'patient_admission_id'],
-        'round'     => ['tbl' => 'patient_round_medicines',      'col' => 'patient_admission_id'],
-        'fresh'     => ['tbl' => 'patient_instant_medicines',    'col' => 'patient_admission_id'],
-        'discharge' => ['tbl' => 'patient_discharge_medicines',  'col' => 'patient_admission_id'],
-    ];
-
-    foreach ($tables as $key => $cfg) {
-        if (Schema::hasTable($cfg['tbl'])) {
-            $rows = DB::table($cfg['tbl'])
-                ->where($cfg['col'], $admissionId)
-                ->orderBy('id')
-                ->get();
-            switch ($key) {
-                case 'admit':     $onAdmissionMeds = $rows; break;
-                case 'preorder':  $preSurgeryMeds  = $rows; break;
-                case 'postorder': $postSurgeryMeds = $rows; break;
-                case 'round':     $roundMeds       = $rows; break;
-                case 'fresh':     $freshMeds       = $rows; break;
-                case 'discharge': $dischargeMeds   = $rows; break;
-            }
-        }
-    }
-
-    return view('prescriptions.admission-stage-preview', compact(
-        'admission', 'patient',
-        'onAdmissionMeds', 'preSurgeryMeds', 'postSurgeryMeds',
-        'roundMeds', 'freshMeds', 'dischargeMeds'
-    ));
 }
 
 }

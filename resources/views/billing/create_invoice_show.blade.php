@@ -236,10 +236,10 @@
 
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px 14px; margin-bottom:10px;">
                 <div class="ci-row">
-                    <div class="ci-label">Discount</div>
+                    <div class="ci-label">Discount (%)</div>
                     <div class="ci-colon">:</div>
                     <div class="ci-control">
-                        <input type="number" id="discountInput" class="ci-input" value="0" min="0" step="1">
+                        <input type="number" id="discountInput" class="ci-input" value="0" min="0" max="100" step="0.01">
                     </div>
                 </div>
                 <div class="ci-row">
@@ -267,6 +267,30 @@
                             <option value="card">Card</option>
                             <option value="bank_transfer">Bank Transfer</option>
                             <option value="cheque">Cheque</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="ci-row" style="grid-column:1/-1;">
+                    <div class="ci-label">Reference By</div>
+                    <div class="ci-colon">:</div>
+                    <div class="ci-control">
+                        <select id="referenceNameInput" style="width:100%;">
+                            <option value="">- Select Member -</option>
+                            @foreach ($references as $ref)
+                                <option value="{{ $ref->Name }}">{{ $ref->Name }} ({{ $ref->ref_type }})</option>
+                            @endforeach
+                            <option value="__others__">Others (type name)</option>
+                        </select>
+                        <input type="text" id="referenceNameOther" class="ci-input"
+                               placeholder="Type reference name" style="display:none; margin-top:4px;">
+                    </div>
+                </div>
+                <div class="ci-row" style="grid-column:1/-1;">
+                    <div class="ci-label">Ref by Doctor</div>
+                    <div class="ci-colon">:</div>
+                    <div class="ci-control">
+                        <select id="invoiceRefDoctorSelect" style="width:100%;">
+                            <option value="">- Select Doctor -</option>
                         </select>
                     </div>
                 </div>
@@ -562,6 +586,39 @@ function showMainCategoryDropdown() {
     $('#mainCategoryRow').show();
     $('#mainCategorySelect').val('');
     $('#subCategorySelect').html('<option value="">Select Type First</option>').prop('disabled', true);
+    applyMainCategoryFilter();
+}
+
+// ============================================================
+// Canonical investigation categories â€” keeps CategoryName clean
+// (ECG / X-Ray / Pathology / USG) for the Investigation bill type
+// ============================================================
+const INVESTIGATION_CATEGORY_NAMES = ['ECG', 'X-Ray', 'Pathology', 'USG'];
+
+function applyMainCategoryFilter() {
+    const $sel = $('#mainCategorySelect');
+    const all  = window.__allMainCategories || [];
+
+    if (!isInvType(getBillType())) {
+        if (all.length && $sel.children('option').length !== all.length + 1) {
+            rebuildMainCategorySelect(all);
+        }
+        return;
+    }
+
+    const canonical = all.filter(function (m) {
+        return INVESTIGATION_CATEGORY_NAMES.indexOf(m.Name) !== -1;
+    });
+
+    rebuildMainCategorySelect(canonical);
+}
+
+function rebuildMainCategorySelect(items) {
+    const $sel = $('#mainCategorySelect');
+    $sel.empty().append(new Option('Select Investigation Type', ''));
+    items.forEach(function (m) {
+        $sel.append(new Option(m.Name, m.Code));
+    });
 }
 
 // ============================================================
@@ -663,10 +720,17 @@ $.get('{{ route("billing.invoice.getDoctors") }}', function (data) {
     const $sel = $('#doctorSelect');
     $sel.empty().append(new Option('- Select Doctor -', ''));
 
+    const $refSel = $('#invoiceRefDoctorSelect');
+    $refSel.empty().append(new Option('- Select Doctor -', ''));
+
     data.forEach(function (doc) {
         const opt = new Option(doc.name, doc.id);
         $(opt).attr('data-name', doc.name);
         $sel.append(opt);
+
+        const refOpt = new Option(doc.name, doc.id);
+        $(refOpt).attr('data-name', doc.name);
+        $refSel.append(refOpt);
     });
 }).fail(function () {
     toastr.error('Failed to load doctors.');
@@ -708,6 +772,8 @@ let mainCategoriesLoaded = false;
 $.get('{{ route("billing.invoice.getMain") }}', function (data) {
     const $sel = $('#mainCategorySelect');
     $sel.empty().append(new Option('Select Investigation Type', ''));
+
+    window.__allMainCategories = data;
 
     data.forEach(function (m) {
         $sel.append(new Option(m.Name, m.Code));
@@ -759,7 +825,8 @@ $('#btnAddItem').on('click', function () {
                 name         : 'Dr. ' + selectedDoctor.name,
                 mainName     : 'Doctor Consultation',
                 amount       : selectedDoctor.fee,
-                comment      : ''
+                comment      : '',
+                doctor_id    : selectedDoctor.id
             });
         }
     }
@@ -820,13 +887,13 @@ $('#btnAddItem').on('click', function () {
                     tmpId     : res.tmp_id
                 });
             } else {
-                toastr.error('Server rejected item: ' + req.name + (res && res.message ? ' — ' + res.message : ''));
+                toastr.error('Server rejected item: ' + req.name + (res && res.message ? ' ï¿½ ' + res.message : ''));
             }
             return res;
         }, function (xhr) {
             const msg = xhr.responseJSON
                 ? (xhr.responseJSON.message || JSON.stringify(xhr.responseJSON))
-                : ('HTTP ' + xhr.status + ' — ' + xhr.statusText);
+                : ('HTTP ' + xhr.status + ' ï¿½ ' + xhr.statusText);
             toastr.error('Add item failed: ' + msg);
             return { success: false };
         });
@@ -932,7 +999,8 @@ $(document).on('click', '.btnRemove', function () {
 // ============================================================
 function recalcPayment() {
     const total    = billItems.reduce((s, i) => s + i.amount, 0);
-    const discount = parseInt($('#discountInput').val()) || 0;
+    const discPct  = parseFloat($('#discountInput').val()) || 0;
+    const discount = Math.round(total * discPct / 100);
     const net      = Math.max(0, total - discount);
     const min25    = Math.ceil(net * 0.25);
     const paid     = parseInt($('#paidInput').val()) || 0;
@@ -944,7 +1012,10 @@ function recalcPayment() {
     $('#grandTotalDisplay').text(net.toLocaleString());
     $('#dueDisplay').text(due.toLocaleString());
 
-    if (paid > 0 && paid < min25) {
+    if (paid > net) {
+        $('#paidError').text('Paid cannot exceed net payable: ' + net.toLocaleString()).show();
+        $('#paidInput').css('border-color', '#e53935');
+    } else if (paid > 0 && paid < min25) {
         $('#paidError').text('Minimum 25% required: ' + min25.toLocaleString()).show();
         $('#paidInput').css('border-color', '#e53935');
     } else {
@@ -986,7 +1057,7 @@ $('#patientSelect').select2({
 
         const p = item.data;
         const av = initials(p.patientname);
-        const meta = [p.age ? p.age + ' yrs' : '', p.gender || '', p.mobile_no || ''].filter(Boolean).join(' · ');
+        const meta = [p.age ? p.age + ' yrs' : '', p.gender || '', p.mobile_no || ''].filter(Boolean).join(' ï¿½ ');
 
         return $(`
             <div class="pt-opt-wrap">
@@ -1144,10 +1215,18 @@ $('#btnSaveInvoice').on('click', function () {
     }
 
     const total    = billItems.reduce((s, i) => s + i.amount, 0);
-    const discount = parseInt($('#discountInput').val()) || 0;
+    const discPct  = parseFloat($('#discountInput').val()) || 0;
+    const discount = Math.round(total * discPct / 100);
     const net      = Math.max(0, total - discount);
     const min25    = Math.ceil(net * 0.25);
     const paid     = parseInt($('#paidInput').val()) || 0;
+
+    if (paid > net) {
+        $('#paidError').text('Paid cannot exceed net payable: ' + net.toLocaleString()).show();
+        $('#paidInput').focus();
+        toastr.error('Paid amount cannot be more than the bill total (' + net.toLocaleString() + ').');
+        return;
+    }
 
     if (paid < min25) {
         $('#paidError').text('Minimum 25% required: ' + min25.toLocaleString()).show();
@@ -1164,11 +1243,13 @@ $('#btnSaveInvoice').on('click', function () {
         patient_age    : $('#selectedPatientAge').val(),
         mobile_no      : $('#selectedMobile').val(),
         total_bill     : total,
-        discount       : discount,
+        discount       : discPct,
         paid_amount    : paid,
         payment_date   : $('#payDateInput').val(),
         payment_method : $('#payMethodInput').val(),
         collected_by   : $('#collectedByInput').val(),
+        ref_doctor_id  : $('#invoiceRefDoctorSelect').val() || null,
+        reference_name : getReferenceName(),
         invoice_type   : getBillType(),
         items          : billItems.map(function (i) {
             return {
@@ -1200,7 +1281,7 @@ $('#btnSaveInvoice').on('click', function () {
                     _token       : '{{ csrf_token() }}'
                 });
 
-                // ? FIX: notun tab e open kore — browser title = invoice title ? unique filename
+                // ? FIX: notun tab e open kore ï¿½ browser title = invoice title ? unique filename
                 window.open('{{ url("Billing/CreateInvoice") }}/' + res.payment_id + '/print', '_blank');
 
                 billItems = [];
@@ -1227,6 +1308,35 @@ $('#collectedByInput').select2({
     allowClear     : true,
     dropdownParent : $('#invoiceBottomSection'),
     width          : '100%'
+});
+
+function getReferenceName() {
+    const selected = $('#referenceNameInput').val();
+
+    if (selected === '__others__') {
+        return $('#referenceNameOther').val().trim();
+    }
+
+    return selected ? selected.trim() : '';
+}
+
+$('#referenceNameInput').select2({
+    placeholder    : '- Select Member -',
+    allowClear     : true,
+    dropdownParent : $('#invoiceBottomSection'),
+    width          : '100%'
+});
+
+$('#referenceNameInput').on('select2:select', function (e) {
+    if (e.params.data.id === '__others__') {
+        $('#referenceNameOther').show().focus();
+    } else {
+        $('#referenceNameOther').val('').hide();
+    }
+});
+
+$('#referenceNameInput').on('select2:clear', function () {
+    $('#referenceNameOther').val('').hide();
 });
 
 loadOfficeEmployees();

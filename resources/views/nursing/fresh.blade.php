@@ -774,7 +774,8 @@
                                                     <th rowspan="2" class="fresh-th-name">ঔষধের নাম</th>
                                                     <th colspan="3" class="fresh-th-group">কখন খাবেন?</th>
                                                     <th colspan="2" class="fresh-th-group">আহারের</th>
-                                                    <th colspan="3" class="fresh-th-group">কতদিন?</th>
+                                                    <th rowspan="2" class="fresh-th-name">কতদিন</th>
+                                                    <th rowspan="2" class="fresh-th-name">নির্দেশনা</th>
                                                 </tr>
                                                 <tr>
                                                     <th class="fresh-th-sub">সকাল</th><th class="fresh-th-sub">দুপুর</th><th class="fresh-th-sub">রাত</th>
@@ -1506,24 +1507,21 @@ function renderRxMedicines(tbodyId){
         var timing=(m.timing||'').toLowerCase();
         var before=(timing.includes('before')||timing.includes('আগে'))?'✓':'';
         var after=(timing.includes('after')||timing.includes('পরে'))?'✓':'';
-        if(!before&&!after&&timing) after='✓';
-        var days='',months='',cont='';
-        var dur=(m.duration||'').toLowerCase().trim();
-        if(dur.includes('cont')||dur.includes('চলবে')){cont='✓';}
-        else if(dur.includes('month')||dur.includes('মাস')){months=dur.replace(/[^0-9]/g,'')||'1';}
-        else if(dur){days=dur.replace(/[^0-9]/g,'')||'';}
+        var duration=esc(m.duration||'');
         var name=m.medicine_name; if(m.route&&m.route!=='') name=m.route+' '+name;
+        var instruction=esc(m.instruction||m.note||'');
         var tr=document.createElement('tr');
         tr.innerHTML='<td style="text-align:left;padding-left:6px;">• '+esc(name)+'</td>'+
             '<td>'+morning+'</td><td>'+noon+'</td><td>'+night+'</td>'+
             '<td>'+before+'</td><td>'+after+'</td>'+
-            '<td>'+days+'</td><td>'+months+'</td><td>'+cont+'</td>';
+            '<td>'+duration+'</td>'+
+            '<td style="text-align:left;padding-left:6px;">'+instruction+'</td>';
         tbody.appendChild(tr);
     });
     var needed=Math.max(0,8-printMeds.length);
     for(var i=0;i<needed;i++){
         var tr=document.createElement('tr');tr.className='empty-row';
-        tr.innerHTML='<td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>';
+        tr.innerHTML='<td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>';
         tbody.appendChild(tr);
     }
 }

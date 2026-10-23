@@ -1,0 +1,31 @@
+name: Deploy to Live Server
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.LIVE_HOST }}
+          username: ${{ secrets.LIVE_USER }}
+          key: ${{ secrets.LIVE_SSH_KEY }}
+          port: ${{ secrets.LIVE_PORT }}
+          script: |
+            set -e
+            cd ${{ secrets.LIVE_PATH }}
+            git fetch origin master
+            git reset --hard origin/master
+            composer install --no-dev --no-interaction --prefer-dist
+            php artisan migrate --force
+            php artisan optimize:clear
+            php seed_local_accounts.php
+            chmod -R 775 storage bootstrap/cache
+            echo "=== DEPLOY DONE ==="

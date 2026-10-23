@@ -3,7 +3,7 @@
 @section('title', 'Operation Consent Form')
 
 @section('content_header')
-    <h1>অপারেশন সম্মতি ফর্ম তৈরি করুন</h1>
+    <h1>Create Operation Consent Form</h1>
 @stop
 
 @section('content')
@@ -23,33 +23,48 @@
         <input type="hidden" name="admission_id" value="{{ $admission->admission_id }}">
         <input type="hidden" name="patient_id" value="{{ $admission->patient_id }}">
 
+        <div class="card">
+            <div class="card-body text-center py-3">
+                <h3 class="mb-1 font-weight-bold">{{ config('clinic.name_bn') }}</h3>
+                <div class="text-muted">{{ config('clinic.name') }}</div>
+                <small class="text-muted">
+                    {{ config('clinic.address') }} — মোবাইলঃ {{ config('clinic.phone') }}
+                </small>
+            </div>
+        </div>
+
         <div class="card card-primary">
             <div class="card-header">
-                <h3 class="card-title">রোগীর তথ্য (Admission থেকে স্বয়ংক্রিয়)</h3>
+                <h3 class="card-title">Patient Information (Auto-filled from Admission)</h3>
             </div>
             <div class="card-body">
                 <div class="form-row">
                     <div class="form-group col-md-4">
-                        <label>রোগীর নাম</label>
+                        <label>Patient Name</label>
                         <input type="text" class="form-control" value="{{ $admission->patientname }}" readonly>
                     </div>
                     <div class="form-group col-md-2">
-                        <label>বয়স</label>
+                        <label>Age</label>
                         <input type="text" class="form-control" value="{{ $admission->age }}" readonly>
                     </div>
                     <div class="form-group col-md-2">
-                        <label>লিঙ্গ</label>
+                        <label>Gender</label>
                         <input type="text" class="form-control" value="{{ $admission->gender }}" readonly>
                     </div>
+                    <div class="form-group col-md-2">
+                        <label>Weight (kg)</label>
+                        <input type="text" name="weight" class="form-control"
+                               value="{{ old('weight', $existing->weight ?? '') }}" placeholder="e.g. 60">
+                    </div>
                     <div class="form-group col-md-4">
-                        <label>পিতার/স্বামীর নাম</label>
+                        <label>Father/Husband's Name</label>
                         <input type="text" class="form-control"
                                value="{{ $admission->patientfather ?: $admission->patienthusband }}" readonly>
                     </div>
                 </div>
                 <div class="form-row">
                     <div class="form-group col-md-3">
-                        <label>Patient Code / Reg No</label>
+                        <label>Patient Id</label>
                         <input type="text" class="form-control" value="{{ $admission->patientcode }}" readonly>
                     </div>
                     <div class="form-group col-md-3">
@@ -57,11 +72,11 @@
                         <input type="text" class="form-control" value="{{ $admission->admissionid }}" readonly>
                     </div>
                     <div class="form-group col-md-3">
-                        <label>গ্রাম</label>
+                        <label>Village</label>
                         <input type="text" class="form-control" value="{{ $admission->village }}" readonly>
                     </div>
                     <div class="form-group col-md-3">
-                        <label>থানা</label>
+                        <label>Thana</label>
                         <input type="text" class="form-control" value="{{ $admission->upozila }}" readonly>
                     </div>
                 </div>
@@ -70,30 +85,25 @@
 
         <div class="card card-primary">
             <div class="card-header">
-                <h3 class="card-title">অপারেশনের তথ্য</h3>
+                <h3 class="card-title">Operation Information</h3>
             </div>
             <div class="card-body">
                 <div class="form-row">
-                    <div class="form-group col-md-3">
-                        <label>ওয়ার্ড নং</label>
+                    <div class="form-group col-md-6">
+                        <label>Ward No.</label>
                         <input type="text" name="ward_no" class="form-control" 
-                               value="{{ old('ward_no', $existing->ward_no ?? ($admission->ward_no ?? 'N/A')) }}" readonly>
-                    </div>
-                    <div class="form-group col-md-3">
-                        <label>বেড নং</label>
-                        <input type="text" name="bed_no" class="form-control" 
-                               value="{{ old('bed_no', $existing->bed_no ?? ($admission->bed_number ?? 'N/A')) }}" readonly>
+                               value="{{ old('ward_no', $existing->ward_no ?? ($admission->bed_number ?? 'N/A')) }}" readonly>
                     </div>
                     <div class="form-group col-md-6">
-                        <label>পো (Post Office)</label>
-                        <input type="text" name="post_office" class="form-control"
-                               value="{{ old('post_office', $existing->post_office ?? '') }}">
+                        <label>Bed No.</label>
+                        <input type="text" name="bed_no" class="form-control" 
+                               value="{{ old('bed_no', $existing->bed_no ?? ($admission->bed_name ?? ($admission->bed_number ?? 'N/A'))) }}" readonly>
                     </div>
                 </div>
 
                 <div class="form-row">
                     <div class="form-group col-md-12">
-                        <label>রোগের নাম</label>
+                        <label>Disease Name</label>
                         <input type="text" name="disease_name" class="form-control"
                                value="{{ old('disease_name', $existing->disease_name ?? '') }}">
                     </div>
@@ -101,47 +111,75 @@
 
                 <div class="form-row">
                     <div class="form-group col-md-12">
-                        <label>অপারেশনের নাম <span class="text-danger">*</span></label>
-                        <input type="text" name="operation_name" class="form-control" required
-                               value="{{ old('operation_name', $existing->operation_name ?? '') }}">
+                        <label>Operation Name <span class="text-danger">*</span></label>
+                        <select name="operation_name" class="form-control" required>
+                            <option value="">-- Select --</option>
+                            @foreach($operationNames as $op)
+                                <option value="{{ $op->name }}"
+                                    {{ old('operation_name', $existing->operation_name ?? '') == $op->name ? 'selected' : '' }}>
+                                    {{ $op->name }}
+                                </option>
+                            @endforeach
+                        </select>
                     </div>
                 </div>
 
                 <div class="form-row">
                     <div class="form-group col-md-4">
-                        <label>অপারেশনের তারিখ <span class="text-danger">*</span></label>
+                        <label>Operation Date <span class="text-danger">*</span></label>
                         <input type="date" name="operation_date" class="form-control" required
                                value="{{ old('operation_date', isset($existing->operation_date) ? \Carbon\Carbon::parse($existing->operation_date)->format('Y-m-d') : '') }}">
                     </div>
                     <div class="form-group col-md-4">
-                        <label>সময়</label>
+                        <label>Time</label>
                         <input type="text" name="operation_time" class="form-control"
-                               placeholder="যেমনঃ সকাল ১০টা"
+                               placeholder="e.g. 10:00 AM"
                                value="{{ old('operation_time', $existing->operation_time ?? '') }}">
                     </div>
                 </div>
 
                 <div class="form-row">
                     <div class="form-group col-md-6">
-                        <label>সার্জন</label>
-                        <input type="text" name="surgeon_name" class="form-control"
-                               value="{{ old('surgeon_name', $existing->surgeon_name ?? $admission->doctor_name) }}">
+                        <label>Surgeon</label>
+                        <select name="surgeon_name" class="form-control">
+                            <option value="">-- Select --</option>
+                            @foreach($doctors as $doc)
+                                <option value="{{ $doc->doctor_name }}"
+                                    {{ old('surgeon_name', $existing->surgeon_name ?? $admission->doctor_name) == $doc->doctor_name ? 'selected' : '' }}>
+                                    {{ $doc->doctor_name }}
+                                </option>
+                            @endforeach
+                        </select>
                     </div>
                     <div class="form-group col-md-6">
-                        <label>সহযোগী সার্জন</label>
-                        <input type="text" name="assistant_surgeon" class="form-control"
-                               value="{{ old('assistant_surgeon', $existing->assistant_surgeon ?? '') }}">
+                        <label>Assistant Surgeon</label>
+                        <select name="assistant_surgeon" class="form-control">
+                            <option value="">-- Select --</option>
+                            @foreach($assistantSurgeons as $doc)
+                                <option value="{{ $doc->name }}"
+                                    {{ old('assistant_surgeon', $existing->assistant_surgeon ?? '') == $doc->name ? 'selected' : '' }}>
+                                    {{ $doc->name }}
+                                </option>
+                            @endforeach
+                        </select>
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label>অজ্ঞানকারী ডাক্তার</label>
-                    <input type="text" name="anesthesiologist" class="form-control"
-                           value="{{ old('anesthesiologist', $existing->anesthesiologist ?? '') }}">
+                    <label>Anesthesiologist</label>
+                    <select name="anesthesiologist" class="form-control">
+                        <option value="">-- Select --</option>
+                        @foreach($anesthesiologists as $doc)
+                            <option value="{{ $doc->name }}"
+                                {{ old('anesthesiologist', $existing->anesthesiologist ?? '') == $doc->name ? 'selected' : '' }}>
+                                {{ $doc->name }}
+                            </option>
+                        @endforeach
+                    </select>
                 </div>
 
                 <div class="form-group">
-                    <label>অপারেশন নোট</label>
+                    <label>Operation Note</label>
                     <textarea name="operation_note" class="form-control" rows="3">{{ old('operation_note', $existing->operation_note ?? '') }}</textarea>
                 </div>
             </div>
@@ -149,7 +187,7 @@
 
         <div class="card card-primary">
             <div class="card-header">
-                <h3 class="card-title">সম্মতি ও স্বাক্ষর</h3>
+                <h3 class="card-title">Consent & Signature</h3>
             </div>
             <div class="card-body">
                 <div class="alert alert-light border">
@@ -157,16 +195,16 @@
                 </div>
                 <div class="form-row">
                     <div class="form-group col-md-4">
-                        <label>ডাক্তারের স্বাক্ষর (নাম)</label>
+                        <label>Patient Realitive signature (Name)</label>
                         <input type="text" name="doctor_signature_name" class="form-control"
                                value="{{ old('doctor_signature_name', $existing->doctor_signature_name ?? $admission->doctor_name) }}">
                     </div>
                 </div>
             </div>
             <div class="card-footer text-right">
-                <a href="{{ route('operation.consent.search') }}" class="btn btn-secondary">বাতিল</a>
+                <a href="{{ route('operation.consent.search') }}" class="btn btn-secondary">Cancel</a>
                 <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-save"></i> সংরক্ষণ ও প্রিন্ট
+                    <i class="fas fa-save"></i> Save & Print
                 </button>
             </div>
         </div>

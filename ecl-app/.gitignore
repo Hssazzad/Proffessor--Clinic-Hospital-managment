@@ -1,0 +1,5 @@
+# .gitignore — যেসব ফাইল Git-এ যাবে না
+.env
+venv/
+__pycache__/
+*.pkl

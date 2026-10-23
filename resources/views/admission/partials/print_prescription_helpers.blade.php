@@ -24,15 +24,24 @@
     }
 
     if ($resPatientCode) {
-        $nursingAdmission = \Illuminate\Support\Facades\DB::table('nursing_admissions')
-            ->where('patient_code', $resPatientCode)
-            ->orderBy('id', 'desc')
+        $precon = \Illuminate\Support\Facades\DB::table('preconassessment')
+            ->where('patientcode', $resPatientCode)
+            ->orderByDesc('id')
             ->first();
-        if ($nursingAdmission) {
-            $pulse = $nursingAdmission->pulse ?? '';
-            $bp = $nursingAdmission->bp ?? '';
-            $temp = $nursingAdmission->temp ?? $nursingAdmission->temperature ?? '';
-            $weight = $nursingAdmission->weight ?? '';
+
+        $record = $precon ?: \Illuminate\Support\Facades\DB::table('nursing_admissions')
+            ->where('patient_code', $resPatientCode)
+            ->orderByDesc('id')
+            ->first();
+
+        if ($record) {
+            $pulse = $record->pulse ?? '';
+            $bp = trim(trim((string) ($record->bp_sys ?? ''), '/') . '/' . trim((string) ($record->bp_dia ?? ''), '/'), '/');
+            if ($bp === '' && !empty($record->bp)) {
+                $bp = $record->bp;
+            }
+            $temp = $record->temp ?? $record->temperature ?? '';
+            $weight = $record->weight ?? '';
 
             $oeParts = [];
             if ($pulse) $oeParts[] = 'Pulse: ' . $pulse;
@@ -51,4 +60,4 @@
     }
 @endphp
 <script>window.admissionPrintDefaults = @json(['cc' => $dbCC, 'oe' => $dbOE, 'inv' => $dbInv]);</script>
-@include('admission.partials.print_prescription_core')
+@include('admission.partials._print_selection_modal')

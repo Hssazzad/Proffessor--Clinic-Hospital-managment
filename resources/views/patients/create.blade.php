@@ -156,6 +156,21 @@
               </td>
             </tr>
 
+            {{-- Registration Date --}}
+            <tr>
+              <td class="fw-semibold">Registration Date (নিবন্ধনের তারিখ)</td>
+              <td>:</td>
+              <td>
+                <input type="datetime-local"
+                       name="registration_date"
+                       class="form-control @error('registration_date') is-invalid @enderror"
+                       value="{{ old('registration_date', now()->format('Y-m-d\TH:i')) }}">
+                @error('registration_date')
+                  <div style="color:red;margin-top:6px;">{{ $message }}</div>
+                @enderror
+              </td>
+            </tr>
+
             {{-- Name --}}
             <tr>
               <td class="fw-semibold">Patient Name (নাম) <span style="color:red; font-size:22px; font-weight:bold; line-height:1;">*</span></td>
@@ -176,9 +191,9 @@
               </td>
             </tr>
 
-            {{-- Husband --}}
+            {{-- Spouse --}}
             <tr>
-              <td class="fw-semibold">Husband Name (স্বামীর নাম)</td>
+              <td class="fw-semibold">Spouse Name (স্বামী/স্ত্রীর নাম)</td>
               <td>:</td>
               <td>
                 <input type="text" name="patienthusband" class="form-control @error('patienthusband') is-invalid @enderror" value="{{ old('patienthusband') }}">
@@ -197,11 +212,10 @@
                        class="form-control @error('mobile_no') is-invalid @enderror"
                        value="{{ old('mobile_no') }}"
                        pattern="01[0-9]{9}"
-                       maxlength="11"
-                       minlength="11"
                        placeholder="01XXXXXXXXX"
                        required
-                       oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                       oninput="validateMobile(this)">
+                <div id="mobileMsg" style="color:red;margin-top:6px;display:none;">Invalid phone number</div>
                 @error('mobile_no')
                   <div style="color:red;margin-top:6px;">{{ $message }}</div>
                 @enderror
@@ -283,7 +297,8 @@
               <td class="fw-semibold">Age (বয়স) <span style="color:red; font-size:22px; font-weight:bold; line-height:1;">*</span></td>
               <td>:</td>
               <td>
-                <input type="text" name="age" id="age" class="form-control @error('age') is-invalid @enderror" required value="{{ old('age') }}">
+                <input type="text" name="age" id="age" class="form-control @error('age') is-invalid @enderror" required value="{{ old('age') }}" oninput="validateAge(this)">
+                <div id="ageMsg" style="color:red;margin-top:6px;display:none;">Invalid number</div>
                 @error('age') <div style="color:red;margin-top:6px;">{{ $message }}</div> @enderror
               </td>
             </tr>
@@ -340,7 +355,7 @@
                 <select id="district" name="district" class="form-control select2 @error('district') is-invalid @enderror">
                   <option value="">-- Select District --</option>
                   @foreach($districts as $d)
-                    <option value="{{ $d->code }}" {{ old('district') == $d->code ? 'selected' : '' }}>
+                    <option value="{{ $d->code }}" {{ old('district') == $d->code || ($d->code === 'Bogura' && !old('district')) ? 'selected' : '' }}>
                       {{ $d->name }}
                     </option>
                   @endforeach
@@ -382,6 +397,18 @@
                   <option value="">-- Select Village --</option>
                 </select>
                 <button type="button" class="btn btn-success btn-sm" id="btnAddVillage" disabled>+</button>
+              </td>
+            </tr>
+
+            {{-- Post --}}
+            <tr>
+              <td class="fw-semibold">Post Office (Optional)</td>
+              <td>:</td>
+              <td class="d-flex gap-2 align-items-center">
+                <select id="post" name="post" class="form-control select2" disabled>
+                  <option value="">-- Select Post --</option>
+                </select>
+                <button type="button" class="btn btn-success btn-sm" id="btnAddPost" disabled>+</button>
               </td>
             </tr>
 
@@ -458,6 +485,7 @@
   const OLD_UPOZILA  = @json(old('upozila'));
   const OLD_UNION    = @json(old('union'));
   const OLD_VILLAGE  = @json(old('village'));
+  const OLD_POST     = @json(old('post'));
 
   const OLD_REF_TYPE   = @json(old('reference_type'));
   const OLD_REF_PERSON = @json(old('reference_person'));
@@ -468,6 +496,9 @@ $(function () {
   const CSRF = "{{ csrf_token() }}";
 
   $(".select2").select2();
+
+  validateMobile(document.getElementById('mobile_no'));
+  validateAge(document.getElementById('age'));
 
   function resetUpozila(){
     $("#upozila").prop('disabled', true).html('<option value="">-- Select Upozila --</option>').trigger('change.select2');
@@ -482,6 +513,11 @@ $(function () {
   function resetVillage(){
     $("#village").prop('disabled', true).html('<option value="">-- Select Village --</option>').trigger('change.select2');
     $("#btnAddVillage").prop('disabled', true);
+    resetPost();
+  }
+  function resetPost(){
+    $("#post").prop('disabled', true).html('<option value="">-- Select Post --</option>').trigger('change.select2');
+    $("#btnAddPost").prop('disabled', true);
   }
 
   function loadUpozila(district, selected, cb){
@@ -522,7 +558,7 @@ $(function () {
     });
   }
 
-  function loadVillage(union, selected){
+  function loadVillage(union, selected, cb){
     resetVillage();
     if(!union) return;
 
@@ -534,8 +570,27 @@ $(function () {
 
       if(selected) $("#village").val(String(selected)).trigger('change');
       else $("#village").val("").trigger('change');
+
+      if(typeof cb === 'function') cb();
     }).fail(function(){
       $("#village").html('<option value="">Failed to load</option>').prop('disabled', true);
+    });
+  }
+
+  function loadPost(village, selected){
+    resetPost();
+    if(!village) return;
+
+    $("#post").html('<option value="">Loading...</option>').prop('disabled', true);
+
+    $.post("{{ route('api.fetch_post') }}", { _token: CSRF, village: village }, function(html){
+      $("#post").html(html).prop('disabled', false).trigger('change.select2');
+      $("#btnAddPost").prop('disabled', false);
+
+      if(selected) $("#post").val(String(selected)).trigger('change');
+      else $("#post").val("").trigger('change');
+    }).fail(function(){
+      $("#post").html('<option value="">Failed to load</option>').prop('disabled', true);
     });
   }
 
@@ -548,11 +603,19 @@ $(function () {
   $("#union").on("change", function(){
     loadVillage(this.value, null);
   });
+  $("#village").on("change", function(){
+    loadPost(this.value, null);
+  });
 
-  if (OLD_DISTRICT) {
-    loadUpozila(OLD_DISTRICT, OLD_UPOZILA, function(){
-      loadUnion(OLD_UPOZILA, OLD_UNION, function(){
-        loadVillage(OLD_UNION, OLD_VILLAGE);
+  var initDistrict = OLD_DISTRICT || $("#district").val();
+  var initUpozila  = OLD_UPOZILA || (initDistrict === 'Bogura' ? 'Shajahanpur' : null);
+  var initUnion    = OLD_UNION   || (initUpozila === 'Shajahanpur' ? 'Majhira' : null);
+  if (initDistrict) {
+    loadUpozila(initDistrict, initUpozila, function(){
+      loadUnion(initUpozila, initUnion, function(){
+        loadVillage(initUnion, OLD_VILLAGE, function(){
+          loadPost(OLD_VILLAGE, OLD_POST);
+        });
       });
     });
   } else {
@@ -648,6 +711,7 @@ $(function () {
     if(kind==='upozila')  title = 'Add Upozila';
     if(kind==='union')    title = 'Add Union';
     if(kind==='village')  title = 'Add Village';
+    if(kind==='post')     title = 'Add Post';
 
     $("#locModalTitle").text(title);
     $("#locModal").modal('show');
@@ -657,18 +721,25 @@ $(function () {
   $("#btnAddUpozila").click(()=> openLocModal('upozila'));
   $("#btnAddUnion").click(()=> openLocModal('union'));
   $("#btnAddVillage").click(()=> openLocModal('village'));
+  $("#btnAddPost").click(()=> openLocModal('post'));
 
   $("#district").on("change", function(){
     $("#btnAddUpozila").prop('disabled', !this.value);
     $("#btnAddUnion").prop('disabled', true);
     $("#btnAddVillage").prop('disabled', true);
+    $("#btnAddPost").prop('disabled', true);
   });
   $("#upozila").on("change", function(){
     $("#btnAddUnion").prop('disabled', !this.value);
     $("#btnAddVillage").prop('disabled', true);
+    $("#btnAddPost").prop('disabled', true);
   });
   $("#union").on("change", function(){
     $("#btnAddVillage").prop('disabled', !this.value);
+    $("#btnAddPost").prop('disabled', true);
+  });
+  $("#village").on("change", function(){
+    $("#btnAddPost").prop('disabled', !this.value);
   });
 
   function reloadSelect(kind, parentIds, selectedId){
@@ -692,6 +763,10 @@ $(function () {
       loadVillage(parentIds.union, selectedId);
       return;
     }
+    if(kind === 'post'){
+      loadPost(parentIds.village, selectedId);
+      return;
+    }
   }
 
   $("#btnSaveLoc").on("click", function(){
@@ -705,6 +780,7 @@ $(function () {
     const district = $("#district").val();
     const upozila  = $("#upozila").val();
     const union    = $("#union").val();
+    const village  = $("#village").val();
 
     let storeUrl = '';
     let payload  = { _token: CSRF, name: name };
@@ -727,6 +803,11 @@ $(function () {
       storeUrl = "{{ route('api.village.store') }}";
       payload.union = union;
     }
+    if(kind === 'post'){
+      if(!village){ $("#locMsg").html('<div class="text-danger">Select Village first.</div>'); return; }
+      storeUrl = "{{ route('api.post.store') }}";
+      payload.village = village;
+    }
 
     $.ajax({
       type: "POST",
@@ -739,7 +820,7 @@ $(function () {
           return;
         }
 
-        reloadSelect(kind, { district, upozila, union }, res.id);
+        reloadSelect(kind, { district, upozila, union, village }, res.id);
         $("#locModal").modal('hide');
       },
       error: function(){
@@ -800,7 +881,7 @@ $(function () {
         months += 12;
     }
 
-    if (years < 0 || years > 150) {
+    if (years < 0 || years > 120) {
         $("#age").val("");
         return;
     }
@@ -883,7 +964,34 @@ function closeCamera() {
     }
 }
 
+function validateMobile(input) {
+    input.value = input.value.replace(/[^0-9]/g, '');
+    var msg = document.getElementById('mobileMsg');
+    if (input.value.length > 11) {
+        msg.style.display = 'block';
+        input.setCustomValidity('Invalid phone number');
+    } else {
+        msg.style.display = 'none';
+        input.setCustomValidity('');
+    }
+}
+
+function validateAge(input) {
+    var num = parseInt(input.value, 10);
+    var msg = document.getElementById('ageMsg');
+    if (!isNaN(num) && num > 120) {
+        msg.style.display = 'block';
+        input.setCustomValidity('Invalid number');
+    } else {
+        msg.style.display = 'none';
+        input.setCustomValidity('');
+    }
+}
+
 document.getElementById('patientForm').addEventListener('submit', function (e) {
+    validateMobile(document.getElementById('mobile_no'));
+    validateAge(document.getElementById('age'));
+
     const fields = [
       { id: 'mobile_no',     name: 'Mobile No', required: true },
       { id: 'spomobile_no',  name: 'Spouse Mobile No', required: false },
@@ -898,12 +1006,21 @@ document.getElementById('patientForm').addEventListener('submit', function (e) {
 
       if (val === '' && !fields[i].required) continue;
 
-      if (val !== '' && !/^01[0-9]{9}$/.test(val)) {
-        alert(fields[i].name + ' must start with 01 and be exactly 11 digits');
+      if (val.length > 11 || (val !== '' && !/^01[0-9]{9}$/.test(val))) {
+        alert(fields[i].name + ' — Invalid phone number');
         el.focus();
         e.preventDefault();
         return false;
       }
+    }
+
+    const ageEl = document.getElementById('age');
+    const ageNum = parseInt(ageEl.value, 10);
+    if (!isNaN(ageNum) && ageNum > 120) {
+        alert('Age — Invalid number');
+        ageEl.focus();
+        e.preventDefault();
+        return false;
     }
 });
 </script>

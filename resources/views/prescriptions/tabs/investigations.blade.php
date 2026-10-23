@@ -2,6 +2,7 @@
 @php
   $pid       = (int)($pid ?? request('id'));
   $patientId = (int)($patientId ?? request('patient'));
+  $wz        = $wz ?? 'rx';
 @endphp
 
 @if (!$pid)
@@ -85,12 +86,12 @@
 </div>
 
 <div style="display:flex;justify-content:space-between;gap:.75rem">
-  <a class="btn secondary" href="{{ route('rx.wizard',['id'=>$pid,'patient'=>$patientId,'tab'=>'patients']) }}">← Back</a>
-  <form method="get" action="{{ route('rx.wizard') }}" style="margin:0">
+  <a class="btn secondary" href="{{ route($wz.'.wizard',['id'=>$pid,'patient'=>$patientId,'tab'=>'oe']) }}">← Back</a>
+  <form method="get" action="{{ route($wz.'.wizard') }}" style="margin:0">
     <input type="hidden" name="id" value="{{ $pid }}">
     <input type="hidden" name="patient" value="{{ $patientId }}">
-    <input type="hidden" name="tab" value="diagnosis">
-    <button class="btn" type="submit">Next → Diagnosis</button>
+    <input type="hidden" name="tab" value="medicine">
+    <button class="btn" type="submit">Next → Medicine</button>
   </form>
 </div>
 
@@ -145,7 +146,7 @@
     fd.append('prescription_id', pid);
     fd.append('_token', csrf);
     for (const [k,v] of Object.entries(payload)) fd.append(k, v ?? '');
-    const res = await fetch(`{{ route('rx.inv.ajax') }}`, {
+    const res = await fetch(`{{ route($wz.'.inv.ajax') }}`, {
       method: 'POST',
       headers: { 'X-Requested-With':'XMLHttpRequest', 'Accept':'application/json' },
       body: fd

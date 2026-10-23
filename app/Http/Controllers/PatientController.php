@@ -6,7 +6,7 @@ use App\Models\Patient;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
-use Carbon\Carbon;    
+use Carbon\Carbon;
 use App\Models\ConfigDistrict;
 use Illuminate\Support\Facades\File;
 
@@ -28,7 +28,7 @@ class PatientController extends Controller
             ->orderByDesc('id')
             ->paginate(15)
             ->withQueryString();
-        
+
         return view('patients.create', compact('patients', 'q'));
     }
 
@@ -41,7 +41,7 @@ class PatientController extends Controller
             ->select('code', 'name')
             ->orderBy('name')
             ->get();
-        
+
         $yy = (int) Carbon::now()->format('y');
 
         $newCode = DB::transaction(function () use ($yy) {
@@ -57,7 +57,7 @@ class PatientController extends Controller
             }
 
             $code = ($yy * 100000) + $nextSerial;
-            
+
             return $code;
         });
 
@@ -137,6 +137,7 @@ class PatientController extends Controller
     {
         $validated = $request->validate([
             // REQUIRED
+            'registration_date' => ['nullable', 'date'],
             'patientname'    => ['required', 'string', 'max:150'],
             'mobile_no'      => ['required', 'regex:/^01[0-9]{9}$/'],
             'age'            => ['required', 'string', 'min:1', 'max:150'],
@@ -152,6 +153,7 @@ class PatientController extends Controller
             'upozila'        => ['nullable', 'string', 'max:20'],
             'union'          => ['nullable', 'string', 'max:20'],
             'village'        => ['nullable', 'string', 'max:20'],
+            'post'           => ['nullable', 'string', 'max:20'],
             'address'        => ['nullable', 'string', 'max:255'],
 
             // CONTACT
@@ -296,6 +298,8 @@ class PatientController extends Controller
         });
 
         $validated['patientcode'] = $patientCode;
+        $validated['registration_date'] = $request->registration_date ?? now();
+        $validated['post'] = $request->filled('post') ? $request->post : '';
 
         // ===== Save Patient =====
         $patient = Patient::create($validated);
@@ -320,13 +324,105 @@ class PatientController extends Controller
                   ->orWhere('nid_number', 'like', "%{$query}%")
                   ->orWhere('relmobile_no', 'like', "%{$query}%")
                   ->orWhere('date_of_birth', 'like', "%{$query}%")
-                  ->orWhere('patientcode', 'like', "%{$query}%");
+                  ->orWhere('patientcode', 'like', "%{$query}%")
+                  ->orWhere('notes', 'like', "%{$query}%");
             })
             ->orderByDesc('id')
             ->paginate(10)
             ->withQueryString();
 
         return view('patients.search', compact('patients', 'query'));
+    }
+
+    /**
+     * Patient Audit / Visit Report — READ-ONLY.
+     *
+     * One row = one patient registration (patients table, no joins, so the
+     * total count always matches the listed rows). Date filter uses a
+     * start-of-day/end-of-day range on registration_date so DATETIME values
+     * like 2025-09-12 23:59:10 are correctly included.
+     */
+    public function patientreport(Request $request)
+    {
+        $filters = $request->validate([
+            'from_date' => 'nullable|date',
+            'to_date'   => 'nullable|date|after_or_equal:from_date',
+            'q'         => 'nullable|string|max:100',
+        ]);
+
+        $today = Carbon::today()->toDateString();
+        $from  = $filters['from_date'] ?? $today;
+        $to    = $filters['to_date'] ?? $today;
+        $q     = trim($filters['q'] ?? '');
+
+        $total = (clone $this->patientReportQuery($from, $to, $q))->count();
+
+        $patients = $this->patientReportQuery($from, $to, $q)
+            ->orderBy('registration_date', 'desc')
+            ->orderBy('id', 'desc')
+            ->paginate(50)
+            ->withQueryString();
+
+        return view('patients.patientreport', compact('patients', 'total', 'from', 'to', 'q'));
+    }
+
+    /**
+     * CSV export of the Patient Audit Report — READ-ONLY, respects filters.
+     */
+    public function patientreportExport(Request $request)
+    {
+        $filters = $request->validate([
+            'from_date' => 'nullable|date',
+            'to_date'   => 'nullable|date|after_or_equal:from_date',
+            'q'         => 'nullable|string|max:100',
+        ]);
+
+        $today = Carbon::today()->toDateString();
+        $from  = $filters['from_date'] ?? $today;
+        $to    = $filters['to_date'] ?? $today;
+        $q     = trim($filters['q'] ?? '');
+        $filename = 'patient_audit_' . str_replace('-', '', $from) . '_' . str_replace('-', '', $to) . '.csv';
+
+        return response()->streamDownload(function () use ($from, $to, $q) {
+            $out = fopen('php://output', 'w');
+            fwrite($out, "\xEF\xBB\xBF"); // UTF-8 BOM for Excel
+            fputcsv($out, ['SL', 'Patient ID', 'Patient Name', 'Age', 'Gender', 'Phone', 'Visit Date', 'Visit Time']);
+            $sl = 0;
+            $this->patientReportQuery($from, $to, $q)
+                ->orderBy('id')
+                ->chunk(500, function ($rows) use ($out, &$sl) {
+                    foreach ($rows as $p) {
+                        $sl++;
+                        $dt = $p->registration_date ? Carbon::parse($p->registration_date) : null;
+                        fputcsv($out, [
+                            $sl, $p->patientcode, $p->patientname, $p->age,
+                            $p->gender, $p->mobile_no,
+                            $dt ? $dt->format('d/m/Y') : '', $dt ? $dt->format('h:i A') : '',
+                        ]);
+                    }
+                });
+            fclose($out);
+        }, $filename, ['Content-Type' => 'text/csv']);
+    }
+
+    /**
+     * Shared read-only base query for the audit report (SELECT only).
+     */
+    private function patientReportQuery(string $from, string $to, string $q)
+    {
+        $start = Carbon::parse($from)->startOfDay()->toDateTimeString();
+        $end   = Carbon::parse($to)->endOfDay()->toDateTimeString();
+
+        return Patient::query()
+            ->select(['id', 'patientcode', 'patientname', 'age', 'gender', 'mobile_no', 'registration_date'])
+            ->whereBetween('registration_date', [$start, $end])
+            ->when($q !== '', function ($query) use ($q) {
+                $query->where(function ($w) use ($q) {
+                    $w->where('patientcode', 'like', "%{$q}%")
+                      ->orWhere('patientname', 'like', "%{$q}%")
+                      ->orWhere('mobile_no', 'like', "%{$q}%");
+                });
+            });
     }
 
     /**
@@ -363,6 +459,7 @@ class PatientController extends Controller
         $patient = Patient::findOrFail($id);
 
         $request->validate([
+            'registration_date' => 'nullable|date',
             'patientname'     => 'required|string|max:255',
             'mobile_no'       => ['required', 'regex:/^01[0-9]{9}$/'],
             'spomobile_no'    => ['nullable', 'regex:/^01[0-9]{9}$/'],
@@ -379,6 +476,7 @@ class PatientController extends Controller
             'upozila'         => 'nullable|string|max:50',
             'union'           => 'nullable|string|max:50',
             'village'         => 'nullable|string|max:50',
+            'post'            => 'nullable|string|max:50',
             'reference_type'  => 'nullable|string|max:50',
             'reference_person'=> 'nullable|string|max:50',
             'reference_name'  => 'nullable|string|max:255',
@@ -387,6 +485,7 @@ class PatientController extends Controller
         ]);
 
         $data = [
+            'registration_date'=> $request->registration_date,
             'patientname'      => $request->patientname,
             'patientfather'    => $request->patientfather,
             'patienthusband'   => $request->patienthusband,
@@ -403,6 +502,7 @@ class PatientController extends Controller
             'upozila'          => $request->upozila,
             'union'            => $request->union,
             'village'          => $request->village,
+            'post'             => $request->filled('post') ? $request->post : '',
             'reference_type'   => $request->reference_type,
             'reference_person' => $request->reference_person,
             'reference_name'   => $request->reference_name,
@@ -476,12 +576,16 @@ class PatientController extends Controller
     /**
      * Delete patient
      */
-    public function destroy(Patient $patient)
+    public function destroy(Request $request, Patient $patient)
     {
         $patient->delete();
 
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json(['ok' => true, 'message' => 'Patient deleted successfully!']);
+        }
+
         return redirect()
-            ->route('patients.index')
+            ->route('patients.searchpatient')
             ->with('success', 'Patient deleted.');
     }
 

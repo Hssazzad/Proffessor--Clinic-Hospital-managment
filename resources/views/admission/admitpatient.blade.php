@@ -4,50 +4,67 @@
 @section('title', 'Admit Patient')
 
 @push('css')
+<link rel="stylesheet" href="{{ asset('css/hospital-erp.css') }}">
 <style>
     .select2-container--bootstrap4 .select2-selection {
-        border: 1px solid #6b7280 !important;
-        border-radius: 6px !important;
-        min-height: 38px !important;
-        padding: 4px !important;
+        border: 1px solid #dcdcdc !important;
+        border-radius: 3px !important;
+        min-height: 34px !important;
+        padding: 2px 6px !important;
+    }
+    .select2-container--bootstrap4 .select2-selection .select2-selection__rendered {
+        font-size: 14px;
+        line-height: 28px;
     }
 </style>
 @endpush
 
 @section('content_header')
-    <h1 class="text-primary font-weight-bold">Admit Patient new</h1>
+    <h1 class="text-primary font-weight-bold">Admit Patient</h1>
 @stop
 
 @section('content')
 
+<div class="hospital-page">
 @if(session('success'))
-    <div class="alert alert-success">{{ session('success') }}</div>
+    <div class="alert alert-success alert-dismissible fade show">
+        {{ session('success') }}
+        <button type="button" class="close" data-dismiss="alert">&times;</button>
+    </div>
 @endif
 
 @if(session('error'))
-    <div class="alert alert-danger">{{ session('error') }}</div>
+    <div class="alert alert-danger alert-dismissible fade show">
+        {{ session('error') }}
+        <button type="button" class="close" data-dismiss="alert">&times;</button>
+    </div>
 @endif
 
 <div id="ajaxMessage"></div>
 
-<div class="card card-outline card-primary shadow">
+<div class="card hospital-box">
+    <div class="card-header with-border">
+        <h3 class="card-title">Admit Patient</h3>
+    </div>
     <div class="card-body">
 
         <form method="POST" action="{{ route('admission.admitpatient.store') }}">
             @csrf
 
+            <!-- Select Patient -->
             <div class="form-group">
                 <label><b>Select Patient <span class="text-danger">*</span></b></label>
                 <select name="patientcode" id="patientcode" class="form-control select2" required>
                     <option value="">-- Search by Name or Mobile --</option>
                     @foreach($patients as $p)
-                        <option value="{{ $p->patientcode }}">
+                        <option value="{{ $p->patientcode }}" {{ old('patientcode') == $p->patientcode ? 'selected' : '' }}>
                             {{ $p->patientname }} - {{ $p->patientcode ?? '' }} ({{ $p->mobile_no ?? 'No Mobile' }})
                         </option>
                     @endforeach
                 </select>
             </div>
 
+            <!-- Select Doctor -->
             @php $admissionDoctors = $doctors ?? collect(); @endphp
             <div class="form-group">
                 <label><b>Select Doctor <span class="text-danger">*</span></b></label>
@@ -65,13 +82,40 @@
                 </select>
             </div>
 
+            <!-- Treatment Type (Pathway) -->
+            <div class="form-group">
+                <label><b>Treatment Type</b></label>
+                <select name="treatment_type_id" id="treatment_type_id" class="form-control select2">
+                    <option value="">-- Select Pathway --</option>
+                    @foreach($treatmentTypes ?? [] as $tt)
+                        <option value="{{ $tt->id }}" {{ old('treatment_type_id') == $tt->id ? 'selected' : '' }}>
+                            {{ $tt->name }}
+                        </option>
+                    @endforeach
+                </select>
+                @error('treatment_type_id')
+                    <div class="text-danger small mt-1">{{ $message }}</div>
+                @enderror
+            </div>
+
+            <!-- Assign Bed (Updated for Bed Name & Details) -->
             <div class="form-group">
                 <label><b>Assign Bed</b></label>
                 <select name="bed_id" id="bed_id" class="form-control select2">
                     <option value="">-- Select Bed --</option>
                     @foreach($availableBeds ?? [] as $bed)
-                        <option value="{{ $bed->id }}">
-                            {{ $bed->bed_number ?? 'N/A' }} — {{ $bed->bed_type ?? 'N/A' }}
+                        @php
+                            // Check possible column names for Bed/Ward Name
+                            $bedName = $bed->bed_name ?? $bed->name ?? $bed->ward_name ?? $bed->ward->name ?? '';
+                            $bedNo = $bed->bed_number ?? $bed->bed_no ?? '';
+                            $bedType = $bed->bed_type ?? '';
+                        @endphp
+                        <option value="{{ $bed->id }}" {{ old('bed_id') == $bed->id ? 'selected' : '' }}>
+                            @if(!empty($bedName))
+                                {{ $bedName }} — Bed: {{ $bedNo }} ({{ $bedType }})
+                            @else
+                                Bed No: {{ $bedNo }} — {{ $bedType }}
+                            @endif
                         </option>
                     @endforeach
                 </select>
@@ -79,6 +123,23 @@
 
             <hr>
 
+            <!-- Procedure Type -->
+            <div class="form-group">
+                <label><b>Procedure Type <span class="text-danger">*</span></b></label>
+                <select name="procedure_type_id" id="procedure_type_id" class="form-control select2">
+                    <option value="">-- Select Procedure --</option>
+                    @foreach($procedureTypes ?? [] as $pt)
+                        <option value="{{ $pt->id }}" {{ old('procedure_type_id') == $pt->id ? 'selected' : '' }}>
+                            {{ $pt->procedure_name }}
+                        </option>
+                    @endforeach
+                </select>
+                @error('procedure_type_id')
+                    <div class="text-danger small mt-1">{{ $message }}</div>
+                @enderror
+            </div>
+
+            <!-- Select Medicine Template -->
             <div class="form-group">
                 <label><b>Select Medicine Template</b></label>
                 <select name="templeteid" id="templeteid" class="form-control select2">
@@ -99,14 +160,14 @@
                 </button>
             </div>
 
+            <!-- Medicine Table -->
             <div class="table-responsive">
-                <table class="table table-bordered table-sm">
-                    <thead class="bg-light">
+                <table class="table table-bordered table-hover hospital-table">
+                    <thead>
                         <tr>
                             <th>Template</th>
                             <th>Medicine</th>
                             <th>Strength</th>
-                            <th>Dose</th>
                             <th>Morning</th>
                             <th>Noon</th>
                             <th>Night</th>
@@ -136,13 +197,14 @@
                     <i class="fas fa-arrow-left"></i> Back
                 </a>
 
-                <button type="submit" class="btn btn-primary btn-lg">
+                <button type="submit" class="btn btn-success">
                     <i class="fas fa-save"></i> Save & Print Admission Slip
                 </button>
             </div>
 
         </form>
     </div>
+</div>
 </div>
 
 {{-- Add Medicine Modal --}}
@@ -174,11 +236,6 @@
                         <div class="col-md-4 form-group">
                             <label>Strength</label>
                             <input type="text" name="strength" class="form-control">
-                        </div>
-
-                        <div class="col-md-4 form-group">
-                            <label>Dose</label>
-                            <input type="text" name="dose" class="form-control">
                         </div>
 
                         <div class="col-md-4 form-group">
@@ -261,6 +318,8 @@ $(function () {
             dataType: 'html',
             success: function (html) {
                 $('#ajaxMessage').empty();
+                // Load HTML rows in table
+                $('#medicineRows').html(html);
             },
             error: function (xhr) {
                 var msg = 'Medicine loading failed.';

@@ -1,0 +1,77 @@
+/*
+ * CANONICAL PRESCRIPTION STYLE — single source of truth.
+ *
+ * Every prescription print in the project uses this one file. Do NOT copy
+ * these rules into a Blade view or a JS string; include the partial instead:
+ *
+ *   Blade views : @include('partials.rx_styles')     -> inlines this as <style>
+ *   JS builders : @include('partials.rx_styles_js')  -> window.RX_PRINT_CSS
+ *
+ * The markup contract lives in resources/views/partials/rx_page.blade.php.
+ */
+@page { size: A4 portrait; margin: 0; }
+:root { --rx-top-pad: 4cm; }
+
+/*
+ * Typography lives on .rx-page, not body, so this file can be included in an
+ * admin page (preview tabs) without changing that page's own fonts/colours.
+ * Standalone print documents add class="rx-standalone" to <body>.
+ */
+body.rx-standalone { margin: 0; background: #eef1f5; }
+
+.rx-page, .rx-page * { box-sizing: border-box; }
+.rx-page { width: 190mm; margin: 0 auto; padding: var(--rx-top-pad) 12mm 10mm; background: #fff; box-shadow: 0 10px 26px rgba(15, 23, 42, .14); color: #061a35; font-family: "Segoe UI", Arial, sans-serif; font-size: 11pt; line-height: 1.35; text-align: left; }
+.rx-rule { display: none !important; }
+.rx-ref-line { display: none !important; }
+.rx-info { display: grid; grid-template-columns: 42mm 1fr; gap: 5mm; }
+.rx-cc { border-right: 1px solid #e2e8f0; padding-right: 5mm; color: #061a35; }
+.rx-cc-title { font-weight: 800; margin-bottom: 7px; color: #0f172a; }
+.rx-cc-block { margin-top: 15px; border-top: 1px solid #e2e8f0; padding-top: 10px; }
+.rx-cc-note { color: #1e293b; font-size: 10pt; line-height: 1.5; font-weight: 500; }
+.rx-patient-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 18px; margin-bottom: 12px; }
+.rx-field { border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; min-height: 24px; font-size: 10.5pt; }
+.rx-field b { margin-right: 5px; font-weight: 700; color: #0f172a; }
+.rx-mark { margin: 9px 0 8px; font-family: Georgia, "Times New Roman", serif; font-size: 25px; font-style: italic; font-weight: 800; color: #111827; }
+.rx-med-table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 9.5pt; color: #071b35; word-wrap: break-word; overflow-wrap: break-word; border: 1.5px solid #334155; background: #ffffff; }
+.rx-med-table th, .rx-med-table td { border: 1px solid #475569; padding: 5px 2px; text-align: center; vertical-align: middle; word-wrap: break-word; overflow-wrap: break-word; box-sizing: border-box; }
+.rx-med-table th { font-weight: 700; background: #f8fafc; color: #0f172a; font-size: 8pt; letter-spacing: 0.2px; white-space: nowrap; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.rx-med-table td:not(.rx-med-name):not(.rx-med-instruction) { white-space: nowrap; font-weight: 600; font-size: 9.5pt; }
+.rx-med-table td.rx-med-instruction { white-space: normal; text-align: left !important; padding-left: 6px !important; font-size: 8.5pt; color: #1e293b; }
+.rx-med-table .rx-med-head { text-align: left !important; padding-left: 8px !important; font-size: 8.5pt; }
+.rx-med-name { text-align: left !important; padding-left: 8px !important; font-weight: 700; font-size: 10.5pt; color: #0f172a; line-height: 1.25; }
+.rx-med-name span { display: block; margin-top: 2px; font-size: 8.5pt; font-weight: 500; color: #64748b; word-wrap: break-word; overflow-wrap: break-word; }
+.rx-empty-row td { height: 26px; }
+.rx-note-block { margin-top: 15px; color: #163f73; font-size: 10pt; line-height: 1.5; }
+.rx-note-block b { color: #061a35; font-weight: 800; }
+.rx-note-list { margin: 4px 0 0; padding-left: 16px; }
+.rx-note-list li { margin-bottom: 2px; }
+.rx-signature { display: none !important; }
+.rx-footer { display: none !important; }
+
+@media print {
+    body { background: #fff; }
+
+    /*
+     * Isolate the sheet. Prescriptions render both standalone (body contains
+     * only .rx-page) and embedded in the admin layout (sidebar, navbar, action
+     * buttons alongside it). Hiding everything then re-showing .rx-page covers
+     * both: harmless in the standalone case, essential in the embedded one.
+     */
+    body * { visibility: hidden !important; }
+    .rx-page, .rx-page * { visibility: visible !important; }
+
+    .rx-page {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        min-height: auto !important;
+        margin: 0 !important;
+        padding: 4cm 12mm 10mm !important;
+        box-shadow: none !important;
+    }
+
+    .rx-no-print, .rx-no-print *, .no-print, .rx-audit-bar { display: none !important; visibility: hidden !important; }
+    .rx-med-table tr, .rx-note-block { page-break-inside: avoid; }
+}
+

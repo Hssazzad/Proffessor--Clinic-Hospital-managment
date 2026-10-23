@@ -1,9 +1,10 @@
 @php
     $pid       = $pid ?? request('id');
     $patientId = $patientId ?? request('patient');
+    $wz        = $wz ?? 'rx';
 @endphp
 
-<form method="post" action="{{ route('rx.patient.save') }}" id="patientSelectForm">
+<form method="post" action="{{ route($wz.'.patient.save') }}" id="patientSelectForm">
     @csrf
     <input type="hidden" name="prescription_id" value="{{ $pid }}">
     <input type="hidden" name="patient_id" id="patient_id" value="{{ $patientId }}">
@@ -54,8 +55,8 @@
     const filter   = $('patientFilter');
     const prevHidden = $('previous_prescription_id');
 
-    const prevUrlTemplate   = "{{ route('rx.patient.prev', 0) }}";   // /rx/patient/0/previous-prescriptions
-    const detailsUrlTemplate= "{{ route('rx.prev.details', 0) }}";   // /rx/prescription/0/details
+    const prevUrlTemplate   = "{{ route($wz.'.patient.prev', 0) }}";   // /ces/patient/0/previous-prescriptions
+    const detailsUrlTemplate= "{{ route($wz.'.prev.details', 0) }}";   // /ces/prescription/0/details
 
     function baseInfoHtml(opt){
         return `
@@ -165,7 +166,7 @@
 
                     <div class="mt-2">
                         <a class="btn btn-xs btn-outline-primary"
-                           href="/prescriptions/wizard?tab=preview&id=${rxId}&patient=${hiddenId.value}">
+                           href="{{ route($wz.'.wizard') }}?tab=preview&id=${rxId}&patient=${hiddenId.value}">
                            View Previous RX
                         </a>
                     </div>

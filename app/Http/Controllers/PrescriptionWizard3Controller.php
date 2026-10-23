@@ -1261,17 +1261,17 @@ public function pdf($id, Request $r)
             base_path('public/fonts'),
         ]),
 
-        // register SolaimanLipi
+        // register NotoSansBengali
         'fontdata' => $fontData + [
-            'solaimanlipi' => [
-                'R'  => 'SolaimanLipi.ttf',
-                'B'  => 'SolaimanLipi_Bold.ttf',
-                'I'  => 'SolaimanLipi.ttf',
-                'BI' => 'SolaimanLipi.ttf',
+            'notobengali' => [
+                'R'  => 'NotoSansBengali-Regular.ttf',
+                'B'  => 'NotoSansBengali-Bold.ttf',
+                'I'  => 'NotoSansBengali-Regular.ttf',
+                'BI' => 'NotoSansBengali-Bold.ttf',
             ],
         ],
 
-        'default_font' => 'solaimanlipi',
+        'default_font' => 'notobengali',
 
         // Bangla shaping / ligatures ON
         'useOTL' => 1,

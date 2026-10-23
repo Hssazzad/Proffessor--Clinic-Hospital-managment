@@ -11,40 +11,73 @@ class DoctorController extends Controller
 
     public function index()
     {
-        // Latest first - active ডাক্তার দেখাবে
         $doctors = Doctor::orderByDesc('id')->paginate(20);
 
-        return view('settings.doctors.index', compact('doctors'));
+        $specialities = DB::table('configspeciality')->orderBy('name')->get();
+
+        return view('settings.doctors.index', compact('doctors', 'specialities'));
     }
 
     public function create()
     {
-         $specialities = DB::table('configspeciality')
-        ->orderBy('name')
-        ->get();   
-        return view('settings.doctors.create',compact('specialities'));
+        return redirect()->route('settings.doctors.index');
+    }
+
+    public function ajaxList(Request $r)
+    {
+        $query = DB::table('doctors as d')
+            ->leftJoin('configspeciality as s', 's.id', '=', 'd.speciality')
+            ->select(
+                'd.id',
+                'd.reg_no',
+                'd.doctor_name',
+                'd.speciality',
+                's.name as speciality_name',
+                'd.contact',
+                'd.Posting',
+                'd.RateCode',
+                'd.active'
+            );
+
+        if ($r->filled('search')) {
+            $q = $r->search;
+            $query->where(function ($w) use ($q) {
+                $w->where('d.doctor_name', 'like', '%' . $q . '%')
+                  ->orWhere('d.reg_no', 'like', '%' . $q . '%')
+                  ->orWhere('d.contact', 'like', '%' . $q . '%')
+                  ->orWhere('s.name', 'like', '%' . $q . '%');
+            });
+        }
+
+        $items = $query->orderByDesc('d.id')->get();
+
+        return response()->json(['ok' => true, 'data' => $items]);
     }
 
     public function store(Request $r)
     {
         $r->validate([
-            'reg_no'      => 'required|string|max:12',
+            'reg_no'      => 'nullable|string|max:12',
             'doctor_name' => 'required|string|max:50',
-            'speciality'  => 'required|string|max:25',
-            'contact'     => 'required|string|max:12',
-            'Posting'     => 'required|string|max:25',
-            'RateCode'    => 'required|string|max:12',
+            'speciality'  => 'nullable|string|max:25',
+            'contact'     => 'nullable|string|max:12',
+            'Posting'     => 'nullable|string|max:25',
+            'RateCode'    => 'nullable|string|max:12',
         ]);
 
-        Doctor::create([
+        $item = Doctor::create([
             'reg_no'      => $r->reg_no,
             'doctor_name' => $r->doctor_name,
             'speciality'  => $r->speciality,
             'contact'     => $r->contact,
             'Posting'     => $r->Posting,
             'RateCode'    => $r->RateCode,
-            'active'      => 1, // ✅ active field added with default 1
+            'active'      => $r->has('active') ? $r->active : 1,
         ]);
+
+        if ($r->ajax() || $r->wantsJson()) {
+            return response()->json(['ok' => true, 'message' => 'Doctor added successfully!', 'data' => $item]);
+        }
 
         return redirect()
             ->route('settings.doctors.index')
@@ -61,12 +94,12 @@ class DoctorController extends Controller
     public function update(Request $r, $id)
     {
         $r->validate([
-            'reg_no'      => 'required|string|max:12',
+            'reg_no'      => 'nullable|string|max:12',
             'doctor_name' => 'required|string|max:50',
-            'speciality'  => 'required|string|max:25',
-            'contact'     => 'required|string|max:12',
-            'Posting'     => 'required|string|max:25',
-            'RateCode'    => 'required|string|max:12',
+            'speciality'  => 'nullable|string|max:25',
+            'contact'     => 'nullable|string|max:12',
+            'Posting'     => 'nullable|string|max:25',
+            'RateCode'    => 'nullable|string|max:12',
         ]);
 
         $doctor = Doctor::findOrFail($id);
@@ -78,18 +111,26 @@ class DoctorController extends Controller
             'contact'     => $r->contact,
             'Posting'     => $r->Posting,
             'RateCode'    => $r->RateCode,
-            'active'      => $r->has('active') ? $r->active : 1, // ✅ active field added
+            'active'      => $r->has('active') ? $r->active : 1,
         ]);
+
+        if ($r->ajax() || $r->wantsJson()) {
+            return response()->json(['ok' => true, 'message' => 'Doctor updated successfully!', 'data' => $doctor]);
+        }
 
         return redirect()
             ->route('settings.doctors.index')
             ->with('success', 'Doctor updated successfully!');
     }
 
-    public function destroy($id)
+    public function destroy(Request $r, $id)
     {
         $doctor = Doctor::findOrFail($id);
         $doctor->delete();
+
+        if ($r->ajax() || $r->wantsJson()) {
+            return response()->json(['ok' => true, 'message' => 'Doctor deleted successfully!']);
+        }
 
         return redirect()
             ->route('settings.doctors.index')

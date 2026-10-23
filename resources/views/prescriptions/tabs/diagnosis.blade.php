@@ -3,6 +3,7 @@
   // $pid, $patientId, and optionally $commonDiagnoses (collection of {name, active?})
   $pid       = (int)($pid ?? request('id'));
   $patientId = (int)($patientId ?? request('patient'));
+  $wz        = $wz ?? 'rx';
   $DIAG_OPTIONS = collect($commonDiagnoses ?? [])->filter(fn($x)=>($x->active ?? 1)==1)->pluck('name')->values();
 @endphp
 
@@ -101,8 +102,8 @@
 </div>
 
 <div style="display:flex;justify-content:space-between;gap:.75rem">
-  <a class="btn secondary" href="{{ route('rx.wizard',['id'=>$pid,'patient'=>$patientId,'tab'=>'investigations']) }}">← Back</a>
-  <form method="get" action="{{ route('rx.wizard') }}" style="margin:0">
+  <a class="btn secondary" href="{{ route($wz.'.wizard',['id'=>$pid,'patient'=>$patientId,'tab'=>'investigations']) }}">← Back</a>
+  <form method="get" action="{{ route($wz.'.wizard') }}" style="margin:0">
     <input type="hidden" name="id" value="{{ $pid }}">
     <input type="hidden" name="patient" value="{{ $patientId }}">
     <input type="hidden" name="tab" value="medicine">
@@ -171,7 +172,7 @@
     fd.append('prescription_id', pid);
     fd.append('_token', csrf);
     for (const [k,v] of Object.entries(payload)) fd.append(k, v ?? '');
-    const res = await fetch(`{{ route('rx.diag.ajax') }}`, {
+    const res = await fetch(`{{ route($wz.'.diag.ajax') }}`, {
       method: 'POST',
       headers: { 'X-Requested-With':'XMLHttpRequest', 'Accept':'application/json' },
       body: fd

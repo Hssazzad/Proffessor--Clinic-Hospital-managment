@@ -28,7 +28,11 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->intended(route('dashboard', absolute: false));
+        // Persistent (not flash) so the toast survives the /dashboard alias
+        // redirect hop before the dashboard view renders.
+        $request->session()->put('secure_session_flash', true);
+
+        return redirect()->intended(route('admin.dashboard', absolute: false));
     }
 
     /**
@@ -37,6 +41,8 @@ class AuthenticatedSessionController extends Controller
     public function destroy(Request $request): RedirectResponse
     {
         Auth::guard('web')->logout();
+
+        $request->session()->flash('success', 'Logged out successfully');
 
         $request->session()->invalidate();
 

@@ -39,6 +39,12 @@ Route::middleware(['auth'])->group(function () {
 
         // Medicine Section
         Route::get('add-medicine', [TemplateController::class, 'addMedicine'])->name('templates.addmedicine');
+
+        // Company-wise medicine selection (AJAX, reuses prescription filter logic)
+        Route::get('medicine/companies', [TemplateController::class, 'ajaxMedicineCompanies'])->name('templates.medicine.companies');
+        Route::get('medicine/groups',    [TemplateController::class, 'ajaxMedicineGroups'])->name('templates.medicine.groups');
+        Route::get('medicine/options',   [TemplateController::class, 'ajaxMedicineOptions'])->name('templates.medicine.options');
+
         Route::post('medicine/ajax/add', [TemplateController::class, 'ajaxAddMedicine'])->name('templates.medicine.ajax.add');
         Route::get('medicine/ajax/list', [TemplateController::class, 'ajaxListMedicine'])->name('templates.medicine.ajax.list');
         Route::delete('medicine/ajax/{id}', [TemplateController::class, 'ajaxDeleteMedicine'])->name('templates.medicine.ajax.delete');
@@ -82,11 +88,6 @@ Route::middleware(['auth'])->group(function () {
 		Route::get('prescription/multi-step', [TemplateController::class, 'multiStepForm'])->name('prescription.multi.step');
 		
 		Route::post('prescription/store', [TemplateController::class, 'storePrescription'])->name('prescription.store');
-		
-		// Prescription Print
-		Route::get('prescription/print', function() {
-            return view('prescription_print');
-        })->name('prescription.print');
 		
     });
 });

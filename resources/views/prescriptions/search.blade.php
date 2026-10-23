@@ -299,6 +299,13 @@
                 <td class="rxd-actions-cell">
                   @if($rx->source === 'prescription')
                     <button type="button"
+                            class="rxd-icon-btn btn-view-rx"
+                            data-id="{{ $rx->id }}"
+                            title="View Prescription"
+                            style="margin-right:4px;">
+                      <i class="fas fa-eye"></i>
+                    </button>
+                    <button type="button"
                             class="rxd-icon-btn btn-print-rx"
                             data-id="{{ $rx->id }}"
                             title="Print Prescription">
@@ -349,78 +356,36 @@
 @stop
 
 @section('js')
-@include('admission.partials.print_prescription_core')
 <script>
-var logoUrl = @json(config('app.logo_url'));
-var printDataUrl = @json(url('prescriptions/print-data'));
-var admissionPrintDataUrl = @json(url('prescriptions/admission-print-data'));
-
-function buildAdmissionPrintHtml(d) {
-    var rows = '';
-    var meds = d.medicines || [];
-    meds.forEach(function(m) {
-        rows += admissionPrintMedicineRow(
-            m.name, m.morning, m.noon, m.night,
-            m.strength, m.timing, m.duration, m.instruction
-        );
-    });
-    rows += admissionPrintBlankMedicineRows(Math.max(0, 8 - meds.length));
-    return admissionPrintPrescriptionHtml({
-        title: d.title,
-        stageTitle: d.stageTitle,
-        patientCode: d.patientCode,
-        patientName: d.patientName,
-        mobile: d.mobile,
-        admissionDate: d.admissionDate,
-        logoUrl: logoUrl,
-        doctorName: d.doctorName,
-        doctorSpeciality: d.doctorSpeciality,
-        doctorRegNo: d.doctorRegNo,
-        doctorContact: d.doctorContact,
-        cc: d.cc || '',
-        oe: d.oe || '',
-        inv: d.inv || '',
-        rows: rows
-    });
-}
-
-function openAdmissionPrintWindow(html, title) {
-    var w = window.open('', '_blank', 'width=1000,height=700');
-    w.document.open();
-    w.document.write(html);
-    w.document.close();
-    w.document.title = title;
-    w.onload = function() {
-        w.focus();
-        w.print();
-        setTimeout(function() { w.close(); }, 500);
-    };
-}
+var previewViewUrl = @json(url('prescriptions/preview-ajax'));
+var printRxUrl = @json(url('prescriptions/print'));
+var admitPrintUrlMap = {
+    on_admission: @json(url('admission/admedicine-print')),
+    pre_surgery:  @json(url('admission/premedicine-print')),
+    post_surgery: @json(url('admission/postmedicine-print')),
+    round:        @json(url('admission/roundmedicine-print')),
+    fresh:        @json(url('admission/freshmedicine-print'))
+};
 
 $(function(){
+    $(document).on('click', '.btn-view-rx', function(){
+        var id = $(this).data('id');
+        var w = window.open(previewViewUrl + '/' + id, '_blank');
+        if (w) w.focus();
+    });
+
     $(document).on('click', '.btn-print-rx', function(){
         var id = $(this).data('id');
-        $.get(printDataUrl + '/' + id, function(d){
-            var html = buildAdmissionPrintHtml(d);
-            openAdmissionPrintWindow(html, 'Prescription_' + (d.patientName || ''));
-        }).fail(function(xhr){
-            alert((xhr.responseJSON && xhr.responseJSON.error) ? xhr.responseJSON.error : 'Print data load failed.');
-        });
+        var w = window.open(printRxUrl + '/' + id + '?autoprint=1', '_blank');
+        if (w) w.focus();
     });
 
     $(document).on('click', '.btn-print-adm', function(){
         var btn = $(this);
-        $.get(admissionPrintDataUrl, {
-            admissionid: btn.data('admissionid'),
-            stage: btn.data('stage'),
-            table: btn.data('table'),
-            patientcode: btn.data('patientcode')
-        }, function(d){
-            var html = buildAdmissionPrintHtml(d);
-            openAdmissionPrintWindow(html, (d.stageTitle || 'Admission') + '_' + (d.patientName || ''));
-        }).fail(function(xhr){
-            alert((xhr.responseJSON && xhr.responseJSON.error) ? xhr.responseJSON.error : 'Admission print data load failed.');
-        });
+        var url = admitPrintUrlMap[btn.data('stage')];
+        if (!url) return;
+        var w = window.open(url + '?patientcode=' + encodeURIComponent(btn.data('patientcode') || ''), '_blank');
+        if (w) w.focus();
     });
 });
 </script>

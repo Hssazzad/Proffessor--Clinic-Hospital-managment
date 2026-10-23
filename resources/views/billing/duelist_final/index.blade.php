@@ -1,660 +1,1105 @@
 @extends('adminlte::page')
 
-@section('title', 'Payment Records — Clinic')
+@section('title', 'Payment List')
 
 @section('content_header')
-<div class="cc-header">
-    <div class="cc-header-left">
-        <div class="cc-header-icon">
-            <i class="fas fa-receipt"></i>
-        </div>
+<div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+    <div class="d-flex align-items-center gap-3">
+        <div class="p-icon-box"><i class="fas fa-receipt"></i></div>
         <div>
-            <h1 class="cc-header-title">Payment Records</h1>
-            <p class="cc-header-sub">Invoice & Payment Overview</p>
+            <h1 class="p-page-title">Payment Records</h1>
+            <ol class="breadcrumb p-breadcrumb mb-0">
+                <li class="breadcrumb-item"><a href="{{ url('/') }}"><i class="fas fa-home"></i> Home</a></li>
+                <li class="breadcrumb-item"><a href="#">Billing</a></li>
+                <li class="breadcrumb-item active">Payment Records</li>
+            </ol>
         </div>
+    </div>
+    <div class="d-flex gap-2">
+        <button class="p-btn p-btn--outline p-btn--sm" id="btnBulkPrint" style="display:none;" onclick="doBulkPrint()">
+            <i class="fas fa-print"></i> Print Selected (<span id="selectedCount">0</span>)
+        </button>
+        <button class="p-btn p-btn--outline p-btn--sm" onclick="window.location.reload()">
+            <i class="fas fa-sync-alt"></i> Refresh
+        </button>
     </div>
 </div>
 @stop
 
 @section('content')
 
-{{-- SUMMARY STRIP (4 cards) --}}
-<div class="cc-summary-strip">
-    <div class="cc-summary-card">
-        <div class="cc-summary-icon cc-summary-icon--blue"><i class="fas fa-file-invoice"></i></div>
-        <div>
-            <div class="cc-summary-label">Total Invoices</div>
-            <div class="cc-summary-value" id="sumTotalInvoices">0</div>
+<div id="save-alert" class="alert d-none" role="alert" style="border-radius:var(--p-radius);"></div>
+
+{{-- =============================================
+     SUMMARY STAT CARDS
+============================================= --}}
+<div class="row mb-3">
+    <div class="col-lg-3 col-sm-6 mb-2">
+        <div class="p-stat">
+            <div class="p-stat-icon p-stat-icon--gray"><i class="fas fa-file-invoice"></i></div>
+            <div class="p-stat-body">
+                <span class="p-stat-label">Total Invoices</span>
+                <span class="p-stat-val" id="sumInvoices">—</span>
+                <span class="p-stat-sub" id="sumPatients">— patients</span>
+            </div>
         </div>
     </div>
-    <div class="cc-summary-card">
-        <div class="cc-summary-icon cc-summary-icon--blue"><i class="fas fa-money-bill-wave"></i></div>
-        <div>
-            <div class="cc-summary-label">Total Bill</div>
-            <div class="cc-summary-value" id="sumTotalBill">&#2547; 0</div>
+    <div class="col-lg-3 col-sm-6 mb-2">
+        <div class="p-stat">
+            <div class="p-stat-icon p-stat-icon--dark"><i class="fas fa-coins"></i></div>
+            <div class="p-stat-body">
+                <span class="p-stat-label">Total Bill</span>
+                <span class="p-stat-val" id="sumBill">—</span>
+            </div>
         </div>
     </div>
-    <div class="cc-summary-card">
-        <div class="cc-summary-icon cc-summary-icon--green"><i class="fas fa-check-circle"></i></div>
-        <div>
-            <div class="cc-summary-label">Total Paid</div>
-            <div class="cc-summary-value cc-summary-value--green" id="sumTotalPaid">&#2547; 0</div>
+    <div class="col-lg-3 col-sm-6 mb-2">
+        <div class="p-stat">
+            <div class="p-stat-icon p-stat-icon--green"><i class="fas fa-check-circle"></i></div>
+            <div class="p-stat-body">
+                <span class="p-stat-label">Total Paid</span>
+                <span class="p-stat-val p-stat-val--green" id="sumPaid">—</span>
+            </div>
         </div>
     </div>
-    <div class="cc-summary-card">
-        <div class="cc-summary-icon cc-summary-icon--red"><i class="fas fa-exclamation-circle"></i></div>
-        <div>
-            <div class="cc-summary-label">Total Due</div>
-            <div class="cc-summary-value cc-summary-value--red" id="sumTotalDue">&#2547; 0</div>
+    <div class="col-lg-3 col-sm-6 mb-2">
+        <div class="p-stat">
+            <div class="p-stat-icon p-stat-icon--red"><i class="fas fa-exclamation-circle"></i></div>
+            <div class="p-stat-body">
+                <span class="p-stat-label">Total Due</span>
+                <span class="p-stat-val p-stat-val--red" id="sumDue">—</span>
+            </div>
         </div>
     </div>
 </div>
 
-{{-- FILTER BAR --}}
-<div class="cc-search-bar">
-    <div class="cc-search-field">
-        <i class="fas fa-search cc-search-icon"></i>
-        <input type="text" id="listSearchInput" placeholder="Search name / code / bill no..." autocomplete="off">
-        <button class="cc-search-clear" id="btnClearSearch" style="display:none;"><i class="fas fa-times"></i></button>
+{{-- =============================================
+     FILTER PANEL — AdminLTE card + collapse
+============================================= --}}
+<div class="card p-card mb-3">
+    <div class="card-header py-2 d-flex align-items-center justify-content-between">
+        <div class="d-flex align-items-center gap-2">
+            <span class="p-card-head-icon"><i class="fas fa-filter"></i></span>
+            <div>
+                <span class="p-card-title">Filter & Search</span>
+                <span class="p-card-sub">Date, patient or keyword search</span>
+            </div>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <span class="p-badge" id="filterBadge"><i class="fas fa-calendar-day"></i> Today</span>
+            <button type="button" class="btn btn-tool" data-card-widget="collapse" title="Toggle filter">
+                <i class="fas fa-minus"></i>
+            </button>
+        </div>
     </div>
-    <div class="cc-search-actions">
-        <label class="cc-toggle">
-            <input type="checkbox" id="showAllChk">
-            <span class="cc-toggle-track"></span>
-            <span class="cc-toggle-label">Show All</span>
-        </label>
-        <button id="btnLoad" class="cc-btn cc-btn--primary"><i class="fas fa-sync-alt"></i> Load</button>
-        <button id="btnReset" class="cc-btn cc-btn--outline"><i class="fas fa-undo-alt"></i> Reset</button>
-        <button id="btnExportCsv" class="cc-btn cc-btn--outline" title="Export CSV"><i class="fas fa-file-csv"></i> CSV</button>
+
+    <div class="card-body py-2">
+        {{-- Row 1: Patient + Search + Per Page --}}
+        <div class="form-row align-items-end">
+            <div class="col-lg col-md-6 mb-2">
+                <label class="p-field-label"><i class="fas fa-user mr-1"></i> Patient</label>
+                <select id="patientSelect" style="width:100%"></select>
+            </div>
+            <div class="col-lg col-md-6 mb-2">
+                <label class="p-field-label"><i class="fas fa-search mr-1"></i> Search</label>
+                <div class="d-flex gap-1">
+                    <input type="text" id="searchQ" class="form-control form-control-sm flex-grow-1"
+                           placeholder="Name / Code / Bill No / Mobile..."
+                           onkeydown="if(event.key==='Enter') loadData(1)">
+                    <button class="p-btn p-btn--solid" onclick="loadData(1)"><i class="fas fa-search"></i> Load</button>
+                    <button class="p-btn p-btn--outline" onclick="resetFilter()" style="color:var(--p-danger);border-color:var(--p-danger);">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="col-auto mb-2" style="min-width:80px;">
+                <label class="p-field-label"><i class="fas fa-list-ol mr-1"></i> Per Page</label>
+                <select id="perPage" class="form-control form-control-sm" onchange="loadData(1)">
+                    <option value="20">20</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                </select>
+            </div>
+            <div class="col-auto mb-2">
+                <label class="p-field-label"><i class="fas fa-layer-group mr-1"></i> Source</label>
+                <div class="p-seg">
+                    <input type="radio" name="paymentSource" id="srcAll" value="all" checked onchange="loadData(1)">
+                    <label for="srcAll">All</label>
+                    <input type="radio" name="paymentSource" id="srcReception" value="reception" onchange="loadData(1)">
+                    <label for="srcReception">Reception</label>
+                    <input type="radio" name="paymentSource" id="srcManager" value="manager" onchange="loadData(1)">
+                    <label for="srcManager">Manager</label>
+                    <input type="radio" name="paymentSource" id="srcLegacy" value="legacy" onchange="loadData(1)">
+                    <label for="srcLegacy">Legacy</label>
+                </div>
+            </div>
+            <div class="col-auto mb-2">
+                <label class="p-field-label"><i class="fas fa-filter mr-1"></i> Show</label>
+                <div class="p-seg">
+                    <input type="radio" name="showMode" id="showPaid" value="paid" checked onchange="loadData(1)">
+                    <label for="showPaid">Paid Only</label>
+                    <input type="radio" name="showMode" id="showAll" value="all" onchange="loadData(1)">
+                    <label for="showAll">All</label>
+                </div>
+            </div>
+        </div>
+
+        <hr class="my-2">
+
+        {{-- Row 2: Date controls --}}
+        <div class="form-row align-items-end">
+            <div class="col-lg-4 col-md-6 mb-2">
+                <label class="p-field-label"><i class="fas fa-calendar-alt mr-1"></i> Date Mode</label>
+                <div class="p-seg">
+                    <input type="radio" name="dateMode" id="modeAll" value="all">
+                    <label for="modeAll">All Time</label>
+                    <input type="radio" name="dateMode" id="modeSingle" value="single" checked>
+                    <label for="modeSingle">Single</label>
+                    <input type="radio" name="dateMode" id="modeRange" value="range">
+                    <label for="modeRange">Range</label>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-2">
+                <label class="p-field-label"><i class="fas fa-columns mr-1"></i> Date Column</label>
+                <div class="p-seg">
+                    <input type="radio" name="dateCol" id="colPayDate" value="PaymentDate" checked>
+                    <label for="colPayDate">Pay Date</label>
+                    <input type="radio" name="dateCol" id="colCreated" value="created_at">
+                    <label for="colCreated">Created</label>
+                </div>
+            </div>
+            <div id="singleWrap" class="col-auto mb-2">
+                <label class="p-field-label"><i class="fas fa-calendar-day mr-1"></i> Date</label>
+                <input type="date" id="singleDate" class="form-control form-control-sm" style="width:150px;">
+            </div>
+            <div id="rangeWrap" class="col-auto mb-2 d-flex gap-2 align-items-end" style="display:none;">
+                <div>
+                    <label class="p-field-label"><i class="fas fa-calendar mr-1"></i> From</label>
+                    <input type="date" id="dateFrom" class="form-control form-control-sm" style="width:145px;">
+                </div>
+                <div>
+                    <label class="p-field-label">To</label>
+                    <input type="date" id="dateTo" class="form-control form-control-sm" style="width:145px;">
+                </div>
+            </div>
+            <div class="col-auto mb-2">
+                <small class="text-muted d-flex align-items-center gap-1">
+                    <i class="fas fa-info-circle"></i>
+                    Press <kbd class="p-kbd">Enter</kbd> or click Load
+                </small>
+            </div>
+        </div>
     </div>
 </div>
 
-{{-- TABLE --}}
-<div class="cc-table-wrapper">
-    <div class="cc-table-scroll">
-        <table class="cc-table" id="dueTable">
+{{-- =============================================
+     TABLE PANEL — AdminLTE card
+============================================= --}}
+<div class="card p-card">
+    <div class="card-header py-2 d-flex align-items-center justify-content-between">
+        <div class="d-flex align-items-center gap-2">
+            <span class="p-card-head-icon"><i class="fas fa-table"></i></span>
+            <div>
+                <span class="p-card-title">Payment Records</span>
+                <span class="p-card-sub">Detailed payment history</span>
+            </div>
+        </div>
+    </div>
+
+    {{-- Toolbar --}}
+    <div class="p-toolbar d-flex align-items-center justify-content-between flex-wrap gap-2 px-3 py-2 border-bottom">
+        <div class="d-flex align-items-center gap-2">
+            <button class="p-btn p-btn--outline p-btn--sm" onclick="toggleSelectAll()">
+                <i class="fas fa-check-square"></i> Select All
+            </button>
+            <small class="text-muted">Selected: <strong id="selectedCount" style="color:var(--p-primary);">0</strong></small>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <button class="p-btn p-btn--sm" onclick="exportCSV()" style="background:var(--p-success);border-color:var(--p-success);color:#fff;">
+                <i class="fas fa-file-csv"></i> Export CSV
+            </button>
+        </div>
+    </div>
+
+    {{-- Table --}}
+    <div class="card-body p-0" style="overflow-x:auto;">
+        <table class="p-table" id="paymentTable">
             <thead>
                 <tr>
+                    <th style="width:36px;" class="text-center"><input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll()" aria-label="Select all"></th>
                     <th>Date</th>
                     <th>Bill No</th>
                     <th>Patient Name</th>
                     <th class="text-right">Total Bill</th>
                     <th class="text-right">Paid</th>
                     <th class="text-right">Due</th>
-                    <th class="text-center">Action</th>
+                    <th class="text-center" style="width:60px;">Action</th>
                 </tr>
             </thead>
-            <tbody id="dueTableBody">
-                <tr><td colspan="7" class="cc-loader"><i class="fas fa-spinner fa-spin"></i> Loading...</td></tr>
+            <tbody id="tableBody">
+                <tr><td colspan="8" class="p-table-msg"><i class="fas fa-circle-notch fa-spin"></i> Loading...</td></tr>
             </tbody>
         </table>
     </div>
-</div>
 
-{{-- LOAD MORE --}}
-<div id="loadMoreWrap" class="cc-load-more" style="display:none;">
-    <button id="btnLoadMore" class="cc-btn cc-btn--primary cc-btn--block">
-        <i class="fas fa-chevron-down mr-1"></i> Load More
-    </button>
-</div>
-
-{{-- EMPTY FOOTER SPACER --}}
-<div class="cc-bottom-spacer"></div>
-
-{{-- BOTTOM NAVIGATION --}}
-<nav class="cc-bottom-nav">
-    <a href="{{ route('admin.dashboard') }}" class="cc-nav-item">
-        <i class="fas fa-home"></i>
-        <span>Home</span>
-    </a>
-    <a href="{{ route('billing.paylist.index') }}" class="cc-nav-item">
-        <i class="fas fa-receipt"></i>
-        <span>Payments</span>
-    </a>
-    <a href="{{ route('billing.duelist.index') }}" class="cc-nav-item active">
-        <i class="fas fa-exclamation-circle"></i>
-        <span>Due List</span>
-    </a>
-    <a href="{{ route('billing.discharge.index') }}" class="cc-nav-item">
-        <i class="fas fa-file-invoice"></i>
-        <span>Discharge</span>
-    </a>
-    <a href="{{ route('billing.paynow.index') }}" class="cc-nav-item">
-        <i class="fas fa-money-bill-wave"></i>
-        <span>Pay Now</span>
-    </a>
-</nav>
-
-{{-- PATIENT DETAILS MODAL (unchanged) --}}
-<div class="modal fade" id="patientDetailsModal" tabindex="-1" role="dialog" aria-hidden="true">
-    <div class="modal-dialog modal-lg" role="document">
-        <div class="modal-content cc-modal-content">
-            <div class="modal-header cc-modal-header">
-                <h5 class="modal-title">
-                    <i class="fas fa-user-circle mr-2"></i>
-                    <span id="modalPatientName">Patient Ledger</span>
-                </h5>
-                <button type="button" class="close" data-dismiss="modal">&times;</button>
+    {{-- Traditional Pagination --}}
+    <div class="card-footer py-2">
+        <div class="d-flex align-items-center justify-content-between">
+            <div class="text-muted small">
+                Showing <span id="showingFrom">0</span> to <span id="showingTo">0</span> of <span id="showingTotal">0</span> entries
             </div>
-            <div class="modal-body cc-modal-body">
-                <div class="cc-modal-section">
-                    <h6 class="cc-modal-section-title"><i class="fas fa-file-invoice mr-1"></i> Bill List</h6>
-                    <div class="cc-modal-table-wrap">
-                        <table class="cc-modal-table">
-                            <thead>
-                                <tr>
-                                    <th>Invoice No</th>
-                                    <th class="text-right">Total</th>
-                                    <th class="text-right">Paid</th>
-                                    <th class="text-right">Due</th>
-                                    <th class="text-center">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody id="modalBillBody">
-                                <tr><td colspan="5" class="cc-modal-loading">Loading...</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                    <div class="cc-modal-total cc-modal-total--red">
-                        Total Due: <span id="modalTotalDue">&#2547; 0</span>
-                    </div>
-                </div>
-                <div class="cc-modal-section">
-                    <h6 class="cc-modal-section-title"><i class="fas fa-money-bill-wave mr-1"></i> Payment List</h6>
-                    <div class="cc-modal-table-wrap">
-                        <table class="cc-modal-table">
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th class="text-right">Amount</th>
-                                    <th>Received By</th>
-                                    <th class="text-center">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody id="modalPaymentBody">
-                                <tr><td colspan="4" class="cc-modal-loading">Loading...</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                    <div class="cc-modal-total cc-modal-total--green">
-                        Total Payment: <span id="modalTotalPayment">&#2547; 0</span>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer cc-modal-footer">
-                <button type="button" class="cc-btn cc-btn--ghost" data-dismiss="modal">Close</button>
-            </div>
+            <nav>
+                <ul class="pagination pagination-sm mb-0" id="pagination">
+                    <!-- Pagination will be rendered here -->
+                </ul>
+            </nav>
         </div>
     </div>
 </div>
 
+<div class="p-bottom-spacer"></div>
+
+{{-- =============================================
+     BOTTOM NAVIGATION
+============================================= --}}
+<nav class="p-bottom-nav">
+    <a href="{{ route('admin.dashboard') }}" class="p-nav-link"><i class="fas fa-home"></i><span>Home</span></a>
+    <a href="{{ route('billing.paylist.index') }}" class="p-nav-link p-nav-link--active"><i class="fas fa-receipt"></i><span>Payments</span></a>
+    <a href="{{ route('billing.duelist.index') }}" class="p-nav-link"><i class="fas fa-exclamation-triangle"></i><span>Due List</span></a>
+    <a href="{{ route('billing.discharge.index') }}" class="p-nav-link"><i class="fas fa-sign-out-alt"></i><span>Discharge</span></a>
+    <a href="{{ route('billing.paynow.index') }}" class="p-nav-link"><i class="fas fa-credit-card"></i><span>Pay Now</span></a>
+</nav>
+
+<iframe id="printFrame" style="display:none;"></iframe>
+
 @stop
 
 @section('css')
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap4-theme@1.0.0/dist/select2-bootstrap4.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
-<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
+/* =============================================
+   PROFESSIONAL BILLING UI
+   Dark slate #374151 primary, system fonts
+============================================= */
 :root {
-    --cc-bg: #faf8ff;
-    --cc-primary: #0f52ba;
-    --cc-primary-dark: #0b3d8a;
-    --cc-primary-light: #e8edff;
-    --cc-white: #ffffff;
-    --cc-border: #d9d9e2;
-    --cc-text: #1a1a2e;
-    --cc-muted: #6b7280;
-    --cc-green: #10b981;
-    --cc-green-bg: #ecfdf5;
-    --cc-red: #ef4444;
-    --cc-red-bg: #fef2f2;
-    --cc-amber: #f59e0b;
-    --cc-amber-bg: #fffbeb;
-    --cc-radius: 4px;
-    --cc-font: 'Hanken Grotesk', system-ui, -apple-system, sans-serif;
+    --p-primary:       #374151;
+    --p-primary-hover: #1f2937;
+    --p-primary-light: #f3f4f6;
+    --p-success:       #059669;
+    --p-success-bg:    #ecfdf5;
+    --p-danger:        #dc2626;
+    --p-danger-bg:     #fef2f2;
+    --p-warning:       #d97706;
+    --p-warning-bg:    #fffbeb;
+    --p-bg:            #f9fafb;
+    --p-card:          #ffffff;
+    --p-border:        #e5e7eb;
+    --p-border-dark:   #d1d5db;
+    --p-text:          #111827;
+    --p-muted:         #6b7280;
+    --p-muted-light:   #9ca3af;
+    --p-radius:        5px;
+    --p-font:          -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --p-transition:    .15s ease;
 }
 
-body, .content-wrapper { background: var(--cc-bg) !important; font-family: var(--cc-font); color: var(--cc-text); }
+body, .content-wrapper {
+    background: var(--p-bg) !important;
+    font-family: var(--p-font) !important;
+    color: var(--p-text);
+}
 
 /* ── Page Header ── */
-.cc-header { display:flex; align-items:center; justify-content:space-between; padding:4px 0 10px; }
-.cc-header-left { display:flex; align-items:center; gap:10px; }
-.cc-header-icon { width:36px; height:36px; background:var(--cc-primary); border-radius:var(--cc-radius); display:flex; align-items:center; justify-content:center; color:#fff; font-size:15px; }
-.cc-header-title { font-size:17px; font-weight:500; margin:0; color:var(--cc-text); }
-.cc-header-sub { font-size:12px; color:var(--cc-muted); margin:0; font-weight:400; }
+.p-icon-box {
+    width: 36px; height: 36px;
+    background: var(--p-primary);
+    color: #fff;
+    border-radius: var(--p-radius);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px;
+    flex-shrink: 0;
+}
+.p-page-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--p-text);
+    margin: 0;
+    letter-spacing: -.2px;
+}
+.p-breadcrumb { font-size: 11px; }
 
-/* ── Summary Strip (4 cards) ── */
-.cc-summary-strip { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:16px; }
-.cc-summary-card { background:var(--cc-white); border:1px solid var(--cc-border); border-radius:var(--cc-radius); padding:12px 10px; display:flex; align-items:center; gap:8px; }
-.cc-summary-icon { width:32px; height:32px; border-radius:var(--cc-radius); display:flex; align-items:center; justify-content:center; font-size:13px; flex-shrink:0; }
-.cc-summary-icon--blue { background:var(--cc-primary-light); color:var(--cc-primary); }
-.cc-summary-icon--green { background:var(--cc-green-bg); color:var(--cc-green); }
-.cc-summary-icon--red { background:var(--cc-red-bg); color:var(--cc-red); }
-.cc-summary-label { font-size:9px; font-weight:600; color:var(--cc-muted); text-transform:uppercase; letter-spacing:.3px; margin-bottom:0; }
-.cc-summary-value { font-size:15px; font-weight:500; color:var(--cc-text); line-height:1.2; }
-.cc-summary-value--green { color:var(--cc-green); }
-.cc-summary-value--red { color:var(--cc-red); }
+/* ── Stat Cards ── */
+.p-stat {
+    background: var(--p-card);
+    border: 1px solid var(--p-border);
+    border-radius: var(--p-radius);
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: border-color var(--p-transition);
+}
+.p-stat:hover { border-color: var(--p-border-dark); }
 
-/* ── Filter Bar ── */
-.cc-search-bar { background:var(--cc-white); border:1px solid var(--cc-border); border-radius:var(--cc-radius); padding:8px 12px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:16px; }
-.cc-search-field { flex:1; min-width:160px; position:relative; display:flex; align-items:center; }
-.cc-search-field input { width:100%; height:32px; border:1px solid var(--cc-border); border-radius:var(--cc-radius); padding:0 28px 0 28px; font-size:12px; font-family:var(--cc-font); color:var(--cc-text); background:var(--cc-bg); outline:none; transition:border-color .15s; }
-.cc-search-field input:focus { border-color:var(--cc-primary); background:var(--cc-white); }
-.cc-search-icon { position:absolute; left:8px; color:var(--cc-muted); font-size:12px; pointer-events:none; }
-.cc-search-clear { position:absolute; right:6px; background:none; border:none; color:var(--cc-muted); cursor:pointer; font-size:10px; padding:0; }
-.cc-search-actions { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.p-stat-icon {
+    width: 36px; height: 36px;
+    border-radius: var(--p-radius);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+}
+.p-stat-icon--gray  { background: var(--p-primary-light); color: var(--p-muted); }
+.p-stat-icon--dark  { background: var(--p-primary-light); color: var(--p-primary); }
+.p-stat-icon--green { background: var(--p-success-bg);    color: var(--p-success); }
+.p-stat-icon--red   { background: var(--p-danger-bg);     color: var(--p-danger); }
 
-.cc-toggle { display:flex; align-items:center; gap:4px; cursor:pointer; margin:0; font-size:11px; color:var(--cc-muted); user-select:none; }
-.cc-toggle input { display:none; }
-.cc-toggle-track { width:26px; height:14px; background:#d4d4dd; border-radius:7px; position:relative; transition:background .2s; flex-shrink:0; }
-.cc-toggle-track::after { content:''; position:absolute; top:2px; left:2px; width:10px; height:10px; border-radius:50%; background:var(--cc-white); transition:transform .2s; }
-.cc-toggle input:checked + .cc-toggle-track { background:var(--cc-primary); }
-.cc-toggle input:checked + .cc-toggle-track::after { transform:translateX(12px); }
-.cc-toggle-label { font-size:10px; font-weight:600; white-space:nowrap; }
+.p-stat-body { display: flex; flex-direction: column; gap: 2px; }
+.p-stat-label {
+    font-size: 10px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: .5px; color: var(--p-muted);
+}
+.p-stat-val {
+    font-size: 17px; font-weight: 700; color: var(--p-text); line-height: 1.1;
+}
+.p-stat-val--green { color: var(--p-success); }
+.p-stat-val--red   { color: var(--p-danger); }
+.p-stat-sub {
+    font-size: 11px; color: var(--p-muted);
+}
 
-.cc-btn { display:inline-flex; align-items:center; gap:4px; padding:5px 12px; border:none; border-radius:var(--cc-radius); font-size:11px; font-weight:600; cursor:pointer; font-family:var(--cc-font); transition:background .15s,color .15s; white-space:nowrap; line-height:1; height:30px; }
-.cc-btn--primary { background:var(--cc-primary); color:#fff; }
-.cc-btn--primary:hover { background:var(--cc-primary-dark); }
-.cc-btn--outline { background:transparent; border:1px solid var(--cc-border); color:var(--cc-muted); padding:5px 10px; }
-.cc-btn--outline:hover { border-color:var(--cc-primary); color:var(--cc-primary); background:var(--cc-primary-light); }
-.cc-btn--block { width:100%; justify-content:center; padding:8px; height:auto; }
+/* ── Card overrides for panel style ── */
+.p-card {
+    border-color: var(--p-border) !important;
+    border-radius: var(--p-radius) !important;
+}
+.p-card > .card-header {
+    background: var(--p-primary-light);
+    border-bottom: 1px solid var(--p-border);
+    padding: 8px 14px;
+}
+.p-card-head-icon {
+    width: 28px; height: 28px;
+    border-radius: var(--p-radius);
+    background: var(--p-primary-light);
+    color: var(--p-primary);
+    font-size: 12px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+}
+.p-card-title {
+    font-size: 13px; font-weight: 700; color: var(--p-text); display: block;
+}
+.p-card-sub {
+    font-size: 11px; color: var(--p-muted); display: block; margin-top: 1px;
+}
+.p-card .btn-tool { color: var(--p-muted) !important; transition: color var(--p-transition); }
+.p-card .btn-tool:hover { color: var(--p-primary) !important; }
+
+/* ── Badge ── */
+.p-badge {
+    background: var(--p-primary-light);
+    color: var(--p-primary);
+    border-radius: var(--p-radius);
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* ── Field Labels ── */
+.p-field-label {
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .3px; color: var(--p-primary);
+    display: flex; align-items: center;
+    margin-bottom: 4px;
+}
+
+/* ── Segmented Control ── */
+.p-seg {
+    display: flex;
+    border: 1px solid var(--p-border);
+    border-radius: var(--p-radius);
+    overflow: hidden;
+}
+.p-seg input[type=radio] { display: none; }
+.p-seg label {
+    padding: 5px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    background: var(--p-card);
+    color: var(--p-muted);
+    transition: all .12s ease;
+    margin: 0;
+    white-space: nowrap;
+    user-select: none;
+    border-right: 1px solid var(--p-border);
+    text-align: center;
+    line-height: 1.4;
+    font-family: var(--p-font);
+}
+.p-seg label:last-of-type { border-right: none; }
+.p-seg label:hover { background: var(--p-primary-light); color: var(--p-primary); }
+.p-seg input[type=radio]:checked + label {
+    background: var(--p-primary);
+    color: #fff;
+    border-color: var(--p-primary);
+}
+
+/* ── Buttons ── */
+.p-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 6px 12px; border: 1px solid var(--p-border);
+    border-radius: var(--p-radius); font-size: 12px; font-weight: 600;
+    font-family: var(--p-font); cursor: pointer;
+    transition: all var(--p-transition); white-space: nowrap;
+    line-height: 1; height: 34px;
+    background: var(--p-card); color: var(--p-text); outline: none;
+}
+.p-btn:focus-visible { box-shadow: 0 0 0 2px var(--p-primary-light), 0 0 0 4px var(--p-primary); }
+.p-btn--solid { background: var(--p-primary); border-color: var(--p-primary); color: #fff; }
+.p-btn--solid:hover { background: var(--p-primary-hover); border-color: var(--p-primary-hover); }
+.p-btn--outline { background: var(--p-card); border-color: var(--p-border); color: var(--p-muted); }
+.p-btn--outline:hover { border-color: var(--p-primary); color: var(--p-primary); }
+.p-btn--sm { padding: 4px 10px; font-size: 11px; height: 30px; }
+.p-btn--full { width: 100%; justify-content: center; height: auto; padding: 10px; }
+
+/* ── kbd ── */
+.p-kbd {
+    background: var(--p-primary-light);
+    border: 1px solid var(--p-border);
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-size: 10px;
+    font-family: var(--p-font);
+}
+
+/* ── Toolbar ── */
+.p-toolbar { background: var(--p-primary-light); }
 
 /* ── Table ── */
-.cc-table-wrapper { background:var(--cc-white); border:1px solid var(--cc-border); border-radius:var(--cc-radius); overflow:hidden; }
-.cc-table-scroll { overflow-x:auto; }
-.cc-table { width:100%; border-collapse:collapse; font-size:12px; }
-.cc-table thead th { background:#f8f7fc; color:var(--cc-muted); font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.4px; padding:8px 8px; border-bottom:2px solid var(--cc-border); white-space:nowrap; }
-.cc-table tbody td { padding:6px 8px; border-bottom:1px solid #f3f4f6; color:var(--cc-text); vertical-align:middle; }
-.cc-table tbody tr:hover { background:#faf8ff; }
-.cc-table .text-right { text-align:right; }
-.cc-table .text-center { text-align:center; }
-.cc-table .cc-loader { text-align:center; padding:30px 20px; color:var(--cc-muted); }
-.cc-table .cc-loader i { font-size:18px; display:block; margin-bottom:6px; }
-.cc-table .cc-empty { text-align:center; padding:30px 20px; color:var(--cc-muted); }
-.cc-table .cc-empty i { font-size:24px; display:block; margin-bottom:6px; color:#d4d4dd; }
+.p-table {
+    width: 100%; border-collapse: collapse; font-size: 12.5px;
+}
+.p-table thead th {
+    background: var(--p-primary-light); color: var(--p-muted);
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .4px; padding: 10px 10px;
+    border-bottom: 1px solid var(--p-border);
+    white-space: nowrap; text-align: left;
+}
+.p-table thead th.text-right  { text-align: right; }
+.p-table thead th.text-center { text-align: center; }
 
-/* status badge (reused) */
-.cc-badge { display:inline-block; font-size:9px; font-weight:600; padding:1px 6px; border-radius:var(--cc-radius); }
-.cc-badge--paid { background:var(--cc-green-bg); color:var(--cc-green); }
-.cc-badge--partial { background:var(--cc-amber-bg); color:var(--cc-amber); }
-.cc-badge--due { background:var(--cc-red-bg); color:var(--cc-red); }
-.cc-badge--confirmed { background:var(--cc-primary-light); color:var(--cc-primary); }
+.p-table tbody td {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--p-primary-light);
+    vertical-align: middle; color: var(--p-text);
+}
+.p-table tbody tr { transition: background var(--p-transition); }
+.p-table tbody tr:hover { background: var(--p-primary-light); }
+.p-table tbody tr.p-row-selected { background: var(--p-success-bg) !important; }
 
-/* Action buttons inside table */
-.cc-action-btn { background:transparent; border:1px solid var(--cc-border); border-radius:var(--cc-radius); padding:3px 6px; font-size:10px; cursor:pointer; color:var(--cc-muted); transition:all .12s; font-family:var(--cc-font); font-weight:600; display:inline-flex; align-items:center; gap:3px; }
-.cc-action-btn:hover { border-color:var(--cc-primary); color:var(--cc-primary); background:var(--cc-primary-light); }
-.cc-action-btn--print { color:var(--cc-primary); border-color:var(--cc-primary); background:var(--cc-primary-light); }
-.cc-action-btn--print:hover { background:var(--cc-primary); color:#fff; }
+.p-table .text-right  { text-align: right; }
+.p-table .text-center { text-align: center; }
 
-/* ── Load More ── */
-.cc-load-more { padding:10px 0 14px; }
+.p-table-msg {
+    text-align: center; padding: 32px 16px;
+    color: var(--p-muted); font-size: 13px;
+}
+.p-table-msg i { margin-right: 6px; }
 
-/* ── Bottom Spacer ── */
-.cc-bottom-spacer { height:56px; }
+/* ── Action button ── */
+.p-act {
+    background: transparent; border: 1px solid var(--p-border);
+    border-radius: var(--p-radius); padding: 4px 7px;
+    font-size: 11px; cursor: pointer; color: var(--p-muted);
+    transition: all var(--p-transition); font-family: var(--p-font);
+    font-weight: 600; display: inline-flex; align-items: center; gap: 3px; outline: none;
+}
+.p-act:hover { border-color: var(--p-primary); color: var(--p-primary); }
+.p-act:focus-visible { box-shadow: 0 0 0 2px var(--p-primary-light); }
+.p-act--print {
+    color: var(--p-primary); border-color: var(--p-primary); background: var(--p-primary-light);
+}
+.p-act--print:hover { background: var(--p-primary); color: #fff; }
 
-/* ── Bottom Nav ── */
-.cc-bottom-nav { position:fixed; bottom:0; left:0; right:0; height:50px; background:var(--cc-white); border-top:1px solid var(--cc-border); display:flex; align-items:center; justify-content:space-around; z-index:999; padding:0 4px; }
-.cc-nav-item { display:flex; flex-direction:column; align-items:center; gap:1px; text-decoration:none; color:var(--cc-muted); font-size:9px; font-weight:600; padding:4px 6px; border-radius:var(--cc-radius); transition:color .15s; min-width:50px; }
-.cc-nav-item i { font-size:15px; }
-.cc-nav-item.active { color:var(--cc-primary); }
-.cc-nav-item:hover { color:var(--cc-primary); text-decoration:none; }
+/* ── Bottom Spacer & Nav ── */
+.p-bottom-spacer { height: 52px; }
+.p-bottom-nav {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    height: 52px; background: var(--p-card);
+    border-top: 1px solid var(--p-border);
+    display: flex; align-items: center; justify-content: space-around;
+    z-index: 999; padding: 0 4px;
+}
+.p-nav-link {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 2px; padding: 6px 8px; text-decoration: none;
+    color: var(--p-muted); font-size: 10px; font-weight: 600;
+    min-width: 50px; transition: color var(--p-transition); position: relative;
+}
+.p-nav-link i { font-size: 16px; }
+.p-nav-link:hover { color: var(--p-primary); text-decoration: none; }
+.p-nav-link--active { color: var(--p-primary); }
+.p-nav-link--active::after {
+    content: ''; position: absolute;
+    bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 18px; height: 2px;
+    background: var(--p-primary); border-radius: 2px;
+}
 
-/* ── Modal (unchanged) ── */
-.cc-modal-content { border:none; border-radius:var(--cc-radius); overflow:hidden; }
-.cc-modal-header { background:var(--cc-primary); color:#fff; border:none; padding:12px 16px; font-family:var(--cc-font); }
-.cc-modal-header h5 { font-size:14px; font-weight:500; margin:0; }
-.cc-modal-header .close { color:#fff; opacity:.8; }
-.cc-modal-body { background:#faf8ff; padding:16px; }
-.cc-modal-footer { border-top:1px solid var(--cc-border); padding:10px 16px; }
-.cc-modal-section { background:var(--cc-white); border:1px solid var(--cc-border); border-radius:var(--cc-radius); padding:12px; margin-bottom:14px; }
-.cc-modal-section:last-child { margin-bottom:0; }
-.cc-modal-section-title { font-size:13px; font-weight:600; color:var(--cc-text); border-bottom:1px solid #f3f4f6; padding-bottom:8px; margin-bottom:10px; }
-.cc-modal-table-wrap { overflow-x:auto; }
-.cc-modal-table { width:100%; border-collapse:collapse; font-size:12px; }
-.cc-modal-table th { background:#faf8ff; color:var(--cc-muted); font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.4px; padding:7px 8px; border-bottom:1px solid var(--cc-border); }
-.cc-modal-table td { padding:7px 8px; border-bottom:1px solid #f3f4f6; color:var(--cc-text); }
-.cc-modal-loading { text-align:center; color:var(--cc-muted); padding:12px; }
-.cc-modal-total { text-align:right; font-size:13px; font-weight:600; margin-top:8px; }
-.cc-modal-total--red { color:var(--cc-red); }
-.cc-modal-total--green { color:var(--cc-green); }
+/* ── Select2 ── */
+.select2-container--bootstrap4 .select2-selection {
+    height: 32px !important;
+    border: 1px solid var(--p-border) !important;
+    border-radius: var(--p-radius) !important;
+    background: var(--p-card) !important;
+    transition: border-color var(--p-transition) !important;
+}
+.select2-container--bootstrap4 .select2-selection--single .select2-selection__rendered {
+    line-height: 30px !important;
+    font-size: 13px !important;
+    font-family: var(--p-font) !important;
+    color: var(--p-text) !important;
+}
+.select2-container--bootstrap4 .select2-selection--single .select2-selection__arrow { height: 30px !important; }
+.select2-container--bootstrap4 .select2-container--focus .select2-selection {
+    border-color: var(--p-primary) !important;
+    box-shadow: none !important;
+}
+.select2-container--bootstrap4 .select2-results__option--highlighted[aria-selected] {
+    background: var(--p-primary) !important;
+}
+.select2-container--bootstrap4 .select2-results__option {
+    font-family: var(--p-font) !important;
+}
+
+/* ── Checkbox ── */
+input[type="checkbox"] { accent-color: var(--p-primary); cursor: pointer; }
+
+/* ── Form-control overrides ── */
+.form-control-sm {
+    height: 32px !important;
+    font-size: 13px !important;
+    font-family: var(--p-font) !important;
+    border-radius: var(--p-radius) !important;
+}
+.form-control:focus {
+    border-color: var(--p-primary) !important;
+    box-shadow: 0 0 0 2px rgba(55,65,81,.12) !important;
+}
 
 /* ── Responsive ── */
-@media (max-width: 720px) {
-    .cc-summary-strip { grid-template-columns:1fr 1fr; }
-    .cc-summary-card { padding:8px 8px; }
-    .cc-summary-icon { width:28px; height:28px; font-size:11px; }
-    .cc-summary-value { font-size:13px; }
+@media (max-width: 768px) {
+    .form-row { flex-direction: column; align-items: stretch; }
+    .p-seg { flex-wrap: wrap; }
+    .p-seg label { flex: 1 1 auto; }
 }
 @media (max-width: 520px) {
-    .cc-summary-strip { grid-template-columns:1fr 1fr; gap:6px; }
-    .cc-search-bar { flex-direction:column; align-items:stretch; }
-    .cc-search-field { width:100%; }
-    .cc-search-actions { justify-content:space-between; }
-    .cc-table thead th, .cc-table tbody td { font-size:10px; padding:4px 4px; }
-    .cc-header-sub { display:none; }
+    .p-page-title { font-size: 16px; }
+    .p-stat { padding: 10px; }
+    .p-stat-val { font-size: 15px; }
+    .p-stat-icon { width: 32px; height: 32px; font-size: 12px; }
+
+    .p-table thead { display: none; }
+    .p-table tbody tr {
+        display: block;
+        border: 1px solid var(--p-border);
+        border-radius: var(--p-radius);
+        padding: 10px;
+        margin-bottom: 6px;
+    }
+    .p-table tbody td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border: none;
+        padding: 3px 0;
+        font-size: 12px;
+    }
+    .p-table tbody td::before {
+        content: attr(data-label);
+        font-weight: 700;
+        color: var(--p-muted);
+        font-size: 10px;
+        text-transform: uppercase;
+        min-width: 80px;
+        flex-shrink: 0;
+    }
+    .p-table tbody td:last-child {
+        justify-content: center;
+        border-top: 1px solid var(--p-primary-light);
+        padding-top: 6px; margin-top: 4px;
+    }
+    .p-table tbody td:last-child::before { content: ''; }
+
+    .p-toolbar { flex-direction: column; align-items: stretch; }
 }
+
+/* ── Print ── */
 @media print {
-    .cc-bottom-nav, .cc-bottom-spacer, .cc-search-bar { display:none !important; }
-    body, .content-wrapper { background:#fff !important; }
+    .p-bottom-nav, .p-bottom-spacer, .p-toolbar,
+    .card-header, #loadMoreWrap, .content-header,
+    .main-header, .main-sidebar { display: none !important; }
+    body, .content-wrapper { background: #fff !important; }
+    .p-card { border: 1px solid #ccc; }
+    .p-stat { border: 1px solid #ccc; }
+    .p-table { font-size: 10px; }
+    .p-table td, .p-table th { padding: 3px 4px; }
 }
 </style>
 @stop
 
-@section('js')
+@push('js')
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-
 <script>
+/* =============================================
+   PAYMENT LIST — Professional AJAX handler
+   Default view = TODAY only
+   Summary cards = calculated from the SAME rows shown in the table
+   (fixes mismatch between cards and table totals)
+============================================= */
 toastr.options = { positionClass:'toast-top-right', timeOut:3000, progressBar:true, closeButton:true };
-$.ajaxSetup({ headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' } });
+$.ajaxSetup({ headers:{ 'X-CSRF-TOKEN':'{{ csrf_token() }}' } });
 
-const DL_URLS = {
-    list           : '{{ route("billing.duelist.list") }}',
-    summary        : '{{ route("billing.duelist.summary") }}',
-    patientDetails : '{{ url("Billing/DuelistFinal/patient-details") }}',
-    paymentPrint   : '{{ url("Billing/payment") }}',
+var ROUTES = {
+    list:    '{{ route("billing.duelist.list") }}',
+    summary: '{{ route("billing.duelist.summary") }}',
+    search:  '{{ route("billing.invoice.searchPatient") }}',
+    print:   '{{ route("billing.invoice.print", ":id") }}',
 };
 
-(function () {
-'use strict';
+var currentPage = 1, lastPage = 1, isLoading = false;
+var selectedIds = new Set(), allFlatRows = [], allSelected = false;
 
-let currentPage   = 1;
-let searchTimer   = null;
-let allLoadedRows = [];
-let activeRequest = null;
-let isLoading     = false;
-let hasMorePages  = false;
+var today = new Date().toISOString().split('T')[0];
+document.getElementById('singleDate').value = today;
+document.getElementById('dateFrom').value   = today;
+document.getElementById('dateTo').value     = today;
 
-const fmt = n => '&#2547;\u00a0' + parseInt(parseFloat(n) || 0).toLocaleString('en-IN');
+/* ── Select2 ── */
+$('#patientSelect').select2({
+    theme: 'bootstrap4',
+    placeholder: 'All Patients',
+    allowClear: true,
+    ajax: {
+        url: ROUTES.search,
+        dataType: 'json',
+        delay: 300,
+        data: function (params) {
+            return {
+                q: params.term,
+                payment_source: (document.querySelector('[name=paymentSource]:checked') || {}).value || 'all'
+            };
+        },
+        processResults: function (data) {
+            return { results: data.map(function (p) { return { id: p.id, text: p.patientname + ' (' + p.patientcode + ')' }; }) };
+        },
+        cache: true,
+    },
+    minimumInputLength: 1,
+});
 
-function esc(str) {
-    if (str === null || str === undefined) return '';
-    return String(str)
-        .replace(/&/g,  '&amp;')
-        .replace(/</g,  '&lt;')
-        .replace(/>/g,  '&gt;')
-        .replace(/"/g,  '&quot;')
-        .replace(/'/g,  '&#39;');
+$('#patientSelect').on('change', function () {
+    var pid = $(this).val();
+    document.querySelectorAll('[name=dateMode]').forEach(function (r) { r.disabled = !!pid; });
+    loadData(1);
+});
+
+/* ── Date Mode ── */
+document.querySelectorAll('[name=dateMode]').forEach(function (r) {
+    r.addEventListener('change', function () {
+        document.getElementById('rangeWrap').style.display  = this.value === 'range'  ? 'flex' : 'none';
+        document.getElementById('singleWrap').style.display = this.value === 'single' ? 'flex' : 'none';
+        updateBadge();
+    });
+});
+document.querySelectorAll('[name=dateCol]').forEach(function (r) {
+    r.addEventListener('change', function () { updateBadge(); });
+});
+
+/* ── Badge (shows what filter is active on top) ── */
+function updateBadge(mode, hasPatient) {
+    var badge = document.getElementById('filterBadge');
+    var pid = $('#patientSelect').val();
+    var m = mode || document.querySelector('[name=dateMode]:checked').value;
+
+    if (pid || hasPatient) {
+        badge.innerHTML = '<i class="fas fa-user"></i> Patient — All Time';
+    } else if (m === 'range') {
+        badge.innerHTML = document.getElementById('dateFrom').value + ' — ' + document.getElementById('dateTo').value;
+    } else if (m === 'single') {
+        var chosenDate = document.getElementById('singleDate').value;
+        var label = chosenDate === today ? 'Today' : chosenDate;
+        badge.innerHTML = '<i class="fas fa-calendar-day"></i> ' + label;
+    } else {
+        badge.innerHTML = '<i class="fas fa-infinity"></i> All Time';
+    }
 }
 
-const statusBadge = (status) => {
-    const map = {
-        paid      : 'cc-badge--paid',
-        partial   : 'cc-badge--partial',
-        confirmed : 'cc-badge--confirmed',
-        due       : 'cc-badge--due',
-    };
-    const cls = map[status] || 'cc-badge--due';
-    const label = status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Due';
-    return `<span class="cc-badge ${cls}">${label}</span>`;
-};
+/* ── Params ── */
+function getParams(page) {
+    var pid = $('#patientSelect').val();
+    var dateMode = document.querySelector('[name=dateMode]:checked').value;
+    var dateCol  = document.querySelector('[name=dateCol]:checked').value;
+    var showMode = document.querySelector('[name=showMode]:checked').value;
+    var paymentSource = (document.querySelector('[name=paymentSource]:checked') || {}).value || 'all';
+    var params = new URLSearchParams({
+        page: page,
+        per_page: document.getElementById('perPage').value,
+        q: document.getElementById('searchQ').value.trim(),
+        date_column: dateCol,
+        show_all: showMode === 'all' ? 1 : 0,
+        payment_source: paymentSource,
+    });
 
-function buildTableRow(inv, idx, meta) {
-    const net    = parseFloat(inv.NetBill ?? (inv.TotalBill - (inv.Discount || 0))) || 0;
-    const due    = parseFloat(inv.DueAmount)  || 0;
-    const paid   = parseFloat(inv.PaidAmount) || 0;
-    const ptId   = esc(String(inv.patient_id || inv.PatientId || inv.id || ''));
-    const date   = inv.PaymentDate ? esc(inv.PaymentDate) : '—';
-
-    return `<tr>
-        <td>${date}</td>
-        <td style="font-weight:600;color:var(--cc-primary);">${esc(inv.BillNo)}</td>
-        <td>${esc(inv.PatientName)}</td>
-        <td class="text-right">${fmt(net)}</td>
-        <td class="text-right" style="color:var(--cc-green);font-weight:500;">${fmt(paid)}</td>
-        <td class="text-right" style="color:var(--cc-red);font-weight:600;">${fmt(due)}</td>
-        <td class="text-center">
-            <button class="cc-action-btn cc-action-btn--print" onclick="window.open('${DL_URLS.paymentPrint}/${inv.ID}/print','_blank')" title="Print"><i class="fas fa-print"></i></button>
-            <button class="cc-action-btn dl-btn-view" data-patient-id="${ptId}" title="Details"><i class="fas fa-eye"></i></button>
-        </td>
-    </tr>`;
+    if (pid) {
+        params.append('patient_id', pid);
+        params.append('date_mode', 'all');
+        updateBadge('all', true);
+    } else if (dateMode === 'range') {
+        params.append('date_mode', 'range');
+        params.append('date_from', document.getElementById('dateFrom').value);
+        params.append('date_to',   document.getElementById('dateTo').value);
+        updateBadge('range');
+    } else if (dateMode === 'single') {
+        params.append('date_mode', 'single');
+        params.append('single_date', document.getElementById('singleDate').value);
+        updateBadge('single');
+    } else {
+        params.append('date_mode', 'all');
+        updateBadge('all');
+    }
+    return params;
 }
 
-function loadDueList(page, append) {
+/* ── Load Data ── */
+function loadData(page) {
     if (isLoading) return;
-    page = page || 1;
+    isLoading = true;
     currentPage = page;
 
-    const q       = $('#listSearchInput').val().trim();
-    const showAll = $('#showAllChk').is(':checked') ? 1 : 0;
+    selectedIds.clear();
+    allSelected = false;
+    updateSelectUI();
+    document.getElementById('selectAllCheckbox').checked = false;
+    document.getElementById('tableBody').innerHTML =
+        '<tr><td colspan="8" class="p-table-msg"><i class="fas fa-circle-notch fa-spin"></i> Loading...</td></tr>';
 
-    if (!append) {
-        $('#dueTableBody').html('<tr><td colspan="7" class="cc-loader"><i class="fas fa-spinner fa-spin"></i> Loading...</td></tr>');
-        $('#loadMoreWrap').hide();
-    }
+    var params = getParams(page);
 
-    if (activeRequest) {
-        activeRequest.abort();
-        activeRequest = null;
-    }
+    fetch(ROUTES.summary + '?' + params.toString())
+        .then(function (r) { return r.json(); })
+        .then(function (s) {
+            if (s.success) {
+                document.getElementById('sumInvoices').textContent = (s.total_invoices || 0).toLocaleString();
+                document.getElementById('sumPatients').textContent = (s.total_patients || 0) + ' patient(s)';
+                document.getElementById('sumBill').textContent      = '৳ ' + fmt(s.total_bill);
+                document.getElementById('sumPaid').textContent      = '৳ ' + fmt(s.total_paid);
+                document.getElementById('sumDue').textContent       = '৳ ' + fmt(s.total_due);
+            }
+        })
+        .catch(function () {});
 
-    isLoading = true;
-    activeRequest = $.ajax({
-        url    : DL_URLS.list,
-        method : 'GET',
-        data   : { q, show_all: showAll, page, per_page: 20 },
-        success: function (res) {
-            activeRequest = null;
+    fetch(ROUTES.list + '?' + params.toString())
+        .then(function (r) { return r.json(); })
+        .then(function (res) {
+            allFlatRows = res.flat || [];
+            renderTable(res.flat || [], res.meta, false);
             isLoading = false;
-
-            const rows = res.data || [];
-            const meta = res.meta || {};
-            hasMorePages = meta.last_page > meta.current_page;
-
-            if (append) {
-                allLoadedRows = allLoadedRows.concat(rows);
-            } else {
-                allLoadedRows = rows;
-            }
-
-            if (!allLoadedRows.length) {
-                $('#dueTableBody').html('<tr><td colspan="7" class="cc-empty"><i class="fas fa-inbox"></i><p>No payment records found.</p></td></tr>');
-                $('#loadMoreWrap').hide();
-                // Reset summary
-                $('#sumTotalInvoices').text('0');
-                $('#sumTotalBill').html(fmt(0));
-                $('#sumTotalPaid').html(fmt(0));
-                $('#sumTotalDue').html(fmt(0));
-                return;
-            }
-
-            const rowsHtml = allLoadedRows.map((inv, idx) => buildTableRow(inv, idx, meta)).join('');
-            $('#dueTableBody').html(rowsHtml);
-
-            // Update summary
-            let totalInvoices = allLoadedRows.length;
-            let sumTotal = 0, sumPaid = 0, sumDue = 0;
-            allLoadedRows.forEach(inv => {
-                const net  = parseFloat(inv.NetBill ?? (inv.TotalBill - (inv.Discount || 0))) || 0;
-                sumTotal += net;
-                sumPaid  += parseFloat(inv.PaidAmount) || 0;
-                sumDue   += parseFloat(inv.DueAmount)  || 0;
-            });
-
-            $('#sumTotalInvoices').text(totalInvoices);
-            $('#sumTotalBill').html(fmt(sumTotal));
-            $('#sumTotalPaid').html(fmt(sumPaid));
-            $('#sumTotalDue').html(fmt(sumDue));
-
-            if (hasMorePages) {
-                $('#loadMoreWrap').show();
-                $('#btnLoadMore').html('<i class="fas fa-chevron-down mr-1"></i> Load More (' + (meta.total - allLoadedRows.length) + ' remaining)');
-            } else {
-                $('#loadMoreWrap').hide();
-            }
-        },
-        error: function (xhr, status) {
-            if (status === 'abort') return;
+        })
+        .catch(function () {
             isLoading = false;
-            toastr.error('Failed to load data.');
-            if (!append) {
-                $('#dueTableBody').html('<tr><td colspan="7" class="cc-empty"><i class="fas fa-exclamation-triangle"></i><p>Failed to load data.</p></td></tr>');
-            }
-        }
+            document.getElementById('tableBody').innerHTML =
+                '<tr><td colspan="8" class="p-table-msg"><i class="fas fa-exclamation-triangle" style="color:var(--p-danger);"></i> Error loading data.</td></tr>';
+        });
+}
+
+/* ── Summary cards — built from the SAME rows shown in the table below ── */
+function calcSummary(rows) {
+    var totalBill = 0;
+    var totalPaid = 0;
+    var totalDue  = 0;
+
+    rows.forEach(function (r) {
+        totalBill += parseFloat(r.TotalBill  || 0);
+        totalPaid += parseFloat(r.PaidAmount || 0);
+        totalDue  += parseFloat(r.DueAmount  || 0);
     });
+
+    document.getElementById('sumInvoices').textContent = rows.length;
+    document.getElementById('sumPatients').textContent = rows.length + ' patient(s)';
+    document.getElementById('sumBill').textContent      = '৳ ' + fmt(totalBill);
+    document.getElementById('sumPaid').textContent      = '৳ ' + fmt(totalPaid);
+    document.getElementById('sumDue').textContent       = '৳ ' + fmt(totalDue);
 }
 
-// Load summary cards (overall totals) – we keep this for the total due count (overall)
-function loadSummaryCards() {
-    $.get(DL_URLS.summary, function (res) {
-        if(res) {
-            // We only show overall due count in the first card? But we already have per-page total invoices.
-            // We'll keep the per-page summary; the summary endpoint gives overall total due and patient count.
-            // We can use it to show overall due count in a tooltip or just ignore.
-            // For simplicity we leave it.
-        }
-    }).fail(function () {});
+/* ── Format ── */
+function fmt(v) {
+    return parseFloat(v || 0).toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-// Load More
-$('#btnLoadMore').on('click', function () {
-    loadDueList(currentPage + 1, true);
-});
+/* ── Status ── */
+function getStatus(r) {
+    var total = parseFloat(r.TotalBill || 0);
+    var paid  = parseFloat(r.PaidAmount || 0);
+    var due   = parseFloat(r.DueAmount || 0);
+    if (total > 0 && due === 0) return { label: 'Paid',    cls: 'p-status--paid' };
+    if (due > 0 && paid > 0)    return { label: 'Partial', cls: 'p-status--partial' };
+    if (due > 0)                return { label: 'Due',     cls: 'p-status--due' };
+    return { label: 'Pending', cls: 'p-status--partial' };
+}
 
-// Search with debounce
-$('#listSearchInput').on('input', function () {
-    const val = $(this).val();
-    $('#btnClearSearch').toggle(val.length > 0);
-    clearTimeout(searchTimer);
-    if (val.length === 0 || val.length >= 3) {
-        searchTimer = setTimeout(() => loadDueList(1), 400);
+function renderSourceBadge(source) {
+    var s = (source || '').toLowerCase().trim();
+    if (s === 'manager') {
+        return '<span class="badge badge-primary px-1 ml-1" style="font-size:10px;font-weight:600;">Manager</span>';
     }
-});
+    if (s === 'reception') {
+        return '<span class="badge badge-info px-1 ml-1" style="font-size:10px;font-weight:600;">Reception</span>';
+    }
+    return '<span class="badge badge-secondary px-1 ml-1" style="font-size:10px;font-weight:500;">Legacy</span>';
+}
 
-$('#btnClearSearch').on('click', function () {
-    $('#listSearchInput').val('').trigger('input');
-});
+/* ── Render Table ── */
+function renderTable(rows, meta, append) {
+    var tbody = document.getElementById('tableBody');
 
-$('#showAllChk').on('change', () => loadDueList(1));
+    if (!rows.length && !append) {
+        tbody.innerHTML = '<tr><td colspan="8" class="p-table-msg"><i class="fas fa-inbox" style="font-size:20px;display:block;margin-bottom:6px;color:var(--p-border-dark);"></i>No records found.</td></tr>';
+        document.getElementById('showingFrom').textContent = '0';
+        document.getElementById('showingTo').textContent = '0';
+        document.getElementById('showingTotal').textContent = '0';
+        document.getElementById('pagination').innerHTML = '';
+        lastPage = 1;
+        return;
+    }
 
-// Explicit Load / Reset buttons
-$('#btnLoad').on('click', function () {
-    loadDueList(1);
-});
+    document.getElementById('showingFrom').textContent = meta.from || 0;
+    document.getElementById('showingTo').textContent = meta.to || 0;
+    document.getElementById('showingTotal').textContent = meta.total;
 
-$('#btnReset').on('click', function () {
-    $('#listSearchInput').val('');
-    $('#btnClearSearch').hide();
-    $('#showAllChk').prop('checked', false);
-    loadDueList(1);
-});
+    var html = '';
+    rows.forEach(function (r) {
+        var total  = parseFloat(r.TotalBill  || 0);
+        var paid   = parseFloat(r.PaidAmount || 0);
+        var due    = parseFloat(r.DueAmount  || 0);
+        var date   = (r.PaymentDate || r.created_at || '---').substring(0, 10);
+        var checked = selectedIds.has(r.ID) ? 'checked' : '';
+        var rowCls = selectedIds.has(r.ID) ? 'p-row-selected' : '';
 
-// Export CSV (reuse existing logic)
-function buildExportRows() {
-    return allLoadedRows.map(function (inv, idx) {
-        const net = parseFloat(inv.NetBill ?? (inv.TotalBill - (inv.Discount || 0))) || 0;
+        html += '<tr class="' + rowCls + '" data-id="' + r.ID + '">';
+        html += '<td data-label="Select" class="text-center"><input type="checkbox" class="row-cb" data-id="' + r.ID + '" ' + checked + ' onchange="onRowCheck(this)"></td>';
+        html += '<td data-label="Date">' + esc(date) + '</td>';
+        html += '<td data-label="Bill No" style="font-weight:700;color:var(--p-primary);">' + esc(r.BillNo || '---') + ' ' + renderSourceBadge(r.payment_source) + '</td>';
+        html += '<td data-label="Patient">' + esc(r.PatientName || '---') + '</td>';
+        html += '<td data-label="Bill" class="text-right">৳ ' + fmt(total) + '</td>';
+        html += '<td data-label="Paid" class="text-right" style="color:var(--p-success);font-weight:600;">৳ ' + fmt(paid) + '</td>';
+        html += '<td data-label="Due" class="text-right" style="color:var(--p-danger);font-weight:600;">৳ ' + fmt(due) + '</td>';
+        html += '<td data-label="Action" class="text-center">';
+        html += '<button class="p-act p-act--print" onclick="window.open(\'' + ROUTES.print.replace(':id', r.InvoiceId) + '?copy=patient\',\'_blank\')" title="Patient Copy">P</button>';
+        html += ' <button class="p-act p-act--print" onclick="window.open(\'' + ROUTES.print.replace(':id', r.InvoiceId) + '?copy=office\',\'_blank\')" title="Office Copy">O</button>';
+        html += ' <button class="p-act p-act--print" onclick="window.open(\'' + ROUTES.print.replace(':id', r.InvoiceId) + '?copy=reprint\',\'_blank\')" title="Reprint">R</button>';
+        html += '</td></tr>';
+    });
+
+    if (!append) { tbody.innerHTML = html; }
+    else { tbody.insertAdjacentHTML('beforeend', html); }
+
+    lastPage = meta.last_page;
+    renderPagination(meta);
+}
+
+/* ── Render Pagination ── */
+function renderPagination(meta) {
+    var pagination = document.getElementById('pagination');
+    var current = meta.current_page;
+    var last = meta.last_page;
+    var html = '';
+
+    if (last <= 1) {
+        pagination.innerHTML = '';
+        return;
+    }
+
+    // Previous button
+    html += '<li class="page-item ' + (current === 1 ? 'disabled' : '') + '">';
+    html += '<a class="page-link" href="#" onclick="loadData(' + (current - 1) + '); return false;">&laquo;</a>';
+    html += '</li>';
+
+    // Page numbers
+    var start = Math.max(1, current - 2);
+    var end = Math.min(last, current + 2);
+
+    if (start > 1) {
+        html += '<li class="page-item"><a class="page-link" href="#" onclick="loadData(1); return false;">1</a></li>';
+        if (start > 2) {
+            html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+        }
+    }
+
+    for (var i = start; i <= end; i++) {
+        html += '<li class="page-item ' + (i === current ? 'active' : '') + '">';
+        html += '<a class="page-link" href="#" onclick="loadData(' + i + '); return false;">' + i + '</a>';
+        html += '</li>';
+    }
+
+    if (end < last) {
+        if (end < last - 1) {
+            html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+        }
+        html += '<li class="page-item"><a class="page-link" href="#" onclick="loadData(' + last + '); return false;">' + last + '</a></li>';
+    }
+
+    // Next button
+    html += '<li class="page-item ' + (current === last ? 'disabled' : '') + '">';
+    html += '<a class="page-link" href="#" onclick="loadData(' + (current + 1) + '); return false;">&raquo;</a>';
+    html += '</li>';
+
+    pagination.innerHTML = html;
+}
+
+/* ── Checkbox ── */
+function onRowCheck(cb) {
+    var id = parseInt(cb.dataset.id);
+    cb.checked ? selectedIds.add(id) : selectedIds.delete(id);
+    var tr = cb.closest('tr');
+    if (tr) tr.classList.toggle('p-row-selected', cb.checked);
+    updateSelectUI();
+}
+
+function toggleSelectAll() {
+    allSelected = !allSelected;
+    document.querySelectorAll('.row-cb').forEach(function (cb) {
+        cb.checked = allSelected;
+        var id = parseInt(cb.dataset.id);
+        allSelected ? selectedIds.add(id) : selectedIds.delete(id);
+        var tr = cb.closest('tr');
+        if (tr) tr.classList.toggle('p-row-selected', allSelected);
+    });
+    document.getElementById('selectAllCheckbox').checked = allSelected;
+    updateSelectUI();
+}
+
+function updateSelectUI() {
+    var countEl = document.getElementById('selectedCount');
+    var btnEl = document.getElementById('btnBulkPrint');
+    if (countEl) countEl.textContent = selectedIds.size;
+    if (btnEl) btnEl.style.display = selectedIds.size > 0 ? 'inline-flex' : 'none';
+}
+
+/* ── Bulk Print ── */
+function doBulkPrint() {
+    if (!selectedIds.size) return;
+    var ids  = Array.from(selectedIds);
+    var rows = allFlatRows.filter(function (r) { return ids.includes(r.ID); });
+
+    var html = '<html><head><style>';
+    html += 'body{font-family:-apple-system,sans-serif;font-size:11px;color:#111827;padding:12px;}';
+    html += '.inv-block{border:1px solid #e5e7eb;margin-bottom:16px;padding:12px;border-radius:4px;page-break-inside:avoid;}';
+    html += '.inv-title{font-size:12px;font-weight:700;margin-bottom:8px;color:#374151;padding-bottom:6px;border-bottom:2px solid #374151;}';
+    html += 'table{width:100%;border-collapse:collapse;margin-top:6px;}';
+    html += 'th,td{border:1px solid #e5e7eb;padding:5px 8px;text-align:left;font-size:11px;}';
+    html += 'th{background:#f3f4f6;font-weight:700;text-transform:uppercase;letter-spacing:.3px;color:#374151;font-size:10px;}';
+    html += '.amount{font-weight:700;}';
+    html += '</style></head><body>';
+
+    rows.forEach(function (r) {
+        html += '<div class="inv-block">';
+        html += '<div class="inv-title">Invoice: ' + esc(r.BillNo || '---') + '</div>';
+        html += '<table>';
+        html += '<tr><th>Patient</th><td>' + esc(r.PatientName) + ' (' + esc(r.PatientCode) + ')</td><th>Mobile</th><td>' + esc(r.MobileNo || '---') + '</td></tr>';
+        html += '<tr><th>Total Bill</th><td class="amount">৳ ' + fmt(r.TotalBill) + '</td><th>Paid</th><td class="amount">৳ ' + fmt(r.PaidAmount) + '</td></tr>';
+        html += '<tr><th>Due</th><td class="amount">৳ ' + fmt(r.DueAmount) + '</td><th>Date</th><td>' + (r.PaymentDate || r.created_at || '---').substring(0,10) + '</td></tr>';
+        html += '</table></div>';
+    });
+
+    html += '</body></html>';
+
+    var frame = document.getElementById('printFrame');
+    frame.style.display = 'block';
+    frame.contentDocument.open();
+    frame.contentDocument.write(html);
+    frame.contentDocument.close();
+    setTimeout(function () { frame.contentWindow.print(); frame.style.display = 'none'; }, 400);
+    toastr.info('Printing ' + ids.length + ' invoices');
+}
+
+/* ── CSV Export ── */
+function exportCSV() {
+    if (!allFlatRows.length) { toastr.warning('No data to export.'); return; }
+    var data = allFlatRows.map(function (r, idx) {
         return {
-            '#'            : idx + 1,
-            'Date'         : inv.PaymentDate || '',
-            'Bill No'      : inv.BillNo      || '',
-            'Patient Name' : inv.PatientName || '',
-            'Patient Code' : inv.PatientCode || '',
-            'Mobile'       : inv.MobileNo    || '',
-            'Total (BDT)'  : Math.round(net),
-            'Paid (BDT)'   : Math.round(parseFloat(inv.PaidAmount) || 0),
-            'Due (BDT)'    : Math.round(parseFloat(inv.DueAmount)  || 0),
-            'Status'       : inv.Status      || '',
+            '#': idx + 1,
+            'Date': (r.PaymentDate || r.created_at || '').substring(0,10),
+            'Bill No': r.BillNo || '',
+            'Patient': r.PatientName || '',
+            'Code': r.PatientCode || '',
+            'Mobile': r.MobileNo || '',
+            'Total Bill': (parseFloat(r.TotalBill || 0)).toFixed(2),
+            'Paid': (parseFloat(r.PaidAmount || 0)).toFixed(2),
+            'Due': (parseFloat(r.DueAmount || 0)).toFixed(2),
+            'Source': r.payment_source ? (r.payment_source.charAt(0).toUpperCase() + r.payment_source.slice(1)) : 'Legacy',
         };
     });
+    var heads = Object.keys(data[0]);
+    var csv = [heads.join(',')];
+    for (var i = 0; i < data.length; i++) {
+        csv.push(heads.map(function (h) { return '"' + String(data[i][h]).replace(/"/g, '""') + '"'; }).join(','));
+    }
+    csv = csv.join('\r\n');
+    var blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = 'PaymentRecords_' + today + '.csv'; a.click();
+    URL.revokeObjectURL(url);
+    toastr.success('CSV exported');
 }
 
-const getFileName = ext => 'PaymentRecords_' + new Date().toISOString().slice(0, 10) + '.' + ext;
+/* ── Reset (goes back to Today) ── */
+function resetFilter() {
+    $('#patientSelect').val(null).trigger('change');
+    document.getElementById('searchQ').value = '';
+    document.getElementById('singleDate').value = today;
+    document.getElementById('dateFrom').value = today;
+    document.getElementById('dateTo').value = today;
+    document.getElementById('modeSingle').checked = true;
+    document.getElementById('colPayDate').checked = true;
+    var srcAll = document.getElementById('srcAll');
+    if (srcAll) srcAll.checked = true;
+    document.getElementById('rangeWrap').style.display = 'none';
+    document.getElementById('singleWrap').style.display = 'flex';
+    document.querySelectorAll('[name=dateMode]').forEach(function (r) { r.disabled = false; });
+    updateBadge('single');
+    loadData(1);
+    toastr.info('Filters reset to Today');
+}
 
-$('#btnExportCsv').on('click', function () {
-    if (!allLoadedRows.length) { toastr.warning('No data to export.'); return; }
-    const data  = buildExportRows();
-    const heads = Object.keys(data[0]);
-    const csv   = [heads.join(','), ...data.map(row =>
-        heads.map(h => '"' + String(row[h]).replace(/"/g, '""') + '"').join(',')
-    )].join('\r\n');
-    const blob = new Blob(['\uFEFF' + csv], { type:'text/csv;charset=utf-8;' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href = url; a.download = getFileName('csv'); a.click();
-    URL.revokeObjectURL(url);
-    toastr.success('CSV exported!');
-});
+/* ── Helpers ── */
+function esc(str) {
+    var div = document.createElement('div');
+    div.appendChild(document.createTextNode(str || ''));
+    return div.innerHTML;
+}
 
-// Patient Details Modal (unchanged)
-$(document).on('click', '.dl-btn-view', function () {
-    const patientId = $(this).data('patient-id');
-    if (!patientId) { toastr.error('Patient ID not found.'); return; }
-
-    $('#modalPatientName').text('Patient Ledger');
-    $('#patientDetailsModal').modal('show');
-    $('#modalBillBody').html('<tr><td colspan="5" class="cc-modal-loading"><i class="fas fa-spinner fa-spin mr-2"></i> Loading...</td></tr>');
-    $('#modalPaymentBody').html('<tr><td colspan="4" class="cc-modal-loading"><i class="fas fa-spinner fa-spin mr-2"></i> Loading...</td></tr>');
-    $('#modalTotalDue').text('\u09f3 0');
-    $('#modalTotalPayment').text('\u09f3 0');
-
-    $.get(DL_URLS.patientDetails + '/' + parseInt(patientId, 10), function (res) {
-        if (res.patient && res.patient.name) {
-            $('#modalPatientName').text(res.patient.name + ' — Ledger');
-        }
-
-        let billRows = '';
-        let computedTotalDue = 0;
-
-        if (res.bills && res.bills.length > 0) {
-            res.bills.forEach(function (b) {
-                const net  = parseFloat(b.NetBill ?? (b.TotalBill - (b.Discount || 0))) || 0;
-                const due  = parseFloat(b.DueAmount)  || 0;
-                const paid = parseFloat(b.PaidAmount) || 0;
-                computedTotalDue += due;
-
-                billRows += '<tr>' +
-                    '<td style="font-weight:600;color:var(--cc-primary)">' + esc(b.BillNo) + '</td>' +
-                    '<td class="text-right">\u09f3 ' + net.toLocaleString('en-IN') + '</td>' +
-                    '<td class="text-right" style="color:var(--cc-green)">\u09f3 ' + paid.toLocaleString('en-IN') + '</td>' +
-                    '<td class="text-right" style="color:var(--cc-red);font-weight:600;">\u09f3 ' + due.toLocaleString('en-IN') + '</td>' +
-                    '<td class="text-center"><button class="cc-action-btn cc-action-btn--print dl-btn-open-print" data-bill-id="' + esc(String(b.ID)) + '"><i class="fas fa-print"></i></button></td>' +
-                    '</tr>';
-            });
-        } else {
-            billRows = '<tr><td colspan="5" class="cc-modal-loading">No bills found</td></tr>';
-        }
-
-        $('#modalBillBody').html(billRows);
-        $('#modalTotalDue').html('\u09f3 ' + computedTotalDue.toLocaleString('en-IN'));
-
-        let paymentRows = '';
-        let computedTotalPayment = 0;
-
-        if (res.payments && res.payments.length > 0) {
-            res.payments.forEach(function (p) {
-                const amt = parseFloat(p.amount) || 0;
-                computedTotalPayment += amt;
-                paymentRows += '<tr>' +
-                    '<td>' + (esc(p.PaymentDate) || '-') + '</td>' +
-                    '<td class="text-right" style="font-weight:600;color:var(--cc-green)">\u09f3 ' + amt.toLocaleString('en-IN') + '</td>' +
-                    '<td>' + (esc(p.CollectedBy) || '-') + '</td>' +
-                    '<td class="text-center"><button class="cc-action-btn cc-action-btn--print dl-btn-open-print" data-bill-id="' + esc(String(p.ID)) + '"><i class="fas fa-print"></i></button></td>' +
-                    '</tr>';
-            });
-        } else {
-            paymentRows = '<tr><td colspan="4" class="cc-modal-loading">No payments found</td></tr>';
-        }
-
-        $('#modalPaymentBody').html(paymentRows);
-        $('#modalTotalPayment').html('\u09f3 ' + computedTotalPayment.toLocaleString('en-IN'));
-
-    }).fail(function (xhr) {
-        const msg = xhr.status === 404 ? 'Patient not found.' : 'Failed to fetch patient details.';
-        toastr.error(msg);
-    });
-});
-
-$(document).on('click', '.dl-btn-open-print', function () {
-    const billId = $(this).data('bill-id');
-    if (billId) {
-        window.open(DL_URLS.paymentPrint + '/' + parseInt(billId, 10) + '/print', '_blank');
+/* ── Init: page loads showing TODAY's data by default ── */
+document.addEventListener('DOMContentLoaded', function () {
+    var urlParams = new URLSearchParams(window.location.search);
+    var src = urlParams.get('payment_source');
+    if (src && ['all', 'reception', 'manager', 'legacy'].includes(src.toLowerCase())) {
+        var el = document.querySelector('[name=paymentSource][value="' + src.toLowerCase() + '"]');
+        if (el) el.checked = true;
     }
+    document.getElementById('singleWrap').style.display = 'flex';
+    document.getElementById('rangeWrap').style.display  = 'none';
+    updateBadge('single');
+    loadData(1);
 });
-
-$(document).ready(function () {
-    loadDueList();
-    loadSummaryCards();
-});
-
-})();
 </script>
-@stop
+@endpush

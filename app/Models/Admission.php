@@ -62,6 +62,7 @@ class Admission extends Model
         'surgeon_name',
         'assistant_surgeon',
         'anesthetist',
+        'procedure_type_id',
     ];
 
     /**
@@ -72,5 +73,10 @@ class Admission extends Model
     public function patient()
     {
         return $this->belongsTo(Patient::class, 'patientcode', 'patientcode');
+    }
+
+    public function procedureType()
+    {
+        return $this->belongsTo(ProcedureType::class);
     }
 }

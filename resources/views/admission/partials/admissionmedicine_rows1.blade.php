@@ -3,7 +3,6 @@
     <td>{{ $m->templeteid }}</td>
     <td>{{ $m->name }}</td>
     <td>{{ $m->strength }}</td>
-    <td>{{ $m->dose }}</td>
     <td>{{ $m->morning }}</td>
     <td>{{ $m->noon }}</td>
     <td>{{ $m->night }}</td>
@@ -57,11 +56,6 @@
                         </div>
 
                         <div class="col-md-4 form-group">
-                            <label>Dose</label>
-                            <input type="text" name="dose" value="{{ $m->dose }}" class="form-control">
-                        </div>
-
-                        <div class="col-md-4 form-group">
                             <label>Morning</label>
                             <input type="text" name="morning" value="{{ $m->morning }}" class="form-control">
                         </div>
@@ -106,6 +100,6 @@
 </div>
 @empty
 <tr>
-    <td colspan="11" class="text-center text-muted">No medicine found</td>
+    <td colspan="10" class="text-center text-muted">No medicine found</td>
 </tr>
 @endforelse

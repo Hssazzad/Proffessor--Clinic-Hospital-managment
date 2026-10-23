@@ -30,6 +30,7 @@
                         <th>রোগীর নাম</th>
                         <th>বয়স/লিঙ্গ</th>
                         <th>Admission ID</th>
+                        <th>বেড</th>
                         <th>অপারেশনের নাম</th>
                         <th>অপারেশনের তাং</th>
                         <th>তৈরি হয়েছে</th>
@@ -43,6 +44,7 @@
                             <td>{{ $consent->patientname }}</td>
                             <td>{{ $consent->age }} / {{ $consent->gender }}</td>
                             <td>{{ $consent->admissionid }}</td>
+                            <td>{{ $consent->bed_no ?: ($consent->bed_name ?: $consent->bed_number) }}</td>
                             <td>{{ $consent->operation_name }}</td>
                             <td>{{ $consent->operation_date ? date('d-m-Y', strtotime($consent->operation_date)) : '' }}</td>
                             <td>{{ $consent->created_at ? date('d-m-Y h:i A', strtotime($consent->created_at)) : '' }}</td>
@@ -56,7 +58,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="text-center text-muted py-4">
+                            <td colspan="9" class="text-center text-muted py-4">
                                 এখনো কোনো সম্মতি ফর্ম তৈরি হয়নি।
                             </td>
                         </tr>

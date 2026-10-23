@@ -6,12 +6,12 @@
         <tr>
             <th style="width:40px;">#</th>
             <th>Medication & Dosage</th>
-            <th>Frequency</th>
             <th>Morning</th>
             <th>Noon</th>
             <th>Night</th>
             <th>Meal Timing</th>
             <th>Duration</th>
+            <th>Instruction</th>
             <th style="width:140px;text-align:right;">Reconciliation</th>
         </tr>
     </thead>
@@ -25,10 +25,9 @@
                 if ($v === '0' || $v === '' || $v === null) return '0';
                 return $v;
             };
-            $doseParts = explode('+', str_replace('-', '+', $m->dose ?? ''));
-            $morningRaw = ($m->morning ?? '') !== '' ? $m->morning : ($doseParts[0] ?? '');
-            $noonRaw    = ($m->noon ?? '') !== '' ? $m->noon : ($doseParts[1] ?? '');
-            $nightRaw   = ($m->night ?? '') !== '' ? $m->night : ($doseParts[2] ?? '');
+            $morningRaw = ($m->morning ?? '');
+            $noonRaw    = ($m->noon ?? '');
+            $nightRaw   = ($m->night ?? '');
             $morning = $_val($morningRaw);
             $noon    = $_val($noonRaw);
             $night   = $_val($nightRaw);
@@ -40,11 +39,6 @@
                 'empty' => 'Empty Stomach',
                 default => $timingValue ?: '—',
             };
-            $freqParts = [];
-            if($morning && $morning !== '0') $freqParts[] = 'Morning';
-            if($noon && $noon !== '0') $freqParts[] = 'Noon';
-            if($night && $night !== '0') $freqParts[] = 'Night';
-            $freqText = !empty($freqParts) ? implode(', ', $freqParts) : 'As directed';
         @endphp
         <tr
             data-strength="{{ $m->strength ?? '' }}"
@@ -55,12 +49,9 @@
             <td>
                 <div class="mr-med-name">{{ $m->name }}</div>
                 @if(!empty($m->strength))
-                    <div class="mr-med-dosage">{{ $m->strength }} {{ $m->dose ?? '' }}</div>
-                @elseif(!empty($m->dose))
-                    <div class="mr-med-dosage">{{ $m->dose }}</div>
+                    <div class="mr-med-dosage">{{ $m->strength }}</div>
                 @endif
             </td>
-            <td><span class="mr-freq-text">{{ $freqText }}</span></td>
             <td>
                 <span style="display:inline-flex;align-items:center;justify-content:center;min-width:28px;height:28px;border-radius:6px;font-size:12px;font-weight:800;{{ $morning && $morning !== '0' ? 'background:var(--primary-lt);color:var(--primary);' : 'background:#f1f5f9;color:var(--txt-muted);' }}">{{ $morning }}</span>
             </td>
@@ -72,15 +63,16 @@
             </td>
             <td style="font-size:12px;font-weight:600;">{{ $timingLabel }}</td>
             <td style="font-size:12px;color:var(--txt-secondary);">{{ $m->duration ?? '—' }}</td>
+            <td style="font-size:12px;color:var(--txt-secondary);">{{ $m->instruction ?? '—' }}</td>
             <td style="text-align:right;">
                 <div class="mr-recon-actions" style="justify-content:flex-end;">
                     <button type="button"
                         class="mr-action-btn mr-action-edit editMedicineBtn"
                         title="Edit Medicine"
                         data-id="{{ $m->id }}"
+                        data-key="{{ $m->key }}"
                         data-name="{{ $m->name }}"
                         data-strength="{{ $m->strength ?? '' }}"
-                        data-dose="{{ $m->dose }}"
                         data-morning="{{ $morningRaw }}"
                         data-noon="{{ $noonRaw }}"
                         data-night="{{ $nightRaw }}"
@@ -95,7 +87,8 @@
                     <button type="button"
                         class="mr-action-btn mr-action-delete deleteMedicineBtn"
                         title="Delete Medicine"
-                        data-id="{{ $m->id }}">
+                        data-id="{{ $m->id }}"
+                        data-key="{{ $m->key }}">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>

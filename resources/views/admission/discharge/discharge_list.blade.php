@@ -3,21 +3,32 @@
 @section('title', 'রোগী ছাড়পত্র')
 
 @section('content_header')
-    <div class="cc-header">
+    <div class="cc-header" id="dischargePageHeader">
         <div class="cc-header-icon">
             <i class="fas fa-sign-out-alt"></i>
         </div>
-        <div>
-            <h1 class="cc-header-title">রোগী ছাড়পত্র ড্যাশবোর্ড</h1>
+        <div class="cc-header-text">
+            <h1 class="cc-header-title">Patient Discharge</h1>
+            <p class="cc-header-subtitle">Complete discharge documentation for admitted patients</p>
             <ul class="cc-breadcrumb">
-                <li><a href="#">ভর্তি</a></li>
-                <li class="active">ছাড়পত্রের তালিকা</li>
+                <li><a href="#">Admission</a></li>
+                <li class="active">Discharge</li>
             </ul>
+        </div>
+        <div class="cc-header-actions">
+            <a href="{{ route('admission.discharge.history') }}" class="cc-btn cc-btn-secondary btn-sm">
+                <i class="fas fa-history mr-1"></i> Discharge History
+            </a>
         </div>
     </div>
 @stop
 
 @section('content')
+@php
+    $multiIds = function ($value): array {
+        return array_values(array_filter(array_map('trim', explode(',', (string) $value)), fn ($v) => $v !== ''));
+    };
+@endphp
 <div id="ajaxMessage"></div>
 @if(session('success'))
     <div class="cc-alert cc-alert-success">{{ session('success') }}</div>
@@ -26,36 +37,35 @@
     <div class="cc-alert cc-alert-danger">{{ session('error') }}</div>
 @endif
 
-<div class="cc-layout-wrapper">
-    <!-- Left Column: Discharge Queue (Sidebar) -->
-    <div class="cc-sidebar">
-        <div class="cc-queue-card">
-            <div class="cc-queue-header">
-                <h5 class="cc-queue-title"><i class="fas fa-list-ul mr-2 text-primary"></i>ছাড়পত্রের তালিকা</h5>
-                <span class="cc-queue-badge">{{ $patients->count() }} জন রোগী</span>
-            </div>
-            <div class="cc-queue-list">
-                @forelse($patients as $p)
-                    <a href="{{ route('admission.discharge', ['patientcode' => $p->patientcode]) }}"
-                       class="cc-patient-item {{ $patientcode === $p->patientcode ? 'active' : '' }}">
-                        <div class="cc-patient-name">{{ $p->patientname }}</div>
-                        <div class="cc-patient-meta">
-                            <span>আইডি: {{ $p->patientcode }}</span>
-                            <span>ভর্তি: {{ date('d-m-Y', strtotime($p->created_at)) }}</span>
-                        </div>
-                    </a>
-                @empty
-                    <div class="text-center text-muted py-5">
-                        <i class="fas fa-user-check fa-2x mb-2 text-silver" style="color:#d1d5db;"></i>
-                        <p class="mb-0 font-weight-bold">ছাড়পত্রের জন্য কোনো রোগী প্রস্তুত নেই</p>
-                    </div>
-                @endforelse
-            </div>
+{{-- Step 1: Patient Selection --}}
+<div id="patientSelectionScreen" class="cc-selection-screen">
+    <div class="cc-selection-card">
+        <h2 class="cc-selection-title">Patient Discharge</h2>
+        <p class="cc-selection-subtitle">Select a patient to continue</p>
+        <div class="cc-selection-search">
+            <select id="patientSearchSelect" class="form-control cc-select-lg">
+                <option value="">Search patient by name / ID / mobile...</option>
+                @foreach($patients as $p)
+                    <option value="{{ route('admission.discharge', ['patientcode' => $p->patientcode]) }}">
+                        {{ $p->patientname }} — ID: {{ $p->patientcode }}@if(!empty($p->mobile_no)) — {{ $p->mobile_no }}@endif
+                    </option>
+                @endforeach
+            </select>
         </div>
+        <button type="button" id="btnSelectPatientContinue" class="cc-btn cc-btn-primary cc-btn-continue" disabled>
+            Continue
+        </button>
+        @if($patients->count() === 0)
+        <div class="cc-selection-empty">
+            <p>No patients are currently ready for discharge.</p>
+        </div>
+        @endif
     </div>
+</div>
 
-    <!-- Right Column: Details Pane (Selected Patient Details) -->
-    <div class="cc-details-pane">
+<div id="dischargeWorkflow" class="cc-workflow">
+    <div class="cc-form-pane" id="dischargeFormPane">
+
         @if($patientcode && $patient)
             @php
                 $dischargeStatus = $discharge->status ?? null;
@@ -63,56 +73,90 @@
                 $isManagerApproved = $dischargeStatus === 'completed';
                 $td = $templateDischarge ?? null;
             @endphp
-            <!-- Back to list link for mobile -->
-            <div class="mb-3 d-md-none">
-                <a href="{{ route('admission.discharge') }}" class="cc-btn cc-btn-secondary w-100">
-                    <i class="fas fa-arrow-left mr-2"></i> ছাড়পত্রের তালিকায় ফিরে যান
-                </a>
+            @php
+                $summaryWard = optional($discharge)->ward ?? optional($dischargeBed)->bed_number ?? '—';
+                $summaryDoctor = optional($discharge)->doctor_name ?? optional($dischargeDoctor)->doctor_name ?? '—';
+            @endphp
+
+            <!-- Compact Patient Summary -->
+            <div class="cc-patient-bar">
+                <div class="cc-patient-bar-top">
+                    <div class="cc-patient-bar-name">{{ $patient->patientname }}</div>
+                    <a href="{{ route('admission.discharge') }}" class="cc-btn cc-btn-secondary btn-sm cc-change-patient">Change Patient</a>
+                </div>
+                <div class="cc-patient-bar-grid">
+                    <div class="cc-patient-bar-cell">
+                        <span class="cc-patient-bar-label">ID</span>
+                        <span class="cc-patient-bar-value">{{ $patient->patientcode }}@if(!empty($admission->admissionid)) / {{ $admission->admissionid }}@endif</span>
+                    </div>
+                    <div class="cc-patient-bar-cell">
+                        <span class="cc-patient-bar-label">Mobile</span>
+                        <span class="cc-patient-bar-value">{{ $patient->mobile_no ?? '—' }}</span>
+                    </div>
+                    <div class="cc-patient-bar-cell">
+                        <span class="cc-patient-bar-label">Ward</span>
+                        <span class="cc-patient-bar-value">{{ $summaryWard }}</span>
+                    </div>
+                    <div class="cc-patient-bar-cell">
+                        <span class="cc-patient-bar-label">Doctor</span>
+                        <span class="cc-patient-bar-value">{{ $summaryDoctor }}</span>
+                    </div>
+                    <div class="cc-patient-bar-cell">
+                        <span class="cc-patient-bar-label">Status</span>
+                        <span class="cc-patient-bar-value">
+                            <span class="cc-status-pill {{ $isPendingApproval ? 'pending' : ($isManagerApproved ? 'approved' : 'draft') }}">
+                                @if($isPendingApproval)
+                                    Pending Approval
+                                @elseif($isManagerApproved)
+                                    Approved
+                                @else
+                                    Draft
+                                @endif
+                            </span>
+                        </span>
+                    </div>
+                </div>
             </div>
 
-            <!-- Patient Information Card -->
-            <div class="cc-card">
-                <div class="cc-card-header">
-                    <div class="cc-card-header-left">
-                        <div class="cc-card-icon">
-                            <i class="fas fa-user-injured"></i>
-                        </div>
-                        <div>
-                            <h4 class="cc-card-title">{{ $patient->patientname }}</h4>
-                            <small class="text-muted">কোড: {{ $patient->patientcode }} | ভর্তি আইডি: {{ $admission->admissionid ?? 'নেই' }}</small>
-                        </div>
+            <div class="cc-form-sections">
+            <div class="cc-section-card">
+                <div class="cc-section-header">
+                    <span class="cc-section-number">01</span>
+                    <div>
+                        <h4 class="cc-section-title">Patient / Admission Information</h4>
+                        <small class="cc-section-desc">Basic patient and admission details</small>
                     </div>
-                    <span class="cc-card-badge {{ $isPendingApproval ? 'cc-card-badge-warning' : ($isManagerApproved ? 'cc-card-badge-success' : '') }}">
-                        @if($isPendingApproval)
-                            ম্যানেজার অনুমোদনের অপেক্ষায়
-                        @elseif($isManagerApproved)
-                            ম্যানেজার অনুমোদিত
-                        @else
-                            স্টেজ ৬: রোগী রিলিজ
-                        @endif
-                    </span>
                 </div>
-                <div class="cc-card-body">
-                    <div class="cc-summary-grid">
-                        <div class="cc-summary-item">
-                            <div class="cc-summary-label">মোবাইল নম্বর</div>
-                            <div class="cc-summary-value">{{ $patient->mobile_no ?? 'নেই' }}</div>
+                <div class="cc-section-body">
+                    <div class="cc-info-grid">
+                        <div class="cc-info-item">
+                            <div class="cc-info-label">মোবাইল নম্বর</div>
+                            <div class="cc-info-value">{{ $patient->mobile_no ?? 'নেই' }}</div>
                         </div>
-                        <div class="cc-summary-item">
-                            <div class="cc-summary-label">বয়স</div>
-                            <div class="cc-summary-value">{{ $patient->age ?? 'নেই' }} বছর</div>
+                        <div class="cc-info-item">
+                            <div class="cc-info-label">বয়স</div>
+                            <div class="cc-info-value">{{ $patient->age ?? 'নেই' }} বছর</div>
                         </div>
-                        <div class="cc-summary-item">
-                            <div class="cc-summary-label">রক্ত গ্রুপ</div>
-                            <div class="cc-summary-value">{{ $patient->blood_group ?? 'নেই' }}</div>
+                        <div class="cc-info-item">
+                            <div class="cc-info-label">রক্ত গ্রুপ</div>
+                            <div class="cc-info-value">{{ $patient->blood_group ?? 'নেই' }}</div>
                         </div>
-                        <div class="cc-summary-item">
-                            <div class="cc-summary-label">পিতা/স্বামী</div>
-                            <div class="cc-summary-value">{{ $patient->father_name ?? 'নেই' }}</div>
+                        <div class="cc-info-item">
+                            <div class="cc-info-label">প্রক্রিয়ার ধরন</div>
+                            <div class="cc-info-value">
+                                @php
+                                    $procType = $procedureTypes->firstWhere('id', $admission->procedure_type_id ?? null);
+                                @endphp
+                                {{ $procType->procedure_name ?? '—' }}
+                            </div>
                         </div>
-                        <div class="cc-summary-item" style="grid-column: span 2;">
-                            <div class="cc-summary-label">ঠিকানা</div>
-                            <div class="cc-summary-value">
+                        <div class="cc-info-item">
+                            <div class="cc-info-label">পিতা/স্বামী</div>
+                            <div class="cc-info-value">{{ $patient->father_name ?? 'নেই' }}</div>
+                        </div>
+                        <div class="cc-info-item cc-info-item-span-2">
+                            <div class="cc-info-label">ঠিকানা</div>
+                            <div class="cc-info-value">
                                 {{ implode(', ', array_filter([$patient->village ?? $patient->address ?? null, $patient->post ?? null, $patient->thana ?? null, $patient->district ?? null])) ?: 'নেই' }}
                             </div>
                         </div>
@@ -122,45 +166,32 @@
 
             <!-- Template Summary -->
             @if($templateDischarge && ($templateDischarge->treatment ?? $templateDischarge->condition ?? $templateDischarge->follow_up ?? false))
-                <div class="cc-card">
-                    <div class="cc-card-header">
-                        <div class="cc-card-header-left">
-                            <div class="cc-card-icon">
-                                <i class="fas fa-file-medical"></i>
-                            </div>
-                            <div>
-                                <h4 class="cc-card-title">টেমপ্লেট ছাড়পত্র সারসংক্ষেপ</h4>
-                                <small class="text-muted">টেমপ্লেট আইডি: {{ $templateDischarge->templateid }}</small>
-                            </div>
+                <div class="cc-section-card cc-template-summary">
+                    <div class="cc-section-header">
+                        <span class="cc-section-number">—</span>
+                        <div>
+                            <h4 class="cc-section-title">Template Discharge Summary</h4>
+                            <small class="cc-section-desc">Template ID: {{ $templateDischarge->templateid }}</small>
                         </div>
                     </div>
-                    <div class="cc-card-body">
-                        <div class="cc-info-boxes">
+                    <div class="cc-section-body">
+                        <div class="cc-template-grid">
                             @if($templateDischarge->treatment)
-                                <div class="cc-info-box">
-                                    <div class="cc-info-box-icon blue"><i class="fas fa-pills"></i></div>
-                                    <div class="cc-info-box-content">
-                                        <div class="cc-info-box-label">প্রদত্ত চিকিৎসা</div>
-                                        <div class="cc-info-box-text">{{ $templateDischarge->treatment }}</div>
-                                    </div>
+                                <div class="cc-template-item">
+                                    <div class="cc-template-label">প্রদত্ত চিকিৎসা</div>
+                                    <div class="cc-template-text">{{ $templateDischarge->treatment }}</div>
                                 </div>
                             @endif
                             @if($templateDischarge->condition)
-                                <div class="cc-info-box">
-                                    <div class="cc-info-box-icon green"><i class="fas fa-heartbeat"></i></div>
-                                    <div class="cc-info-box-content">
-                                        <div class="cc-info-box-label">ছাড়পত্রের সময় অবস্থা</div>
-                                        <div class="cc-info-box-text">{{ $templateDischarge->condition }}</div>
-                                    </div>
+                                <div class="cc-template-item">
+                                    <div class="cc-template-label">ছাড়পত্রের সময় অবস্থা</div>
+                                    <div class="cc-template-text">{{ $templateDischarge->condition }}</div>
                                 </div>
                             @endif
                             @if($templateDischarge->follow_up)
-                                <div class="cc-info-box">
-                                    <div class="cc-info-box-icon amber"><i class="fas fa-calendar-check"></i></div>
-                                    <div class="cc-info-box-content">
-                                        <div class="cc-info-box-label">ফলোআপ পরামর্শ</div>
-                                        <div class="cc-info-box-text">{{ $templateDischarge->follow_up }}</div>
-                                    </div>
+                                <div class="cc-template-item">
+                                    <div class="cc-template-label">ফলোআপ পরামর্শ</div>
+                                    <div class="cc-template-text">{{ $templateDischarge->follow_up }}</div>
                                 </div>
                             @endif
                         </div>
@@ -168,114 +199,245 @@
                 </div>
             @endif
 
-            <!-- Discharge Slip Form -->
-            <div class="cc-card">
-                <div class="cc-card-header">
-                    <div class="cc-card-header-left">
-                        <div class="cc-card-icon">
-                            <i class="fas fa-file-medical-alt"></i>
-                        </div>
-                        <div>
-                            <h4 class="cc-card-title">ছাড়পত্রের তথ্য</h4>
-                            <small class="text-muted">ডাক্তার এখানে শুধুমাত্র ছাড়পত্রের ঔষধ এবং চূড়ান্ত স্লিপের তথ্য যুক্ত করবেন।</small>
-                        </div>
+            <!-- Section 02: Discharge Information -->
+            <div class="cc-section-card">
+                <div class="cc-section-header">
+                    <span class="cc-section-number">02</span>
+                    <div>
+                        <h4 class="cc-section-title">Discharge Information</h4>
+                        <small class="cc-section-desc">Discharge date, ward, and registration details</small>
                     </div>
                 </div>
-                <div class="cc-card-body">
+                <div class="cc-section-body">
                     <div class="cc-status-note {{ $isPendingApproval ? 'pending' : ($isManagerApproved ? 'approved' : '') }}">
                         @if($isPendingApproval)
-                            <i class="fas fa-hourglass-half mr-2"></i> ম্যানেজার অনুমোদনের অপেক্ষায়। চূড়ান্ত ছাড়পত্র লক করা আছে।
+                            <i class="fas fa-hourglass-half mr-2"></i> Pending manager approval. Final discharge is locked.
                         @elseif($isManagerApproved)
-                            <i class="fas fa-check-circle mr-2"></i> ম্যানেজার অনুমোদন করেছেন। স্লিপ প্রিন্ট করে ছাড়পত্র সম্পন্ন করুন।
+                            <i class="fas fa-check-circle mr-2"></i> Manager approved. Print slips to complete discharge.
                         @else
-                            <i class="fas fa-edit mr-2"></i> ছাড়পত্রের তথ্য পূরণ করুন, তারপর ম্যানেজার অনুমোদনের জন্য পাঠান।
+                            <i class="fas fa-edit mr-2"></i> Fill in discharge details, then submit for manager approval.
                         @endif
                     </div>
 
-                    <div class="cc-form-grid">
+                    <div class="cc-form-grid cc-form-grid-4">
                         <div class="cc-field">
-                            <label>ছাড়পত্রের তারিখ</label>
+                            <label for="discharge_date">ছাড়পত্রের তারিখ</label>
                             <input type="date" id="discharge_date" value="{{ optional($discharge)->discharge_date ? date('Y-m-d', strtotime($discharge->discharge_date)) : date('Y-m-d') }}">
                         </div>
                         <div class="cc-field">
-                            <label>ওয়ার্ড / কেবিন নং</label>
+                            <label for="discharge_ward">ওয়ার্ড / কেবিন নং</label>
                             <input type="text" id="discharge_ward" value="{{ optional($discharge)->ward ?? optional($dischargeBed)->bed_number ?? '' }}" placeholder="ওয়ার্ড / কেবিন">
                         </div>
                         <div class="cc-field">
-                            <label>রেজিঃ নং</label>
+                            <label for="discharge_reg_no">রেজিঃ নং</label>
                             <input type="text" id="discharge_reg_no" value="{{ optional($discharge)->reg_no ?? $patientcode }}" placeholder="রেজিস্ট্রেশন নং">
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 03: Diagnosis -->
+            <div class="cc-section-card">
+                <div class="cc-section-header">
+                    <span class="cc-section-number">03</span>
+                    <div>
+                        <h4 class="cc-section-title">Diagnosis</h4>
+                        <small class="cc-section-desc">Primary discharge diagnosis</small>
+                    </div>
+                </div>
+                <div class="cc-section-body">
+                    <div class="cc-form-grid">
+                        <div class="cc-field cc-field-full">
+                            <label for="discharge_diagnosis">রোগ নির্ণয়</label>
+                            @php $selDiagnosisIds = $multiIds(old('discharge_diagnosis_id', optional($discharge)->discharge_diagnosis_id)); @endphp
+                            <div class="cc-chips{{ ($dischargeDiagnoses ?? collect())->count() > 8 ? ' cc-chips-scroll' : '' }}" id="discharge_diagnosis">
+                                @foreach($dischargeDiagnoses ?? [] as $option)
+                                    <label class="cc-chip-toggle">
+                                        <input type="checkbox" value="{{ $option->id }}" data-text="{{ $option->name }}" @checked(in_array($option->id, $selDiagnosisIds))>
+                                        <span>{{ $option->name }}</span>
+                                    </label>
+                                @endforeach
+                                @if(optional($discharge)->diagnosis && !optional($discharge)->discharge_diagnosis_id)
+                                    <label class="cc-chip-toggle">
+                                        <input type="checkbox" value="{{ $discharge->diagnosis }}" data-text="{{ $discharge->diagnosis }}" checked>
+                                        <span>{{ $discharge->diagnosis }}</span>
+                                    </label>
+                                @elseif(optional($td)->condition && !optional($discharge)->discharge_diagnosis_id)
+                                    <label class="cc-chip-toggle">
+                                        <input type="checkbox" value="{{ $td->condition }}" data-text="{{ $td->condition }}" checked>
+                                        <span>{{ $td->condition }}</span>
+                                    </label>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 04: Operation Information -->
+            <div class="cc-section-card">
+                <div class="cc-section-header">
+                    <span class="cc-section-number">04</span>
+                    <div>
+                        <h4 class="cc-section-title">Operation Information</h4>
+                        <small class="cc-section-desc">Operation details and surgical team</small>
+                    </div>
+                </div>
+                <div class="cc-section-body">
+                    <div class="cc-form-grid cc-form-grid-3">
                         <div class="cc-field">
-                            <label>ডাক্তারের নাম</label>
+                            <label for="operation_name">অপারেশন নাম</label>
+                            @php $selOperationNameIds = $multiIds(old('operation_name_id', optional($discharge)->operation_name_id)); @endphp
+                            <div class="cc-chips{{ ($operationNames ?? collect())->count() > 8 ? ' cc-chips-scroll' : '' }}" id="operation_name">
+                                @foreach($operationNames ?? [] as $option)
+                                    <label class="cc-chip-toggle">
+                                        <input type="checkbox" value="{{ $option->id }}" data-text="{{ $option->name }}" @checked(in_array($option->id, $selOperationNameIds))>
+                                        <span>{{ $option->name }}</span>
+                                    </label>
+                                @endforeach
+                            </div>
+                        </div>
+                        <div class="cc-field">
+                            <label for="operation_date">অপারেশন তারিখ</label>
+                            <input type="date" id="operation_date" value="{{ optional($discharge)->operation_date ? date('Y-m-d', strtotime($discharge->operation_date)) : '' }}">
+                        </div>
+                        <div class="cc-field cc-field-full">
+                            <label for="operation_method">অপারেশন পদ্ধতি ও প্রাপ্ত তথ্যাবলী</label>
+                            @php $selOperationMethodIds = $multiIds(old('operation_method_id', optional($discharge)->operation_method_id)); @endphp
+                            <div class="cc-chips{{ ($operationMethods ?? collect())->count() > 8 ? ' cc-chips-scroll' : '' }}" id="operation_method">
+                                @foreach($operationMethods ?? [] as $option)
+                                    <label class="cc-chip-toggle">
+                                        <input type="checkbox" value="{{ $option->id }}" data-text="{{ $option->name }}" @checked(in_array($option->id, $selOperationMethodIds))>
+                                        <span>{{ $option->name }}</span>
+                                    </label>
+                                @endforeach
+                                @if(optional($discharge)->operation_method && !optional($discharge)->operation_method_id)
+                                    <label class="cc-chip-toggle">
+                                        <input type="checkbox" value="{{ $discharge->operation_method }}" data-text="{{ $discharge->operation_method }}" checked>
+                                        <span>{{ $discharge->operation_method }}</span>
+                                    </label>
+                                @endif
+                            </div>
+                        </div>
+                        <div class="cc-field">
+                            <label for="surgeon">সার্জন</label>
+                            @php $selSurgeonIds = $multiIds(old('surgeon_id', optional($discharge)->surgeon_id)); @endphp
+                            <div class="cc-chips{{ ($surgeons ?? collect())->count() > 8 ? ' cc-chips-scroll' : '' }}" id="surgeon">
+                                @foreach($surgeons ?? [] as $option)
+                                    <label class="cc-chip-toggle">
+                                        <input type="checkbox" value="{{ $option->id }}" data-text="{{ $option->doctor_name }}" @checked(in_array($option->id, $selSurgeonIds))>
+                                        <span>{{ $option->doctor_name }}</span>
+                                    </label>
+                                @endforeach
+                            </div>
+                        </div>
+                        <div class="cc-field">
+                            <label for="anesthetist">এ্যানেসথেটিষ্ট</label>
+                            @php $selAnesthetistIds = $multiIds(old('anesthesiologist_id', optional($discharge)->anesthesiologist_id)); @endphp
+                            <div class="cc-chips{{ ($anesthesiologists ?? collect())->count() > 8 ? ' cc-chips-scroll' : '' }}" id="anesthetist">
+                                @foreach($anesthesiologists ?? [] as $option)
+                                    <label class="cc-chip-toggle">
+                                        <input type="checkbox" value="{{ $option->id }}" data-text="{{ $option->name }}" @checked(in_array($option->id, $selAnesthetistIds))>
+                                        <span>{{ $option->name }}</span>
+                                    </label>
+                                @endforeach
+                            </div>
+                        </div>
+                        <div class="cc-field">
+                            <label for="assistant_1">এ্যাসিসট্যান্ট</label>
+                            @php $selAssistant1Ids = $multiIds(old('assistant_surgeon_1_id', optional($discharge)->assistant_surgeon_1_id)); @endphp
+                            <div class="cc-chips{{ ($assistantSurgeons ?? collect())->count() > 8 ? ' cc-chips-scroll' : '' }}" id="assistant_1">
+                                @foreach($assistantSurgeons ?? [] as $option)
+                                    <label class="cc-chip-toggle">
+                                        <input type="checkbox" value="{{ $option->id }}" data-text="{{ $option->name }}" @checked(in_array($option->id, $selAssistant1Ids))>
+                                        <span>{{ $option->name }}</span>
+                                    </label>
+                                @endforeach
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 05: Doctor / Surgical Information -->
+            <div class="cc-section-card">
+                <div class="cc-section-header">
+                    <span class="cc-section-number">05</span>
+                    <div>
+                        <h4 class="cc-section-title">Doctor / Surgical Information</h4>
+                        <small class="cc-section-desc">Attending doctor responsible for discharge</small>
+                    </div>
+                </div>
+                <div class="cc-section-body">
+                    <div class="cc-form-grid cc-form-grid-3">
+                        <div class="cc-field">
+                            <label for="discharge_doctor_name">ডাক্তারের নাম</label>
                             <input type="text" id="discharge_doctor_name" value="{{ optional($discharge)->doctor_name ?? optional($dischargeDoctor)->doctor_name ?? '' }}" placeholder="দায়িত্বরত ডাক্তার">
                         </div>
-                        <div class="cc-field cc-field-wide">
-                            <label>রোগ নির্ণয়</label>
-                            <input type="text" id="discharge_diagnosis" value="{{ optional($discharge)->diagnosis ?? optional($td)->condition ?? '' }}" placeholder="রোগ নির্ণয়">
-                        </div>
                     </div>
+                </div>
+            </div>
 
-                    <div class="cc-subsection-title"><i class="fas fa-notes-medical mr-2"></i>অপারেশন নোট</div>
-                    <div class="cc-form-grid">
-                        <div class="cc-field cc-field-wide">
-                            <label>অপারেশন নাম ও তারিখ</label>
-                            <input type="text" id="operation_name" value="{{ optional($discharge)->operation_name ?? '' }}" placeholder="অপারেশন নাম ও তারিখ">
-                        </div>
-                        <div class="cc-field cc-field-wide">
-                            <label>অপারেশন পদ্ধতি ও প্রাপ্ত তথ্যাবলী</label>
-                            <textarea id="operation_method" rows="3" placeholder="অপারেশন পদ্ধতি / প্রাপ্ত তথ্যাবলী">{{ optional($discharge)->operation_method ?? '' }}</textarea>
-                        </div>
-                        <div class="cc-field">
-                            <label>সার্জন</label>
-                            <input type="text" id="surgeon" value="{{ optional($discharge)->surgeon ?? '' }}">
-                        </div>
-                        <div class="cc-field">
-                            <label>এ্যানেসথেটিষ্ট</label>
-                            <input type="text" id="anesthetist" value="{{ optional($discharge)->anesthetist ?? '' }}">
-                        </div>
-                        <div class="cc-field">
-                            <label>এ্যাসিসট্যান্ট ১</label>
-                            <input type="text" id="assistant_1" value="{{ optional($discharge)->assistant_1 ?? '' }}">
-                        </div>
-                        <div class="cc-field">
-                            <label>এ্যাসিসট্যান্ট ২</label>
-                            <input type="text" id="assistant_2" value="{{ optional($discharge)->assistant_2 ?? '' }}">
-                        </div>
+            <!-- Section 06: Clinical / Treatment Information -->
+            <div class="cc-section-card">
+                <div class="cc-section-header">
+                    <span class="cc-section-number">06</span>
+                    <div>
+                        <h4 class="cc-section-title">Clinical / Treatment Information</h4>
+                        <small class="cc-section-desc">Investigations, blood group, and allergies</small>
                     </div>
-
-                    <div class="cc-subsection-title"><i class="fas fa-clipboard-list mr-2"></i>চিকিৎসা পরামর্শ</div>
+                </div>
+                <div class="cc-section-body">
                     <div class="cc-form-grid">
-                        <div class="cc-field cc-field-wide">
-                            <label>পরীক্ষা নিরীক্ষার নোট</label>
+                        <div class="cc-field cc-field-full">
+                            <label for="investigations">পরীক্ষা নিরীক্ষার নোট</label>
                             <textarea id="investigations" rows="3" placeholder="পরীক্ষা নিরীক্ষার নোট">{{ optional($discharge)->investigations ?? '' }}</textarea>
                         </div>
                         <div class="cc-field">
-                            <label>রক্ত গ্রুপ</label>
+                            <label for="discharge_blood_group">রক্ত গ্রুপ</label>
                             <input type="text" id="discharge_blood_group" value="{{ optional($discharge)->blood_group ?? ($patient->blood_group ?? '') }}">
                         </div>
                         <div class="cc-field">
-                            <label>ড্রাগ এ্যালার্জী</label>
+                            <label for="drug_allergy">ড্রাগ এ্যালার্জী</label>
                             <input type="text" id="drug_allergy" value="{{ optional($discharge)->drug_allergy ?? '' }}">
                         </div>
-                        <div class="cc-field">
-                            <label>পরবর্তী ভিজিটের তারিখ</label>
-                            <input type="date" id="follow_up_date" value="{{ optional($discharge)->follow_up_date ? date('Y-m-d', strtotime($discharge->follow_up_date)) : '' }}">
-                        </div>
-                        <div class="cc-field cc-field-wide">
-                            <label>চিকিৎসা পরামর্শ / নির্দেশনা</label>
-                            <textarea id="discharge_notes" rows="4" placeholder="পরামর্শ ও ছাড়পত্রের নির্দেশনা">{{ optional($discharge)->notes ?? optional($td)->treatment ?? optional($td)->follow_up ?? '' }}</textarea>
-                        </div>
                     </div>
+                </div>
+            </div>
 
-                    <div class="cc-subsection-title d-flex justify-content-between align-items-center">
-                        <span><i class="fas fa-pills mr-2"></i>ছাড়পত্রের নতুন ঔষধ</span>
+            <!-- Section 07: Discharge Medicines -->
+            <div class="cc-section-card">
+                <div class="cc-section-header">
+                    <span class="cc-section-number">07</span>
+                    <div>
+                        <h4 class="cc-section-title">Discharge Medicines</h4>
+                        <small class="cc-section-desc">Medicines to be given at discharge</small>
+                    </div>
+                </div>
+                <div class="cc-section-body">
+                    <div class="cc-medicine-toolbar">
+                        <div class="cc-medicine-search">
+                            <select id="commonMedicineSelect" class="form-control select2" style="width:100%;">
+                                <option value="">ঔষধ সার্চ করুন (নাম বা পাওয়ার লিখুন)...</option>
+                                @foreach($commonMedicines as $cm)
+                                    <option value="{{ $cm->id }}" data-name="{{ $cm->name ?? '' }}" data-strength="{{ $cm->strength ?? '' }}">
+                                        {{ $cm->name ?? '' }} {{ $cm->strength ? ' (' . $cm->strength . ')' : '' }} {{ !empty($cm->company) ? ' [' . $cm->company . ']' : '' }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <button type="button" class="cc-btn cc-btn-primary btn-sm" onclick="addMedicineFromSelect()">
+                            <i class="fas fa-plus-circle mr-1"></i> যোগ করুন
+                        </button>
                         <button type="button" class="cc-btn cc-btn-secondary btn-sm" onclick="addDischargeMedicineRow()">
-                            <i class="fas fa-plus"></i> ঔষধ যুক্ত করুন
+                            <i class="fas fa-plus"></i> খালি সারি যোগ করুন
                         </button>
                     </div>
                     <datalist id="medicineSuggestions">
                         @foreach($commonMedicines as $medicineOption)
-                            <option value="{{ $medicineOption->name ?? '' }}"></option>
+                            <option value="{{ $medicineOption->name ?? '' }}" data-strength="{{ $medicineOption->strength ?? '' }}">
+                                {{ $medicineOption->name ?? '' }} {{ $medicineOption->strength ? '(' . $medicineOption->strength . ')' : '' }}
+                            </option>
                         @endforeach
                     </datalist>
                     <div class="cc-med-table-wrapper">
@@ -285,10 +447,11 @@
                                     <th style="width: 40px;">#</th>
                                     <th>ঔষধের নাম</th>
                                     <th>Strength</th>
-                                    <th>Dose</th>
                                     <th class="cc-dosage-header">সকাল</th>
                                     <th class="cc-dosage-header">দুপুর</th>
                                     <th class="cc-dosage-header">রাত</th>
+                                    <th>কত দিন</th>
+                                    <th>খাবার</th>
                                     <th style="width: 54px;">অ্যাকশন</th>
                                 </tr>
                             </thead>
@@ -298,10 +461,19 @@
                                         <td class="dm-sl">{{ $i + 1 }}</td>
                                         <td><input type="text" class="dm-name" list="medicineSuggestions" value="{{ $m->medicine_name ?? $m->name ?? '' }}"></td>
                                         <td><input type="text" class="dm-strength" value="{{ $m->strength ?? '' }}"></td>
-                                        <td><input type="text" class="dm-dose" value="{{ $m->dose ?? '' }}"></td>
                                         <td><input type="text" class="dm-morning" value="{{ $m->morning ?? '' }}"></td>
                                         <td><input type="text" class="dm-noon" value="{{ $m->noon ?? '' }}"></td>
                                         <td><input type="text" class="dm-night" value="{{ $m->night ?? '' }}"></td>
+                                        <td><input type="text" class="dm-days" placeholder="দিন" value="{{ $m->days ?? '' }}" style="width:60px;"></td>
+                                        <td>
+                                            <select class="dm-timing" style="width:100%;padding:4px;">
+                                                <option value="">-- নির্বাচন --</option>
+                                                <option value="খাবার আগে" {{ ($m->timing ?? '') === 'খাবার আগে' ? 'selected' : '' }}>খাবার আগে</option>
+                                                <option value="খাবার পরে" {{ ($m->timing ?? '') === 'খাবার পরে' ? 'selected' : '' }}>খাবার পরে</option>
+                                                <option value="খাবার সাথে" {{ ($m->timing ?? '') === 'খাবার সাথে' ? 'selected' : '' }}>খাবার সাথে</option>
+                                                <option value="খালি পেটে" {{ ($m->timing ?? '') === 'খালি পেটে' ? 'selected' : '' }}>খালি পেটে</option>
+                                            </select>
+                                        </td>
                                         <td><button type="button" class="cc-row-remove" onclick="removeDischargeMedicineRow(this)"><i class="fas fa-times"></i></button></td>
                                     </tr>
                                 @empty
@@ -309,10 +481,19 @@
                                         <td class="dm-sl">1</td>
                                         <td><input type="text" class="dm-name" list="medicineSuggestions" placeholder="ঔষধের নাম"></td>
                                         <td><input type="text" class="dm-strength" placeholder="Strength"></td>
-                                        <td><input type="text" class="dm-dose" placeholder="Dose"></td>
                                         <td><input type="text" class="dm-morning" placeholder="0"></td>
                                         <td><input type="text" class="dm-noon" placeholder="0"></td>
                                         <td><input type="text" class="dm-night" placeholder="0"></td>
+                                        <td><input type="text" class="dm-days" placeholder="দিন" style="width:60px;"></td>
+                                        <td>
+                                            <select class="dm-timing" style="width:100%;padding:4px;">
+                                                <option value="">-- নির্বাচন --</option>
+                                                <option value="খাবার আগে">খাবার আগে</option>
+                                                <option value="খাবার পরে">খাবার পরে</option>
+                                                <option value="খাবার সাথে">খাবার সাথে</option>
+                                                <option value="খালি পেটে">খালি পেটে</option>
+                                            </select>
+                                        </td>
                                         <td><button type="button" class="cc-row-remove" onclick="removeDischargeMedicineRow(this)"><i class="fas fa-times"></i></button></td>
                                     </tr>
                                 @endforelse
@@ -322,22 +503,89 @@
                 </div>
             </div>
 
-            <!-- Action Panel -->
-            <div class="cc-card p-3 d-flex justify-content-center gap-3 flex-wrap bg-light">
-                <button type="button" onclick="submitDischargeForApproval()" class="cc-btn cc-btn-primary btn-lg px-4 shadow-sm">
-                    <i class="fas fa-paper-plane mr-2"></i> সংরক্ষণ করে অনুমোদনের জন্য পাঠান
-                </button>
-                @if($isPendingApproval)
-                    <button type="button" onclick="approveDischarge()" class="cc-btn cc-btn-success btn-lg px-4 shadow-sm">
-                        <i class="fas fa-user-check mr-2"></i> ম্যানেজার অনুমোদন
-                    </button>
-                @endif
-                <button type="button" onclick="printSlip()" class="cc-btn cc-btn-warning btn-lg px-4 shadow-sm">
-                    <i class="fas fa-print mr-2"></i> ৪টি স্লিপ প্রিন্ট করুন
-                </button>
-                <button type="button" onclick="doDischarge()" class="cc-btn cc-btn-danger btn-lg px-4 shadow-sm" {{ $isManagerApproved ? '' : 'disabled' }}>
-                    <i class="fas fa-sign-out-alt mr-2"></i> চূড়ান্ত ছাড়পত্র
-                </button>
+            <!-- Section 08: Follow-up / Instructions -->
+            <div class="cc-section-card">
+                <div class="cc-section-header">
+                    <span class="cc-section-number">08</span>
+                    <div>
+                        <h4 class="cc-section-title">Follow-up / Instructions</h4>
+                        <small class="cc-section-desc">Follow-up visit and discharge instructions</small>
+                    </div>
+                </div>
+                <div class="cc-section-body">
+                    <div class="cc-form-grid cc-form-grid-3">
+                        <div class="cc-field">
+                            <label for="follow_up_date">পরবর্তী ভিজিটের তারিখ</label>
+                            <input type="date" id="follow_up_date" value="{{ optional($discharge)->follow_up_date ? date('Y-m-d', strtotime($discharge->follow_up_date)) : '' }}">
+                        </div>
+                        <div class="cc-field cc-field-span-2">
+                            <label for="discharge_notes">চিকিৎসা পরামর্শ / নির্দেশনা</label>
+                            @php $selInstructionIds = $multiIds(old('discharge_instruction_id', optional($discharge)->discharge_instruction_id)); @endphp
+                            <div class="cc-chips{{ ($dischargeInstructions ?? collect())->count() > 8 ? ' cc-chips-scroll' : '' }}" id="discharge_notes">
+                                @foreach($dischargeInstructions ?? [] as $option)
+                                    <label class="cc-chip-toggle">
+                                        <input type="checkbox" value="{{ $option->id }}" data-text="{{ $option->name }}" @checked(in_array($option->id, $selInstructionIds))>
+                                        <span>{{ $option->name }}</span>
+                                    </label>
+                                @endforeach
+                                @if(optional($discharge)->notes && !optional($discharge)->discharge_instruction_id)
+                                    <label class="cc-chip-toggle">
+                                        <input type="checkbox" value="{{ $discharge->notes }}" data-text="{{ $discharge->notes }}" checked>
+                                        <span>{{ $discharge->notes }}</span>
+                                    </label>
+                                @elseif((optional($td)->treatment || optional($td)->follow_up) && !optional($discharge)->discharge_instruction_id)
+                                    @php
+                                        $legacyVal = optional($td)->treatment ?? optional($td)->follow_up;
+                                    @endphp
+                                    <label class="cc-chip-toggle">
+                                        <input type="checkbox" value="{{ $legacyVal }}" data-text="{{ $legacyVal }}" checked>
+                                        <span>{{ $legacyVal }}</span>
+                                    </label>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            </div>{{-- /.cc-form-sections --}}
+
+            <!-- Section 09: Final Actions -->
+            <div class="cc-action-panel">
+                <div class="cc-action-panel-inner">
+                    @if($historyMode)
+                    <div class="cc-action-primary">
+                        <button type="button" onclick="printSlip()" class="cc-btn cc-btn-primary btn-lg">
+                            <i class="fas fa-file-pdf mr-2"></i> Print / Save PDF
+                        </button>
+                        <a href="{{ route('admission.discharge.history') }}" class="cc-btn cc-btn-secondary btn-lg">
+                            <i class="fas fa-history mr-2"></i> ইতিহাসে ফিরে যান
+                        </a>
+                    </div>
+                    @else
+                    <div class="cc-action-primary">
+                        <button type="button" onclick="submitDischargeForApproval()" class="cc-btn cc-btn-primary btn-lg">
+                            <i class="fas fa-paper-plane mr-2"></i> Save &amp; Submit for Approval
+                        </button>
+                        @if($isPendingApproval)
+                        <button type="button" onclick="approveDischarge()" class="cc-btn cc-btn-success btn-lg">
+                            <i class="fas fa-user-check mr-2"></i> Manager Approval
+                        </button>
+                        @endif
+                    </div>
+                    <div class="cc-action-secondary">
+                        <button type="button" onclick="printSlip()" class="cc-btn cc-btn-secondary">
+                            <i class="fas fa-print mr-2"></i> ৪টি স্লিপ প্রিন্ট করুন
+                        </button>
+                        <button type="button" onclick="printSlip()" class="cc-btn cc-btn-secondary">
+                            <i class="fas fa-file-pdf mr-2"></i> Print / Save PDF
+                        </button>
+                        <button type="button" onclick="doDischarge()" class="cc-btn cc-btn-outline-danger" {{ $isManagerApproved ? '' : 'disabled' }}>
+                            <i class="fas fa-sign-out-alt mr-2"></i> চূড়ান্ত ছাড়পত্র
+                        </button>
+                    </div>
+                    @endif
+                </div>
             </div>
 
             <!-- Hidden print values -->
@@ -365,29 +613,48 @@
     </div>
 </div>
 
-<div id="printArea" style="display:none;"></div>
+<div id="printArea" style="display:none;">
+    @include('admission.discharge.partials.discharge_booklet')
+</div>
 @endsection
 
 @section('css')
 <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap4-theme@1.5.4/dist/select2-bootstrap4.min.css" rel="stylesheet" />
 <style>
+/* Select2 customization */
+.select2-container--bootstrap4 .select2-selection {
+    border: 1px solid var(--cc-border) !important;
+    border-radius: var(--cc-radius) !important;
+    height: 38px !important;
+    padding: 4px 8px !important;
+    font-size: 13px !important;
+}
+.select2-container--bootstrap4.select2-container--focus .select2-selection {
+    border-color: var(--cc-primary) !important;
+    box-shadow: 0 0 0 2px rgba(15, 82, 186, .15) !important;
+}
 :root {
-    --cc-bg: #faf8ff;
-    --cc-primary: #0f52ba;
-    --cc-primary-dark: #0b3d8a;
-    --cc-primary-light: #e8edff;
+    --cc-bg: #eef1f5;
+    --cc-primary: #2563eb;
+    --cc-primary-dark: #1d4ed8;
+    --cc-primary-light: #eff6ff;
     --cc-white: #ffffff;
-    --cc-border: #d9d9e2;
-    --cc-text: #1a1a2e;
-    --cc-muted: #6b7280;
-    --cc-green: #10b981;
+    --cc-border: #e2e8f0;
+    --cc-text: #0f172a;
+    --cc-muted: #64748b;
+    --cc-green: #059669;
     --cc-green-bg: #ecfdf5;
-    --cc-red: #ef4444;
+    --cc-red: #dc2626;
     --cc-red-bg: #fef2f2;
-    --cc-amber: #f59e0b;
+    --cc-amber: #d97706;
     --cc-amber-bg: #fffbeb;
-    --cc-radius: 4px;
+    --cc-radius: 8px;
     --cc-font: 'Hanken Grotesk', system-ui, -apple-system, sans-serif;
+    --cc-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+    --cc-section-gap: 14px;
+    --cc-field-gap: 14px;
 }
 
 body, .content-wrapper {
@@ -398,10 +665,22 @@ body, .content-wrapper {
 
 .cc-header {
     display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 16px;
-    padding: 10px 4px 0;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 20px;
+    padding: 12px 0 0;
+    flex-wrap: wrap;
+}
+.cc-header-text { flex: 1; min-width: 200px; }
+.cc-header-subtitle {
+    font-size: 13px;
+    color: var(--cc-muted);
+    margin: 4px 0 6px;
+}
+.cc-header-actions {
+    flex-shrink: 0;
+    padding-top: 4px;
 }
 .cc-header-icon {
     width: 40px;
@@ -437,83 +716,174 @@ body, .content-wrapper {
 .cc-breadcrumb a:hover { text-decoration: underline; }
 .cc-breadcrumb .active { color: var(--cc-muted); }
 
-/* Layout Grid */
-.cc-layout-wrapper {
-    display: flex;
-    gap: 16px;
-    align-items: flex-start;
+/* Full-width workflow — no sidebar */
+#dischargeWorkflow {
+    display: none;
+    width: 100%;
+    max-width: 100%;
 }
-.cc-sidebar {
-    flex: 0 0 32%;
-    min-width: 280px;
+#dischargeWorkflow.is-visible {
+    display: block;
 }
-.cc-details-pane {
-    flex: 1;
-    min-width: 400px;
+.cc-workflow,
+.cc-form-pane {
+    width: 100%;
+    max-width: 100%;
 }
 
-/* Sidebar List */
-.cc-queue-card {
+/* Section cards */
+.cc-form-sections {
+    display: flex;
+    flex-direction: column;
+    gap: var(--cc-section-gap);
+    margin-bottom: var(--cc-section-gap);
+}
+.cc-section-card {
     background: var(--cc-white);
     border: 1px solid var(--cc-border);
     border-radius: var(--cc-radius);
+    box-shadow: var(--cc-shadow);
     overflow: hidden;
 }
-.cc-queue-header {
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--cc-border);
-    background: var(--cc-white);
+.cc-section-header {
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    gap: 12px;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--cc-border);
+    background: #fafbfc;
 }
-.cc-queue-title {
+.cc-section-body {
+    padding: 16px 20px;
+}
+.cc-section-number {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--cc-primary);
+    font-variant-numeric: tabular-nums;
+    min-width: 28px;
+    flex-shrink: 0;
+}
+.cc-section-title {
     font-size: 14px;
     font-weight: 700;
     color: var(--cc-text);
     margin: 0;
+    line-height: 1.3;
 }
-.cc-queue-badge {
-    background: var(--cc-primary-light);
-    color: var(--cc-primary);
+.cc-section-desc {
+    display: block;
+    font-size: 12px;
+    color: var(--cc-muted);
+    margin-top: 1px;
+    font-weight: 400;
+}
+
+/* Compact patient bar */
+.cc-patient-bar {
+    background: var(--cc-white);
+    border: 1px solid var(--cc-border);
+    border-left: 3px solid var(--cc-primary);
+    border-radius: var(--cc-radius);
+    box-shadow: var(--cc-shadow);
+    margin-bottom: var(--cc-section-gap);
+    padding: 14px 20px;
+}
+.cc-patient-bar-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+.cc-patient-bar-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--cc-text);
+}
+.cc-patient-bar-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 8px 24px;
+}
+.cc-patient-bar-label {
+    display: block;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--cc-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin-bottom: 2px;
+}
+.cc-patient-bar-value {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--cc-text);
+    line-height: 1.3;
+}
+.cc-status-pill {
+    display: inline-block;
     font-size: 11px;
     font-weight: 600;
     padding: 2px 8px;
-    border-radius: 20px;
+    border-radius: 4px;
+    line-height: 1.4;
 }
-.cc-queue-list {
-    max-height: calc(100vh - 200px);
-    overflow-y: auto;
+.cc-status-pill.pending { background: var(--cc-amber-bg); color: #92400e; }
+.cc-status-pill.approved { background: var(--cc-green-bg); color: #047857; }
+.cc-status-pill.draft { background: #f1f5f9; color: var(--cc-muted); }
+
+/* Info grid (read-only patient fields) */
+.cc-info-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--cc-field-gap);
 }
-.cc-patient-item {
-    display: block;
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--cc-border);
-    color: var(--cc-text) !important;
-    text-decoration: none !important;
-    transition: background-color 0.15s;
+.cc-info-item {
+    min-width: 0;
 }
-.cc-patient-item:last-child {
-    border-bottom: none;
+.cc-info-item-span-2 {
+    grid-column: span 2;
 }
-.cc-patient-item:hover {
-    background: #f8f7fc;
+.cc-info-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--cc-muted);
+    margin-bottom: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
 }
-.cc-patient-item.active {
-    background: var(--cc-primary-light);
-    border-left: 4px solid var(--cc-primary);
-    padding-left: 12px;
-}
-.cc-patient-name {
-    font-size: 14px;
+.cc-info-value {
+    font-size: 13px;
     font-weight: 600;
+    color: var(--cc-text);
+    line-height: 1.4;
+}
+
+/* Template summary */
+.cc-template-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--cc-field-gap);
+}
+.cc-template-item {
+    background: #f8fafc;
+    border: 1px solid var(--cc-border);
+    border-radius: var(--cc-radius);
+    padding: 12px 14px;
+}
+.cc-template-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--cc-muted);
     margin-bottom: 4px;
 }
-.cc-patient-meta {
-    display: flex;
-    justify-content: space-between;
-    font-size: 11px;
-    color: var(--cc-muted);
+.cc-template-text {
+    font-size: 13px;
+    color: var(--cc-text);
+    line-height: 1.45;
+    white-space: pre-wrap;
 }
 
 /* Detail Card */
@@ -576,18 +946,18 @@ body, .content-wrapper {
     border-color: #a7f3d0;
 }
 .cc-card-body {
-    padding: 16px;
+    padding: 14px 16px;
 }
 
 .cc-status-note {
     border: 1px solid var(--cc-border);
-    background: #faf8ff;
+    background: #f8fafc;
     color: var(--cc-muted);
     border-radius: var(--cc-radius);
-    padding: 10px 12px;
+    padding: 10px 14px;
     font-size: 13px;
     font-weight: 600;
-    margin-bottom: 16px;
+    margin-bottom: 14px;
 }
 .cc-status-note.pending {
     background: var(--cc-amber-bg);
@@ -603,34 +973,45 @@ body, .content-wrapper {
 .cc-form-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 12px;
-    margin-bottom: 16px;
+    gap: var(--cc-field-gap);
+}
+.cc-form-grid-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.cc-form-grid-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 .cc-field {
     min-width: 0;
 }
+.cc-field-full,
 .cc-field-wide {
-    grid-column: span 3;
+    grid-column: 1 / -1;
+}
+.cc-field-span-2 {
+    grid-column: span 2;
 }
 .cc-field label {
     display: block;
     font-size: 11px;
     color: var(--cc-muted);
-    font-weight: 700;
-    margin-bottom: 5px;
-    text-transform: uppercase;
-    letter-spacing: .3px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    letter-spacing: 0.2px;
 }
 .cc-field input,
-.cc-field textarea {
+.cc-field textarea,
+.cc-field select.form-select {
     width: 100%;
     border: 1px solid var(--cc-border);
     border-radius: var(--cc-radius);
-    padding: 8px 10px;
+    padding: 10px 12px;
     font-size: 13px;
     color: var(--cc-text);
     background: #fff;
     outline: none;
+    min-height: 40px;
+    line-height: 1.3;
 }
 .cc-field textarea {
     resize: vertical;
@@ -638,6 +1019,7 @@ body, .content-wrapper {
 }
 .cc-field input:focus,
 .cc-field textarea:focus,
+.cc-field select.form-select:focus,
 .cc-discharge-med-table input:focus {
     border-color: var(--cc-primary);
     box-shadow: 0 0 0 2px rgba(15, 82, 186, .10);
@@ -649,6 +1031,69 @@ body, .content-wrapper {
     margin: 18px 0 10px;
 }
 
+/* ═══ Checkbox Chip Groups (multi-select replacement, pure CSS) ═══ */
+.cc-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 2px;
+}
+.cc-chips.cc-chips-scroll {
+    max-height: 132px;
+    overflow-y: auto;
+    padding-right: 6px;
+    scrollbar-width: thin;
+}
+.cc-chip-toggle {
+    position: relative;
+    cursor: pointer;
+    user-select: none;
+}
+.cc-chip-toggle input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+.cc-chip-toggle span {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 13px;
+    border: 1px solid var(--cc-border);
+    border-radius: 999px;
+    background: #fff;
+    color: var(--cc-muted);
+    font-size: 12.5px;
+    font-weight: 600;
+    line-height: 1.35;
+    transition: border-color .15s ease, background .15s ease, color .15s ease, box-shadow .15s ease;
+}
+.cc-chip-toggle span::before {
+    content: '';
+    flex: none;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #cbd5e1;
+    transition: background .15s ease;
+}
+.cc-chip-toggle:hover span {
+    border-color: #c7d2e0;
+    color: var(--cc-text);
+}
+.cc-chip-toggle input:checked + span {
+    background: var(--cc-primary-light);
+    border-color: var(--cc-primary);
+    color: var(--cc-primary-dark);
+}
+.cc-chip-toggle input:checked + span::before {
+    background: var(--cc-primary);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, .15);
+}
+.cc-chip-toggle input:focus-visible + span {
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, .25);
+}
+
 /* Patient Summary Grid */
 .cc-summary-grid {
     display: grid;
@@ -656,10 +1101,10 @@ body, .content-wrapper {
     gap: 12px;
 }
 .cc-summary-item {
-    background: #faf8ff;
+    background: #f8fafc;
     padding: 10px 12px;
     border-radius: var(--cc-radius);
-    border: 1px solid #f0edf7;
+    border: 1px solid var(--cc-border);
 }
 .cc-summary-label {
     font-size: 11px;
@@ -682,8 +1127,8 @@ body, .content-wrapper {
 .cc-info-box {
     display: flex;
     gap: 10px;
-    background: #faf8ff;
-    border: 1px solid #f0edf7;
+    background: #f8fafc;
+    border: 1px solid var(--cc-border);
     border-radius: var(--cc-radius);
     padding: 12px;
 }
@@ -718,14 +1163,20 @@ body, .content-wrapper {
     text-align: left;
 }
 .cc-med-table th {
-    background: #faf8ff;
+    background: #f1f5f9;
     padding: 8px 12px;
     font-weight: 600;
+    font-size: 12px;
     color: var(--cc-text);
     border-bottom: 1.5px solid var(--cc-border);
+    white-space: nowrap;
+}
+.cc-dosage-header {
+    text-align: center;
+    min-width: 56px;
 }
 .cc-med-table td {
-    padding: 8px 12px;
+    padding: 6px 10px;
     border-bottom: 1px solid var(--cc-border);
     color: var(--cc-text);
     vertical-align: middle;
@@ -733,19 +1184,22 @@ body, .content-wrapper {
 .cc-med-table tr:last-child td {
     border-bottom: none;
 }
-.cc-med-table tr:hover td {
-    background: #fafaff;
+.cc-med-table tbody tr:nth-child(even) td {
+    background: #fafbfc;
+}
+.cc-med-table tbody tr:hover td {
+    background: #f1f5f9;
 }
 .cc-discharge-med-table input {
     width: 100%;
     border: 1px solid var(--cc-border);
     border-radius: var(--cc-radius);
-    padding: 6px 8px;
-    font-size: 12.5px;
+    padding: 5px 7px;
+    font-size: 12px;
     outline: none;
 }
 .cc-discharge-med-table td {
-    padding: 6px;
+    padding: 4px 5px;
 }
 .cc-row-remove {
     width: 30px;
@@ -759,57 +1213,6 @@ body, .content-wrapper {
 .cc-row-remove:hover {
     background: var(--cc-red);
     color: #fff;
-}
-.cc-dosage-col {
-    width: 65px;
-    text-align: center;
-    font-weight: 600;
-    background: #faf8ff;
-    border-left: 1px solid var(--cc-border);
-    color: var(--cc-text);
-}
-.cc-dosage-header {
-    text-align: center;
-    border-left: 1px solid var(--cc-border);
-    width: 65px;
-    background: #faf8ff;
-}
-
-/* Alert Styling */
-.cc-alert {
-    padding: 10px 14px;
-    border-radius: var(--cc-radius);
-    font-size: 13px;
-    font-weight: 500;
-    margin-bottom: 12px;
-    border: 1px solid transparent;
-}
-.cc-alert-success {
-    background: var(--cc-green-bg);
-    color: var(--cc-green);
-    border-color: #a7f3d0;
-}
-.cc-alert-danger {
-    background: var(--cc-red-bg);
-    color: var(--cc-red);
-    border-color: #fecaca;
-}
-
-/* Buttons */
-.cc-btn {
-    border: none;
-    border-radius: var(--cc-radius);
-    cursor: pointer;
-    font-family: var(--cc-font);
-    font-size: 13px;
-    font-weight: 600;
-    padding: 8px 16px;
-    transition: background .15s, opacity .15s;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    text-decoration: none !important;
 }
 .cc-btn-primary {
     background: var(--cc-primary);
@@ -842,20 +1245,68 @@ body, .content-wrapper {
     cursor: not-allowed;
 }
 
-/* Responsive Mobile Layout */
 @media (max-width: 768px) {
-    .cc-layout-wrapper {
+    .cc-layout-wrapper,
+    #dischargeWorkflow.is-visible {
         flex-direction: column;
     }
     .cc-sidebar {
         width: 100% !important;
         flex: 1 0 auto;
-        display: {{ $patientcode ? 'none' : 'block' }};
     }
     .cc-details-pane {
         width: 100% !important;
         flex: 1 0 auto;
-        display: {{ $patientcode ? 'block' : 'none' }};
+    }
+    .cc-summary-grid {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+    .cc-info-boxes {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+    .cc-form-grid,
+    .cc-form-grid-3,
+    .cc-form-grid-4 {
+        grid-template-columns: 1fr;
+    }
+    .cc-field-wide,
+    .cc-field-full {
+        grid-column: span 1;
+    }
+    .cc-field-span-2 {
+        grid-column: span 1;
+    }
+    .cc-info-item-span-2 {
+        grid-column: span 1;
+    }
+    .cc-info-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+    .cc-template-grid {
+        grid-template-columns: 1fr;
+    }
+    .cc-patient-bar-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+@media (min-width: 769px) and (max-width: 1199px) {
+    .cc-form-grid-4 {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .cc-info-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+    .cc-sidebar {
+        width: 100% !important;
+        flex: 1 0 auto;
+    }
+    .cc-details-pane {
+        width: 100% !important;
+        flex: 1 0 auto;
     }
     .cc-summary-grid {
         grid-template-columns: 1fr;
@@ -873,46 +1324,440 @@ body, .content-wrapper {
     }
 }
 
-/* Print CSS */
+/* Print CSS — Letter Landscape, full page booklet */
 @media print {
-    body * { visibility: hidden !important; }
-    #printArea, #printArea * { visibility: visible !important; }
+    * { box-sizing: border-box; }
+    html, body {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        background: #fff !important;
+    }
+    .wrapper, .content-wrapper, .main-sidebar, .main-header, .content, .container, .container-fluid {
+        margin: 0 !important;
+        padding: 0 !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        border: none !important;
+        box-shadow: none !important;
+        background: transparent !important;
+    }
+    body > *:not(#printArea) { display: none !important; }
     #printArea {
         display: block !important;
         position: absolute !important;
         left: 0 !important;
         top: 0 !important;
         width: 100% !important;
-    }
-    .page {
-        page-break-after: always !important;
-        page-break-inside: avoid !important;
-        display: block !important;
-        width: 100% !important;
-        min-height: 297mm !important;
-        padding: 15mm 20mm !important;
-        box-sizing: border-box !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        color: #000 !important;
+        background: #fff !important;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
-        font-family: "SolaimanLipi", "Kalpurush", "Siyam Rupali", Arial, sans-serif !important;
     }
-    .page:last-child {
+    .booklet-sheet {
+        width: 100% !important;
+        max-width: 100% !important;
+        height: 100vh !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        page-break-after: always !important;
+    }
+    .booklet-sheet:last-child {
         page-break-after: auto !important;
     }
-    .print-header {
-        border-bottom: 2px solid #2e7d32 !important;
-        padding-bottom: 8px !important;
-        margin-bottom: 6px !important;
+    .booklet-page {
+        width: 50% !important;
+        max-width: 50% !important;
+        min-width: 50% !important;
+        height: 100% !important;
+        vertical-align: top !important;
     }
+@include('admission.discharge.partials.booklet_css')
 }
 @page {
-    size: A4 portrait;
-    margin: 10mm;
+    size: legal landscape;
+    margin: 0 !important;
+}
+
+
+/* ═══════════════════════════════════════════════
+   PATIENT SELECTION SCREEN
+   ═══════════════════════════════════════════════ */
+.cc-selection-screen {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    min-height: 65vh;
+    padding: 32px 20px;
+}
+.cc-selection-screen.is-visible {
+    display: flex;
+}
+.cc-selection-card {
+    background: var(--cc-white);
+    border: 1px solid var(--cc-border);
+    border-radius: var(--cc-radius);
+    padding: 48px 40px;
+    max-width: 580px;
+    width: 100%;
+    box-shadow: var(--cc-shadow);
+}
+.cc-selection-title {
+    font-size: 26px;
+    font-weight: 800;
+    color: var(--cc-text);
+    margin: 0 0 6px;
+    text-align: center;
+}
+.cc-selection-subtitle {
+    font-size: 14px;
+    color: var(--cc-muted);
+    margin: 0 0 28px;
+    line-height: 1.5;
+    text-align: center;
+}
+.cc-select-lg + .select2-container .select2-selection {
+    min-height: 48px !important;
+    padding: 8px 12px !important;
+    font-size: 14px !important;
+}
+.cc-btn-continue {
+    width: 100%;
+    margin-top: 20px;
+    padding: 12px 16px;
+    font-size: 15px;
+    font-weight: 700;
+    border: none;
+    border-radius: var(--cc-radius);
+    cursor: pointer;
+    background: var(--cc-primary);
+    color: var(--cc-white);
+    transition: background 0.15s;
+}
+.cc-btn-continue:hover:not(:disabled) {
+    background: var(--cc-primary-dark);
+}
+.cc-btn-continue:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+.cc-btn-continue:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+.cc-selection-empty {
+    margin-top: 24px;
+    padding: 24px;
+    text-align: center;
+    color: var(--cc-muted);
+    border: 1px dashed var(--cc-border);
+    border-radius: var(--cc-radius);
+    background: #f8fafc;
+}
+.cc-selection-empty i {
+    font-size: 28px;
+    margin-bottom: 8px;
+    color: #cbd5e1;
+}
+.cc-selection-search {
+    text-align: left;
+    margin-bottom: 16px;
+}
+.cc-selection-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--cc-muted);
+    text-transform: uppercase;
+    letter-spacing: .3px;
+    margin-bottom: 6px;
+}
+.cc-selection-hint {
+    font-size: 12px;
+    color: var(--cc-muted);
+    margin: 16px 0 0;
+    text-align: left;
+}
+.cc-quick-list {
+    margin-top: 24px;
+    text-align: left;
+    border-top: 1px solid var(--cc-border);
+    padding-top: 20px;
+}
+.cc-quick-list-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--cc-muted);
+    text-transform: uppercase;
+    letter-spacing: .3px;
+    margin-bottom: 10px;
+}
+.cc-quick-list-items {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 260px;
+    overflow-y: auto;
+}
+.cc-quick-patient {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    background: #f8fafc;
+    border: 1px solid var(--cc-border);
+    border-radius: var(--cc-radius);
+    color: var(--cc-text) !important;
+    text-decoration: none !important;
+    transition: border-color 0.15s, background 0.15s;
+}
+.cc-quick-patient:hover {
+    border-color: var(--cc-primary);
+    background: var(--cc-primary-light);
+}
+.cc-quick-patient-arrow {
+    font-size: 11px;
+    color: var(--cc-muted);
+}
+.cc-quick-patient-name {
+    font-size: 13px;
+    font-weight: 600;
+}
+.cc-quick-patient-meta {
+    font-size: 11px;
+    color: var(--cc-muted);
+}
+
+/* Patient Summary Card */
+.cc-patient-summary-card {
+    border: 1px solid var(--cc-border);
+    box-shadow: var(--cc-shadow);
+}
+.cc-patient-summary-body {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 16px 18px !important;
+    flex-wrap: wrap;
+}
+.cc-patient-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 12px 20px;
+    flex: 1;
+    min-width: 0;
+}
+.cc-summary-stat-label {
+    display: block;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--cc-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin-bottom: 3px;
+}
+.cc-summary-stat-value {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--cc-text);
+    line-height: 1.35;
+    word-break: break-word;
+}
+.cc-patient-summary-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+.cc-change-patient {
+    white-space: nowrap;
+}
+
+/* Form Sections */
+.cc-form-sections {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+.cc-section-card {
+    box-shadow: var(--cc-shadow);
+}
+.cc-section-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--cc-border);
+    background: #fafbfc;
+}
+.cc-section-number {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    background: var(--cc-primary);
+    color: var(--cc-white);
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.cc-section-desc {
+    display: block;
+    font-size: 12px;
+    color: var(--cc-muted);
+    margin-top: 2px;
+}
+.cc-collapsible-title-wrap {
+    flex: 1;
+    min-width: 0;
+}
+.cc-collapsible-header {
+    cursor: pointer;
+    user-select: none;
+    list-style: none;
+}
+.cc-collapsible-header::-webkit-details-marker { display: none; }
+.cc-collapsible-header::marker { display: none; content: ''; }
+
+.cc-collapsible {
+    margin-bottom: 16px;
+}
+.cc-collapsible-arrow {
+    font-size: 12px;
+    color: var(--cc-muted);
+    transition: transform 0.2s;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+.cc-collapsible[open] .cc-collapsible-arrow {
+    transform: rotate(180deg);
+}
+
+/* Medicine toolbar */
+.cc-medicine-toolbar {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 12px;
+    background: #f8fafc;
+    padding: 10px 12px;
+    border-radius: var(--cc-radius);
+    border: 1px solid var(--cc-border);
+    flex-wrap: wrap;
+}
+.cc-medicine-search {
+    flex: 1;
+    min-width: 200px;
+}
+
+/* Action Panel */
+.cc-action-panel {
+    background: var(--cc-white);
+    border: 1px solid var(--cc-border);
+    border-radius: var(--cc-radius);
+    overflow: hidden;
+    box-shadow: var(--cc-shadow);
+}
+.cc-action-panel-header {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--cc-border);
+    background: #fafbfc;
+}
+.cc-action-panel-buttons {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 20px 22px !important;
+    background: #f8fafc !important;
+}
+.cc-action-panel-buttons .cc-btn-primary,
+.cc-action-panel-buttons .btn-primary {
+    order: 1;
+}
+.cc-action-panel-buttons .cc-btn-warning,
+.cc-action-panel-buttons .btn-info {
+    order: 2;
+}
+.cc-action-panel-buttons .cc-btn-success {
+    order: 0;
+}
+.cc-action-panel-buttons .cc-btn-danger {
+    order: 3;
+}
+.cc-action-panel-buttons .cc-btn-secondary {
+    order: 4;
+}
+
+/* Alerts */
+.cc-alert {
+    padding: 12px 16px;
+    border-radius: var(--cc-radius);
+    margin-bottom: 16px;
+    font-size: 13px;
+    font-weight: 600;
+}
+.cc-alert-success {
+    background: var(--cc-green-bg);
+    color: #047857;
+    border: 1px solid #a7f3d0;
+}
+.cc-alert-danger {
+    background: var(--cc-red-bg);
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+}
+
+/* Buttons base */
+.cc-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--cc-radius);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 9px 16px;
+    text-decoration: none !important;
+    cursor: pointer;
+    border: none;
+    transition: background 0.15s, opacity 0.15s;
+    line-height: 1.3;
+}
+
+/* ═══════════════════════════════════════════════
+   RESPONSIVE — Patient Selection
+   ═══════════════════════════════════════════════ */
+@media (max-width: 768px) {
+    .cc-selection-screen.is-visible { min-height: 55vh; padding: 20px 12px; }
+    .cc-selection-card { padding: 28px 20px; }
+    .cc-selection-title { font-size: 20px; }
+    .cc-patient-summary-body { flex-direction: column; align-items: stretch; }
+    .cc-patient-summary-grid { grid-template-columns: 1fr 1fr; }
+    .cc-patient-summary-actions { width: 100%; justify-content: space-between; }
+    .cc-medicine-toolbar { flex-direction: column; align-items: stretch; }
+    .cc-medicine-search { width: 100%; }
+    .cc-action-panel-buttons { flex-direction: column; align-items: stretch; }
+    .cc-action-panel-buttons .btn,
+    .cc-action-panel-buttons .cc-btn { width: 100%; text-align: center; }
+    .cc-section-header { flex-wrap: wrap; }
+}
+@media (max-width: 992px) {
+    .cc-patient-summary-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 </style>
 @stop
 
 @section('js')
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
 var logoUrl = @json(config('app.logo_url'));
 var csrfToken = "{{ csrf_token() }}";
@@ -920,9 +1765,44 @@ var submitDischargeUrl = "{{ route('admission.discharge.submit') }}";
 var approveDischargeUrl = "{{ route('admission.discharge.approve') }}";
 var finalDischargeUrl = "{{ route('admission.discharge.do') }}";
 
+function getGroupValues(el, attr) {
+    return Array.prototype.slice.call(el.querySelectorAll('input[type="checkbox"]:checked'))
+        .map(function (cb) { return String(cb.getAttribute(attr) || '').trim(); })
+        .filter(function (v) { return v !== ''; });
+}
+
 function getVal(id) {
     var el = document.getElementById(id);
-    return el ? String(el.value || '').trim() : '';
+    if (!el) return '';
+    if (el.classList.contains('cc-chips')) {
+        return getGroupValues(el, 'value').join(',');
+    }
+    if (el.tagName === 'SELECT' && el.multiple) {
+        return Array.prototype.slice.call(el.selectedOptions)
+            .map(function (opt) { return String(opt.value || '').trim(); })
+            .filter(function (v) { return v !== ''; })
+            .join(',');
+    }
+    return String(el.value || '').trim();
+}
+
+function getSelectText(id, sep) {
+    var el = document.getElementById(id);
+    if (!el) return '';
+    var joiner = (sep === undefined || sep === null) ? ', ' : sep;
+    if (el.classList.contains('cc-chips')) {
+        return getGroupValues(el, 'data-text').join(joiner);
+    }
+    if (el.tagName === 'SELECT') {
+        var opts = el.multiple
+            ? Array.prototype.slice.call(el.selectedOptions)
+            : (el.selectedIndex >= 0 ? [el.options[el.selectedIndex]] : []);
+        return opts
+            .map(function (opt) { return String(opt.text || '').trim(); })
+            .filter(function (t) { return t !== ''; })
+            .join(joiner);
+    }
+    return String(el.value || '').trim();
 }
 
 function escHtml(value) {
@@ -936,6 +1816,17 @@ function escHtml(value) {
 
 function nl2br(value) {
     return escHtml(value).replace(/\r?\n/g, '<br>');
+}
+
+function en2bn(str) {
+    if (str === null || str === undefined || str === '') return '';
+    var en = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+    var bn = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+    var s = String(str);
+    for (var i = 0; i < 10; i++) {
+        s = s.split(en[i]).join(bn[i]);
+    }
+    return s;
 }
 
 function fmtDateInput(value) {
@@ -955,18 +1846,15 @@ function collectDischargeMedicines() {
     document.querySelectorAll('.discharge-medicine-row').forEach(function(row) {
         var medicine = {
             medicine_name: row.querySelector('.dm-name') ? row.querySelector('.dm-name').value.trim() : '',
-            strength: row.querySelector('.dm-strength') ? row.querySelector('.dm-strength').value.trim() : '',
-            dose: row.querySelector('.dm-dose') ? row.querySelector('.dm-dose').value.trim() : '',
-            morning: row.querySelector('.dm-morning') ? row.querySelector('.dm-morning').value.trim() : '',
-            noon: row.querySelector('.dm-noon') ? row.querySelector('.dm-noon').value.trim() : '',
-            night: row.querySelector('.dm-night') ? row.querySelector('.dm-night').value.trim() : ''
+            strength:  row.querySelector('.dm-strength') ? row.querySelector('.dm-strength').value.trim() : '',
+            morning:   row.querySelector('.dm-morning')  ? row.querySelector('.dm-morning').value.trim()  : '',
+            noon:      row.querySelector('.dm-noon')      ? row.querySelector('.dm-noon').value.trim()      : '',
+            night:     row.querySelector('.dm-night')     ? row.querySelector('.dm-night').value.trim()     : '',
+            days:      row.querySelector('.dm-days')      ? row.querySelector('.dm-days').value.trim()      : '',
+            timing:    row.querySelector('.dm-timing')    ? row.querySelector('.dm-timing').value          : ''
         };
-
-        if (medicine.medicine_name) {
-            medicines.push(medicine);
-        }
+        if (medicine.medicine_name) medicines.push(medicine);
     });
-
     return medicines;
 }
 
@@ -979,20 +1867,79 @@ function renumberMedicineRows() {
 function addDischargeMedicineRow() {
     var tbody = document.getElementById('discharge-medicine-body');
     if (!tbody) return;
-
     var row = document.createElement('tr');
     row.className = 'discharge-medicine-row';
     row.innerHTML =
         '<td class="dm-sl"></td>' +
         '<td><input type="text" class="dm-name" list="medicineSuggestions" placeholder="ঔষধের নাম"></td>' +
         '<td><input type="text" class="dm-strength" placeholder="Strength"></td>' +
-        '<td><input type="text" class="dm-dose" placeholder="Dose"></td>' +
         '<td><input type="text" class="dm-morning" placeholder="0"></td>' +
         '<td><input type="text" class="dm-noon" placeholder="0"></td>' +
         '<td><input type="text" class="dm-night" placeholder="0"></td>' +
+        '<td><input type="text" class="dm-days" placeholder="দিন" style="width:60px;"></td>' +
+        '<td><select class="dm-timing" style="width:100%;padding:4px;"><option value="">-- নির্বাচন --</option><option value="খাবার আগে">খাবার আগে</option><option value="খাবার পরে">খাবার পরে</option><option value="খাবার সাথে">খাবার সাথে</option><option value="খালি পেটে">খালি পেটে</option></select></td>' +
         '<td><button type="button" class="cc-row-remove" onclick="removeDischargeMedicineRow(this)"><i class="fas fa-times"></i></button></td>';
     tbody.appendChild(row);
     renumberMedicineRows();
+}
+
+function addMedicineFromSelect() {
+    var select = document.getElementById('commonMedicineSelect');
+    if (!select || !select.value) {
+        return;
+    }
+
+    var selectedOption = select.options[select.selectedIndex];
+    var medName = selectedOption.getAttribute('data-name') || '';
+    var medStrength = selectedOption.getAttribute('data-strength') || '';
+
+    var tbody = document.getElementById('discharge-medicine-body');
+    if (!tbody) return;
+
+    var targetRow = null;
+
+    // Check if first row is empty, fill it instead of adding new
+    var firstRow = tbody.querySelector('.discharge-medicine-row');
+    if (firstRow) {
+        var firstNameInput = firstRow.querySelector('.dm-name');
+        if (firstNameInput && !firstNameInput.value.trim()) {
+            firstNameInput.value = medName;
+            var firstStrengthInput = firstRow.querySelector('.dm-strength');
+            if (firstStrengthInput) firstStrengthInput.value = medStrength;
+            targetRow = firstRow;
+        }
+    }
+
+    if (!targetRow) {
+        var row = document.createElement('tr');
+        row.className = 'discharge-medicine-row';
+        row.innerHTML =
+            '<td class="dm-sl"></td>' +
+            '<td><input type="text" class="dm-name" list="medicineSuggestions" value="' + escHtml(medName) + '"></td>' +
+            '<td><input type="text" class="dm-strength" value="' + escHtml(medStrength) + '"></td>' +
+            '<td><input type="text" class="dm-morning" placeholder="0"></td>' +
+            '<td><input type="text" class="dm-noon" placeholder="0"></td>' +
+            '<td><input type="text" class="dm-night" placeholder="0"></td>' +
+            '<td><input type="text" class="dm-days" placeholder="দিন" style="width:60px;"></td>' +
+            '<td><select class="dm-timing" style="width:100%;padding:4px;"><option value="">-- নির্বাচন --</option><option value="খাবার আগে">খাবার আগে</option><option value="খাবার পরে">খাবার পরে</option><option value="খাবার সাথে">খাবার সাথে</option><option value="খালি পেটে">খালি পেটে</option></select></td>' +
+            '<td><button type="button" class="cc-row-remove" onclick="removeDischargeMedicineRow(this)"><i class="fas fa-times"></i></button></td>';
+        tbody.appendChild(row);
+        renumberMedicineRows();
+        targetRow = row;
+    }
+
+    // Focus on morning dosage input for fast data entry
+    if (targetRow) {
+        var morningInput = targetRow.querySelector('.dm-morning');
+        if (morningInput) morningInput.focus();
+    }
+
+    // Reset dropdown cleanly with Select2 trigger
+    if (window.jQuery && jQuery.fn.select2) {
+        jQuery('#commonMedicineSelect').val(null).trigger('change');
+    } else {
+        select.value = '';
+    }
 }
 
 function removeDischargeMedicineRow(button) {
@@ -1017,16 +1964,19 @@ function collectDischargePayload() {
         reg_no: getVal('discharge_reg_no'),
         doctor_name: getVal('discharge_doctor_name'),
         diagnosis: getVal('discharge_diagnosis'),
+        discharge_diagnosis_id: getVal('discharge_diagnosis'),
         operation_name: getVal('operation_name'),
+        operation_date: getVal('operation_date'),
         operation_method: getVal('operation_method'),
+        operation_method_id: getVal('operation_method'),
         surgeon: getVal('surgeon'),
         anesthetist: getVal('anesthetist'),
         assistant_1: getVal('assistant_1'),
-        assistant_2: getVal('assistant_2'),
         investigations: getVal('investigations'),
         blood_group: getVal('discharge_blood_group'),
         drug_allergy: getVal('drug_allergy'),
         notes: getVal('discharge_notes'),
+        discharge_instruction_id: getVal('discharge_notes'),
         follow_up_date: getVal('follow_up_date'),
         medicines: collectDischargeMedicines()
     };
@@ -1084,193 +2034,142 @@ function approveDischarge() {
     });
 }
 
-function printSlip() {
-    var patientcode = $('#patientcode').val() || '';
-    var patientname = $('#print_patientname').val() || '';
-    var mobile = $('#print_mobile').val() || '';
-    var admissiondate = $('#print_admissiondate').val() || '';
-    var age = $('#print_age').val() || '';
-    var father = $('#print_father').val() || '';
-    var village = $('#print_address_village').val() || '';
-    var post = $('#print_address_post').val() || '';
-    var thana = $('#print_address_thana').val() || '';
-    var district = $('#print_address_district').val() || '';
-    var ward = getVal('discharge_ward');
-    var regNo = getVal('discharge_reg_no') || patientcode;
-    var doctorName = getVal('discharge_doctor_name');
-    var diagnosis = getVal('discharge_diagnosis');
-    var operationName = getVal('operation_name');
-    var operationMethod = getVal('operation_method');
-    var surgeon = getVal('surgeon');
-    var anesthetist = getVal('anesthetist');
-    var assistant1 = getVal('assistant_1');
-    var assistant2 = getVal('assistant_2');
-    var investigations = getVal('investigations');
-    var bloodGroup = getVal('discharge_blood_group');
-    var drugAllergy = getVal('drug_allergy');
-    var notes = getVal('discharge_notes');
-    var followUpDate = getVal('follow_up_date');
-    var dischargeMedicines = collectDischargeMedicines();
+function updatePrintField(fieldName, value) {
+    document.querySelectorAll('[data-print-field="' + fieldName + '"]').forEach(function(el) {
+        el.textContent = value || '';
+    });
+}
 
-    function fmtDate(d) {
-        var dd = String(d.getDate()).padStart(2, '0');
-        var mm = String(d.getMonth() + 1).padStart(2, '0');
-        var yyyy = d.getFullYear();
-        return dd + '-' + mm + '-' + yyyy;
-    }
-    var dischargeDate = fmtDateInput(getVal('discharge_date')) || fmtDate(new Date());
+function updatePrintFieldHtml(fieldName, value) {
+    document.querySelectorAll('[data-print-field="' + fieldName + '"]').forEach(function(el) {
+        el.innerHTML = nl2br(value || '');
+    });
+}
 
-    function dotted(val, width) {
-        width = width || 200;
-        return '<span style="display:inline-block;min-width:' + width + 'px;border-bottom:1px dotted #333;text-align:center;padding:0 4px;font-weight:bold;">' + escHtml(val || '') + '</span>';
-    }
+function updatePrintPreview() {
+    // Populate the print area with current form values before printing
+    updatePrintField('reg_no', getVal('discharge_reg_no'));
+    updatePrintField('ward', getVal('discharge_ward'));
+    updatePrintField('discharge_date', fmtDateInput(getVal('discharge_date')));
+    updatePrintField('doctor_name', getVal('discharge_doctor_name'));
+    updatePrintFieldHtml('diagnosis', getSelectText('discharge_diagnosis'));
+    updatePrintField('blood_group', getVal('discharge_blood_group'));
+    updatePrintField('drug_allergy', getVal('drug_allergy'));
+    updatePrintFieldHtml('investigations', getVal('investigations'));
+    updatePrintFieldHtml('notes', getSelectText('discharge_notes', '\n'));
+    updatePrintField('follow_up_date', fmtDateInput(getVal('follow_up_date')));
 
-    function spacer(h) {
-        return '<div style="height:' + (h || 20) + 'px;"></div>';
-    }
+    // Dropdown fields — use selected option text, not the value (ID)
+    updatePrintField('operation_name', getSelectText('operation_name'));
+    updatePrintField('operation_date', fmtDateInput(getVal('operation_date')));
+    updatePrintField('operation_method', getSelectText('operation_method'));
+    updatePrintField('surgeon', getSelectText('surgeon'));
+    updatePrintField('anesthetist', getSelectText('anesthetist'));
+    updatePrintField('assistant_1', getSelectText('assistant_1'));
 
-    function pageHeader() {
-        var logoHtml = logoUrl ? '<td style="width:65px;border:none;vertical-align:middle;text-align:center;"><img src="' + logoUrl + '" style="max-height:55px;max-width:55px;"></td>' : '';
-        return '<div class="print-header">' +
-            '<table style="width:100%;border:none;border-collapse:collapse;"><tr>' +
-            logoHtml +
-            '<td style="border:none;text-align:center;vertical-align:middle;">' +
-            '<div style="font-size:22px;font-weight:bold;color:#1b5e20;letter-spacing:2px;">প্রফেসর ক্লিনিক</div>' +
-            '<div style="font-size:12px;color:#333;">মাঝিড়া, সাজাহানপুর, বগুড়া।</div>' +
-            '<div style="font-size:11px;color:#555;">মোবাইল: ০১৭২০-০৩৯০০৫, ০১৭২০-০৩৯০০৬, ০১৭২০-০৩৯০০৭, ০১৭২০-০৩৯০০৮</div>' +
-            '</td></tr></table></div>';
-    }
+    // Update medicine list in print area (prescription style)
+    var medListEl = document.querySelector('#printArea #print-medicine-list');
+    var medicines = collectDischargeMedicines();
 
-    function titleBar(text) {
-        return '<div style="background:#2e7d32;color:#fff;text-align:center;padding:6px 0;font-size:16px;font-weight:bold;margin:8px 0 14px 0;border-radius:4px;">' + escHtml(text) + '</div>';
-    }
-
-    function medTable(title, items) {
-        if (!items || items.length === 0) return '';
-        var rows = '';
-        for (var i = 0; i < items.length; i++) {
-            var m = items[i];
-            rows += '<tr>' +
-                '<td style="border:1px solid #2e7d32;padding:3px 5px;text-align:center;">' + (i + 1) + '</td>' +
-                '<td style="border:1px solid #2e7d32;padding:3px 5px;">' + escHtml(m.medicine_name || m.name || '') + '</td>' +
-                '<td style="border:1px solid #2e7d32;padding:3px 5px;text-align:center;">' + escHtml(m.strength || '') + '</td>' +
-                '<td style="border:1px solid #2e7d32;padding:3px 5px;text-align:center;">' + escHtml(m.dose || '') + '</td>' +
-                '<td style="border:1px solid #2e7d32;padding:3px 5px;text-align:center;">' + escHtml(m.morning || '') + '</td>' +
-                '<td style="border:1px solid #2e7d32;padding:3px 5px;text-align:center;">' + escHtml(m.noon || '') + '</td>' +
-                '<td style="border:1px solid #2e7d32;padding:3px 5px;text-align:center;">' + escHtml(m.night || '') + '</td>' +
-                '</tr>';
+    if (medListEl) {
+        medListEl.innerHTML = '';
+        if (medicines.length > 0) {
+            medicines.forEach(function(m, idx) {
+                var line = '<div style="margin-bottom:2pt;font-size:12pt;">';
+                line += '<span style="font-weight:700;">' + en2bn(idx + 1) + '.</span> ';
+                line += '<span style="font-weight:600;">' + escHtml(m.medicine_name) + '</span>';
+                if (m.strength) line += ' (' + escHtml(m.strength) + ')';
+                if (m.morning || m.noon || m.night) {
+                    line += ' — ' + en2bn(m.morning || '0') + '+' + en2bn(m.noon || '0') + '+' + en2bn(m.night || '0');
+                }
+                if (m.days) line += ' × ' + en2bn(m.days) + ' দিন';
+                if (m.timing) line += ' (' + escHtml(m.timing) + ')';
+                line += '</div>';
+                medListEl.innerHTML += line;
+            });
         }
-        return '<div style="margin-bottom:10px;">' +
-            '<div style="background:#2e7d32;color:#fff;padding:4px 10px;font-size:13px;font-weight:bold;">' + escHtml(title) + '</div>' +
-            '<table style="width:100%;border-collapse:collapse;font-size:12px;border:1px solid #2e7d32;">' +
-            '<thead><tr style="background:#e8f5e9;">' +
-            '<th style="border:1px solid #2e7d32;padding:4px 5px;text-align:center;">#</th>' +
-            '<th style="border:1px solid #2e7d32;padding:4px 5px;">ঔষধের নাম</th>' +
-            '<th style="border:1px solid #2e7d32;padding:4px 5px;text-align:center;">Strength</th>' +
-            '<th style="border:1px solid #2e7d32;padding:4px 5px;text-align:center;">Dose</th>' +
-            '<th style="border:1px solid #2e7d32;padding:4px 5px;text-align:center;">সকাল</th>' +
-            '<th style="border:1px solid #2e7d32;padding:4px 5px;text-align:center;">দুপুর</th>' +
-            '<th style="border:1px solid #2e7d32;padding:4px 5px;text-align:center;">রাত</th>' +
-            '</tr></thead>' +
-            '<tbody>' + rows + '</tbody></table></div>';
     }
+}
 
-    var medHtml = medTable('Discharge Medicines (ছাড়পত্রের নতুন ঔষধ)', dischargeMedicines);
-    var adviceHtml = notes
-        ? '<div style="border:1px solid #2e7d32;border-radius:4px;padding:8px 10px;font-size:12px;line-height:1.8;margin-bottom:10px;white-space:normal;">' + nl2br(notes) + '</div>'
-        : '<div style="border:1px dashed #2e7d32;height:80px;margin-bottom:14px;"></div>';
-    var investigationHtml = investigations
-        ? '<div style="border:1px solid #2e7d32;border-radius:4px;padding:8px 10px;font-size:12px;line-height:1.8;margin-bottom:14px;">' + nl2br(investigations) + '</div>'
-        : '<div style="border:1px dashed #2e7d32;height:60px;margin-bottom:14px;"></div>';
+function printSlip() {
+    updatePrintPreview();
 
-    var page1 = '<div class="page">' +
-        pageHeader() +
-        titleBar('ছাড় পত্র') +
-        '<div style="font-size:12px;line-height:2.2;">' +
-        '<div style="margin-bottom:8px;">' +
-        '<span style="font-weight:bold;">ওয়ার্ড/কেবিন নং-</span> ' + dotted(ward, 120) +
-        '<span style="margin-left:20px;font-weight:bold;">রেজিঃ নং-</span> ' + dotted(regNo, 120) +
-        '</div>' +
-        '<div><span style="font-weight:bold;">প্রত্যয়ন করা যাচ্ছে যে,</span> ' + dotted(patientname, 250) + '</div>' +
-        '<div><span style="font-weight:bold;">বয়স</span> ' + dotted(age, 80) + ' <span style="font-weight:bold;">পিতা/স্বামী</span> ' + dotted(father, 200) + '</div>' +
-        '<div><span style="font-weight:bold;">ঠিকানা : গ্রাম</span> ' + dotted(village, 150) + ' <span style="font-weight:bold;">পোস্ট</span> ' + dotted(post, 120) + '</div>' +
-        '<div style="margin-left:68px;"><span style="font-weight:bold;">থানা</span> ' + dotted(thana, 150) + ' <span style="font-weight:bold;">জেলা</span> ' + dotted(district, 150) + '</div>' +
-        '<div><span style="font-weight:bold;">অত্র হাসপাতালে</span> ' + dotted(admissiondate, 120) + ' <span style="font-weight:bold;">তারিখ হতে</span> ' + dotted(dischargeDate, 120) + ' <span style="font-weight:bold;">তারিখ</span></div>' +
-        '<div><span style="font-weight:bold;">পর্যন্ত চিকিৎসাধীন ছিলেন। তিনি</span> ' + dotted(diagnosis, 250) + '</div>' +
-        '<div><span style="font-weight:bold;">রোগে ভুগছিলেন। তিনি</span> ' + dotted(doctorName, 230) + ' <span style="font-weight:bold;">চিকিৎসকের অধীনে চিকিৎসাধীন ছিলেন।</span></div>' +
-        spacer(30) +
-        '<div style="text-align:right;margin-top:20px;">' +
-        '<div style="font-size:13px;font-weight:bold;margin-bottom:5px;">কর্তৃপক্ষ / চিকিৎসকের স্বাক্ষর</div>' +
-        '<div><span style="font-weight:bold;">তাং-</span> ' + dotted(dischargeDate, 120) + '</div>' +
-        '<div style="margin-top:8px;border:1px solid #333;width:200px;height:50px;float:right;"></div>' +
-        '</div>' +
-        '<div style="clear:both;"></div>' +
-        '</div>' +
-        '</div>';
-
-    function opRow(label, value, secondLine) {
-        var extra = secondLine ? '<br>' + escHtml(secondLine) : '';
-        var body = value
-            ? '<div style="min-height:28px;white-space:pre-wrap;">' + nl2br(value) + '</div>'
-            : dotted('', 350);
-        return '<tr>' +
-            '<td style="border:2px solid #2e7d32;padding:6px 10px;font-weight:bold;font-size:13px;background:#e8f5e9;width:200px;">' + escHtml(label) + extra + '</td>' +
-            '<td style="border:2px solid #2e7d32;padding:6px 10px;min-height:35px;">' + body + '</td>' +
-            '</tr>';
-    }
-    var page2 = '<div class="page">' +
-        pageHeader() +
-        titleBar('অপারেশন নোট') +
-        '<table style="width:100%;border-collapse:collapse;margin-top:10px;">' +
-        opRow('অপারেশন নাম ও তাং', operationName) +
-        opRow('অপারেশন পদ্ধতি ও', operationMethod, 'প্রাপ্ত তথ্যাবলী') +
-        opRow('সার্জন', surgeon) +
-        opRow('এ্যানেসথেটিষ্ট', anesthetist) +
-        opRow('এ্যাসিসট্যান্ট', assistant1) +
-        opRow('এ্যাসিসট্যান্ট', assistant2) +
-        '</table>' +
-        '</div>';
-
-    var page3 = '<div class="page">' +
-        pageHeader() +
-        titleBar('প্রদত্ত চিকিৎসা পরামর্শ') +
-        '<div style="background:#2e7d32;color:#fff;padding:4px 10px;font-size:14px;font-weight:bold;margin-bottom:8px;display:inline-block;border-radius:4px;">চিকিৎসা পরামর্শ</div>' +
-        adviceHtml +
-        '<div style="background:#2e7d32;color:#fff;padding:4px 10px;font-size:14px;font-weight:bold;margin-bottom:8px;display:inline-block;border-radius:4px;">পরীক্ষা নিরীক্ষা</div>' +
-        investigationHtml +
-        '<div style="font-size:12px;margin-bottom:14px;">' +
-        '<span style="font-weight:bold;">রক্ত গ্রুপ</span> ' + dotted(bloodGroup, 100) +
-        '<span style="margin-left:20px;font-weight:bold;">ড্রাগ এ্যালার্জী</span> ' + dotted(drugAllergy, 200) +
-        '</div>' +
-        '<hr style="border-top:1px solid #2e7d32;margin:10px 0;">' +
-        '<div style="font-size:13px;font-weight:bold;color:#2e7d32;margin-bottom:8px;">ছাড়পত্রের ঔষধ</div>' +
-        medHtml +
-        '</div>';
-
-    var page4 = '<div class="page">' +
-        pageHeader() +
-        titleBar('চিকিৎসা পরামর্শ ও উপদেশাবলী') +
-        '<div style="border:1px solid #2e7d32;border-radius:4px;padding:10px;font-size:12px;line-height:1.8;margin-bottom:12px;min-height:90px;">' + (notes ? nl2br(notes) : '') + '</div>' +
-        '<div style="font-size:12px;margin-bottom:16px;"><strong>পরবর্তী ভিজিটের তারিখ:</strong> ' + dotted(fmtDateInput(followUpDate), 140) + '</div>' +
-        '<div style="background:#2e7d32;color:#fff;padding:6px 10px;font-size:14px;font-weight:bold;margin-bottom:10px;border-radius:4px;">ক্লিনিকের বিশেষ আকর্ষণ :</div>' +
-        '<ul style="list-style:none;padding:0;margin:0;font-size:13px;line-height:2;">' +
-        '<li style="padding:3px 0;">&#9658; ২৪ ঘণ্টা ইমার্জেন্সী সার্ভিস প্রদান।</li>' +
-        '<li style="padding:3px 0;">&#9658; দিবা-রাত্রি সব সময় সিজারসহ যে কোনো অপারেশনের সু-ব্যবস্থা।</li>' +
-        '<li style="padding:3px 0;">&#9658; মহিলা এম.বি.বি.এস ডাক্তার দ্বারা নরমাল ডেলিভারির সু-ব্যবস্থা।</li>' +
-        '<li style="padding:3px 0;">&#9658; গরীব ও দুস্থ রোগীদের সুবিধার্থে প্রতি সোমবার বিকালে ফ্রি প্রেসক্রিপশন প্রদান।</li>' +
-        '<li style="padding:3px 0;">&#9658; অন্তঃসত্ত্বা মহিলাদের জন্য চেক-আপের বিশেষ সুবিধাদি প্রদান।</li>' +
-        '</ul>' +
-        '<div style="margin-top:30px;font-size:12px;text-align:center;color:#555;border-top:1px solid #2e7d32;padding-top:10px;">' +
-        'বিঃ দ্রঃ চিকিৎসকের পরামর্শ ব্যতীত ঔষধ সেবন বিপজ্জনক হতে পারে।' +
-        '</div>' +
-        '</div>';
-
-    var printHtml = page1 + page2 + page3 + page4;
-
+    // Clean standalone print execution via isolated iframe
     var printArea = document.getElementById('printArea');
-    printArea.innerHTML = printHtml;
-    setTimeout(function () { window.print(); }, 300);
-    setTimeout(function () { printArea.innerHTML = ''; }, 2000);
+    var printContent = printArea.innerHTML;
+
+    var frame = document.getElementById('discharge_print_iframe');
+    if (!frame) {
+        frame = document.createElement('iframe');
+        frame.id = 'discharge_print_iframe';
+        frame.style.position = 'fixed';
+        frame.style.right = '0';
+        frame.style.bottom = '0';
+        frame.style.width = '0';
+        frame.style.height = '0';
+        frame.style.border = 'none';
+        document.body.appendChild(frame);
+    }
+
+    var frameDoc = frame.contentWindow || frame.contentDocument;
+    if (frameDoc.document) frameDoc = frameDoc.document;
+
+    frameDoc.open();
+    frameDoc.write('<!DOCTYPE html><html><head><title>Discharge Booklet</title>');
+    frameDoc.write('<style>');
+    frameDoc.write('@page { size: legal landscape; margin: 0 !important; }');
+    frameDoc.write('html, body { margin: 0; padding: 0; background: #fff; box-sizing: border-box; }');
+    frameDoc.write('* { box-sizing: border-box; }');
+    frameDoc.write('.booklet-sheet { display: table; table-layout: fixed; width: 355.6mm !important; height: 215.5mm !important; margin: 0 !important; padding: 0 !important; box-sizing: border-box !important; page-break-after: always; page-break-inside: avoid; border-collapse: separate; border-spacing: 0; }');
+    frameDoc.write('.booklet-sheet:last-child { page-break-after: auto; }');
+    frameDoc.write('.booklet-page { display: table-cell; width: 50% !important; height: 100%; box-sizing: border-box; padding: 8mm 6mm 6mm; border: 1.5pt solid #000; vertical-align: top; font-family: "Segoe UI", "Hind Siliguri", "Noto Sans Bengali", Arial, sans-serif; font-size: 12pt; line-height: 1.45; color: #000; text-align: left; position: relative; }');
+    frameDoc.write('.b-hos-header { display: table; width: 100%; margin-bottom: 1.5mm; }.b-hos-logo,.b-hos-details { display: table-cell; vertical-align: middle; }.b-hos-logo { width: 24mm; padding-right: 3mm; }.b-hos-logo img { display: block; max-width: 20mm; max-height: 20mm; }');
+    frameDoc.write('.b-hos-name { font-size: 20pt; line-height: 1.15; font-weight: 700; text-align: left; margin: 0 0 1.5mm; }');
+    frameDoc.write('.b-hos-addr { font-size: 11pt; text-align: left; margin: 1.5mm 0 0; }');
+    frameDoc.write('.b-hos-phone { font-size: 9.5pt; text-align: left; margin: 1mm 0 0; }');
+    frameDoc.write('.b-thinrule { border-top: 1.4pt solid #000; margin: 2mm 0 3mm; }');
+    frameDoc.write('.b-title { font-size: 14pt; line-height: 1.2; font-weight: 700; text-align: center; background: #000; color: #fff; padding: 4.5pt 7pt; margin: 0 0 3mm; -webkit-print-color-adjust: exact; print-color-adjust: exact; }');
+    frameDoc.write('.b-subtitle { font-weight: 700; font-size: 11.5pt; line-height: 1.25; margin: 3mm 0 2mm; text-decoration: underline; }');
+    frameDoc.write('.b-label { font-weight: 700; font-size: 10.5pt; white-space: nowrap; }');
+    frameDoc.write('.b-value { border: 1.2pt solid #000; min-height: 30pt; padding: 4pt 6pt; font-size: 11pt; line-height: 1.4; margin-bottom: 2mm; page-break-inside: avoid; }');
+    frameDoc.write('.b-note { border: 1.2pt solid #000; min-height: 34pt; padding: 4pt 6pt; font-size: 11pt; line-height: 1.4; margin-bottom: 2mm; page-break-inside: avoid; }');
+    frameDoc.write('.b-info { width: 100%; border-collapse: collapse; table-layout: fixed; margin: 0 0 4mm; }');
+    frameDoc.write('.b-info td { border: 1pt solid #000; padding: 4pt 6pt; vertical-align: middle; font-size: 11pt; }');
+    frameDoc.write('.b-info .lbl { width: 22%; font-weight: 700; background: #fff; white-space: nowrap; }');
+    frameDoc.write('.b-info .val { width: 28%; font-weight: 600; }');
+    frameDoc.write('.b-opgrid { width: 100%; border-collapse: collapse; margin: 0 0 4mm; }');
+    frameDoc.write('.b-opgrid td { padding: 8pt 9pt; vertical-align: middle; border: 1.4pt solid #000; }');
+    frameDoc.write('.b-opgrid .lbl { width: 28%; font-weight: 700; font-size: 14pt; background: #fff; line-height: 1.4; }');
+    frameDoc.write('.b-opgrid .val { font-weight: 600; font-size: 15pt; text-align: center; min-height: 36pt; padding: 8pt 9pt; }');
+    frameDoc.write('.b-opgrid .val-wide { font-weight: 600; font-size: 13pt; text-align: center; min-height: 64pt; padding: 8pt 9pt; vertical-align: top; }');
+    frameDoc.write('.b-opgrid .val-date { width: 25%; font-weight: 600; font-size: 13pt; text-align: center; padding: 8pt 9pt; }');
+    frameDoc.write('.b-feature { list-style: none; margin: 0 0 4mm; padding: 0; font-size: 13pt; line-height: 1.75; }');
+    frameDoc.write('.b-feature li { display: block; padding: 3pt 0; }');
+    frameDoc.write('.b-sign-block { margin-top: 4mm; text-align: right; page-break-inside: avoid; }');
+    frameDoc.write('.b-sign-line { font-size: 10.5pt; font-weight: 700; margin-bottom: 2mm; text-align: right; }');
+    frameDoc.write('.b-sign-box { display: inline-block; width: 56mm; height: 16mm; border: 1.2pt solid #000; }');
+    frameDoc.write('.b-seal-box { display: inline-block; width: 48mm; height: 16mm; border: 1.2pt solid #000; }');
+    frameDoc.write('.b-foot { margin-top: 3mm; font-size: 8.5pt; text-align: center; border-top: 1.2pt solid #000; padding-top: 1.5mm; color: #333; }');
+    frameDoc.write('.b-ack { margin-top: 2.5mm; border: 1pt dashed #000; padding: 2.5mm 3mm; font-size: 9pt; text-align: center; page-break-inside: avoid; }');
+    frameDoc.write('.b-page-fill { display: table; width: 100%; height: 100%; }');
+    frameDoc.write('.b-page-top-row { display: table-row; }');
+    frameDoc.write('.b-page-top { display: table-cell; vertical-align: top; }');
+    frameDoc.write('.b-page-bottom-row { display: table-row; height: 1px; }');
+    frameDoc.write('.b-page-bottom { display: table-cell; vertical-align: bottom; padding-top: 6mm; }');
+    frameDoc.write('.b-back .b-note { min-height: 110pt; }');
+    frameDoc.write('.b-back .b-info { margin: 0 0 6mm; }');
+    frameDoc.write('.b-back .b-feature { font-size: 13.5pt; line-height: 2.1; margin: 0 0 4mm; }');
+    frameDoc.write('.b-back .b-feature li { padding: 6pt 0; }');
+    frameDoc.write('</style>');
+    frameDoc.write('</head><body>');
+    frameDoc.write(printContent);
+    frameDoc.write('</body></html>');
+    frameDoc.close();
+
+    setTimeout(function () {
+        frame.contentWindow.focus();
+        frame.contentWindow.print();
+    }, 400);
 }
 
 function doDischarge() {
@@ -1288,6 +2187,102 @@ function doDischarge() {
     });
 }
 
-document.addEventListener('DOMContentLoaded', renumberMedicineRows);
+// Auto-fill strength when user types/selects from datalist in table rows
+document.addEventListener('input', function(e) {
+    if (e.target && e.target.classList.contains('dm-name')) {
+        var inputVal = e.target.value.trim().toLowerCase();
+        var row = e.target.closest('.discharge-medicine-row');
+        if (!row || !inputVal) return;
+
+        var datalist = document.getElementById('medicineSuggestions');
+        if (!datalist) return;
+
+        var options = datalist.querySelectorAll('option');
+        for (var i = 0; i < options.length; i++) {
+            var optVal = (options[i].value || '').trim().toLowerCase();
+            if (optVal === inputVal) {
+                var strength = options[i].getAttribute('data-strength');
+                var strengthInput = row.querySelector('.dm-strength');
+                if (strengthInput && strength && !strengthInput.value) {
+                    strengthInput.value = strength;
+                }
+                break;
+            }
+        }
+    }
+});
+
+$(document).ready(function() {
+    renumberMedicineRows();
+
+    var historyMode = @json($historyMode ?? false);
+
+    function hasExplicitPatientSelection() {
+        var params = new URLSearchParams(window.location.search);
+        return params.has('patientcode') || params.has('admission_id');
+    }
+
+    function applyDischargeStepView() {
+        var $selection = $('#patientSelectionScreen');
+        var $workflow = $('#dischargeWorkflow');
+
+        if (historyMode || hasExplicitPatientSelection()) {
+            $selection.removeClass('is-visible');
+            $workflow.addClass('is-visible');
+        } else {
+            $selection.addClass('is-visible');
+            $workflow.removeClass('is-visible');
+        }
+    }
+
+    applyDischargeStepView();
+
+    // Patient search Select2
+    var $patientSearch = $('#patientSearchSelect');
+    var $continueBtn = $('#btnSelectPatientContinue');
+
+    function syncContinueButton() {
+        if (!$continueBtn.length) return;
+        $continueBtn.prop('disabled', !$patientSearch.val());
+    }
+
+    if ($patientSearch.length && $.fn.select2) {
+        $patientSearch.select2({
+            theme: 'bootstrap4',
+            placeholder: 'Search by name, patient ID, or mobile number...',
+            allowClear: true,
+            width: '100%'
+        }).on('change select2:select select2:clear', function() {
+            syncContinueButton();
+        });
+    }
+
+    syncContinueButton();
+
+    $continueBtn.on('click', function() {
+        var url = $patientSearch.val();
+        if (url) {
+            window.location.href = url;
+            return;
+        }
+        showAjaxMessage('danger', 'Please select a patient to continue.');
+    });
+
+    // Initialize Select2 search on medicine selector
+    if ($.fn.select2) {
+        $('#commonMedicineSelect').select2({
+            theme: 'bootstrap4',
+            placeholder: '🔍 ঔষধ সার্চ করুন (নাম বা পাওয়ার লিখুন)...',
+            allowClear: true,
+            width: '100%'
+        }).on('select2:select', function(e) {
+            addMedicineFromSelect();
+        });
+    }
+});
+
+@if($historyMode && request()->boolean('print'))
+window.addEventListener('load', function () { setTimeout(printSlip, 400); });
+@endif
 </script>
 @endsection

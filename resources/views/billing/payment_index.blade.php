@@ -182,6 +182,74 @@
 </nav>
 <div class="cc-bottom-spacer"></div>
 
+{{-- Give Discount Modal --}}
+<div class="modal fade" id="discountModal" tabindex="-1" role="dialog" aria-labelledby="discountModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="discountModalLabel">Give Discount</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+
+                <input type="hidden" id="discInvoiceId">
+
+                <div class="cc-info-box">
+                    <div class="cc-info-top">
+                        <div>
+                            <span class="cc-info-badge" id="discBillNo">—</span>
+                            <strong class="cc-info-name" id="discPatientName">—</strong>
+                        </div>
+                        <button type="button" id="btnViewDiscHistory" class="cc-btn cc-btn-history">
+                            <i class="fas fa-history"></i> History
+                        </button>
+                    </div>
+                    <div class="cc-info-stats">
+                        <div class="cc-info-stat cc-info-stat-due">
+                            <span class="cc-info-stat-label">Current Due</span>
+                            <span class="cc-info-stat-val cc-amber" id="discCurrentDue">&#2547; 0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="discHistoryBox" style="display:none;"></div>
+
+                <div class="cc-field">
+                    <label class="cc-label">Discount Amount (&#2547;)</label>
+                    <input type="number" id="discAmountInput" class="cc-input" placeholder="0" min="1" step="1">
+                    <div id="discAmountError" class="cc-field-error" style="display:none;"></div>
+                </div>
+
+                <div class="cc-field">
+                    <label class="cc-label">Reference</label>
+                    <select id="discReferenceSelect" class="cc-input" style="width:100%;">
+                        <option value="">— Select Reference —</option>
+                    </select>
+                </div>
+
+                <div class="cc-field">
+                    <label class="cc-label">Approved By</label>
+                    <select id="discApprovedBySelect" class="cc-input" style="width:100%;">
+                        <option value="">— Select Approver —</option>
+                    </select>
+                </div>
+
+                <div class="cc-field">
+                    <label class="cc-label">Note (optional)</label>
+                    <textarea id="discNoteInput" class="cc-input" rows="2" style="height:auto;resize:vertical;"></textarea>
+                </div>
+
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="cc-btn cc-btn-outline" data-dismiss="modal">Cancel</button>
+                <button type="button" id="btnSubmitDiscount" class="cc-btn cc-btn-discount">Give Discount</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @stop
 
 
@@ -207,6 +275,9 @@
     --cc-red-bg: #fef2f2;
     --cc-amber: #f59e0b;
     --cc-amber-bg: #fffbeb;
+    --cc-purple: #7c3aed;
+    --cc-purple-dark: #6d28d9;
+    --cc-purple-bg: #f5f3ff;
     --cc-radius: 4px;
     --cc-font: 'Hanken Grotesk', system-ui, -apple-system, sans-serif;
 }
@@ -360,6 +431,15 @@ select.cc-input { appearance: auto; }
     border-radius: var(--cc-radius);
 }
 .cc-btn-clear:hover { background: var(--cc-red-bg); }
+.cc-btn-history {
+    background: none;
+    border: 1px solid var(--cc-purple);
+    color: var(--cc-purple);
+    font-size: 11px;
+    padding: 2px 10px;
+    border-radius: var(--cc-radius);
+}
+.cc-btn-history:hover { background: var(--cc-purple-bg); }
 
 /* -- Export buttons -- */
 .cc-export-row {
@@ -572,6 +652,7 @@ select.cc-input { appearance: auto; }
     display: flex;
     gap: 6px;
     justify-content: flex-end;
+    flex-wrap: wrap;
     padding-top: 6px;
     border-top: 1px solid #eee;
 }
@@ -606,6 +687,11 @@ select.cc-input { appearance: auto; }
     color: var(--cc-white);
 }
 .cc-btn-pay:hover { background: var(--cc-primary-dark); }
+.cc-btn-discount {
+    background: var(--cc-purple);
+    color: var(--cc-white);
+}
+.cc-btn-discount:hover { background: var(--cc-purple-dark); }
 .cc-btn-outline {
     background: var(--cc-white);
     color: var(--cc-muted);
@@ -676,6 +762,39 @@ select.cc-input { appearance: auto; }
 }
 .select2-results__option { padding: 6px 10px !important; }
 
+/* -- Discount Modal -- */
+#discountModal .modal-content {
+    font-family: var(--cc-font);
+    border-radius: var(--cc-radius);
+    border: none;
+}
+#discountModal .modal-header {
+    border-bottom: 1px solid var(--cc-border);
+    padding: 12px 16px;
+}
+#discountModal .modal-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--cc-text);
+}
+#discountModal .modal-body {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+#discountModal .modal-footer {
+    border-top: 1px solid var(--cc-border);
+    padding: 10px 16px;
+}
+#discHistoryBox {
+    max-height: 160px;
+    overflow-y: auto;
+    border: 1px solid var(--cc-border);
+    border-radius: var(--cc-radius);
+    background: #fafafa;
+}
+
 /* -- Bottom Nav -- */
 .cc-bottom-nav {
     position: fixed;
@@ -723,7 +842,8 @@ select.cc-input { appearance: auto; }
     .cc-bottom-nav, .cc-bottom-spacer,
     .cc-left-col, .cc-export-row, .cc-search-row,
     .cc-btn, .cc-load-more-wrap, .cc-btn-load-more,
-    .btn-select-inv, .btn-print-inv { display: none !important; }
+    .btn-select-inv, .btn-print-inv, .btn-discount-inv,
+    #discountModal { display: none !important; }
     body, .content-wrapper { background: #fff !important; }
     .cc-right-col { width: 100% !important; }
     .cc-inv-card { break-inside: avoid; page-break-inside: avoid; }
@@ -762,10 +882,11 @@ $.ajaxSetup({ headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' } });
 'use strict';
 
 // -- State ------------------------------------------------
-let currentPage     = 1;
-let searchTimer     = null;
-let selectedInvoice = null;
-let allLoadedRows   = [];
+let currentPage       = 1;
+let searchTimer       = null;
+let selectedInvoice   = null;
+let allLoadedRows     = [];
+let discountRefsLoaded = false;
 
 // ----------------------------------------------------------
 // 1. Invoice Select2 — search due invoices
@@ -991,10 +1112,11 @@ function loadDueList(page, append){
                 <div class="cc-inv-card" data-id="${inv.ID}">
                     <div class="cc-inv-card-head">
                         <div class="cc-inv-card-info">
-                            <span class="cc-inv-billno">${inv.BillNo}</span>
-                            <span class="cc-inv-name">${inv.PatientName}</span>
-                        </div>
-                        ${badge}
+                        <span class="cc-inv-billno">${inv.BillNo}</span>
+                        <span class="cc-inv-name">${inv.PatientName}</span>
+                    </div>
+                    ${parseInt(inv.pending_count || 0) > 0 ? '<span class="cc-badge cc-badge-pending" title="Invoice pending approval">Pending</span>' : ''}
+                    ${badge}
                     </div>
                     <div class="cc-inv-card-details">
                         <div class="cc-inv-card-amounts">
@@ -1021,6 +1143,7 @@ function loadDueList(page, append){
                     <div class="cc-inv-card-actions">
                         ${due > 0
                             ? '<button class="cc-btn-sm cc-btn-pay btn-select-inv" data-inv=\'' + invEsc + '\'>Pay</button>'
+                              + '<button class="cc-btn-sm cc-btn-discount btn-discount-inv" data-inv=\'' + invEsc + '\'>Discount</button>'
                             : ''}
                         <button class="cc-btn-sm cc-btn-outline" onclick="window.open(\'{{ url("Billing/payment") }}/${inv.ID}/print\',\'_blank\')">
                             <i class="fas fa-print"></i>
@@ -1217,6 +1340,139 @@ $('#btnPrintList').on('click', function(){
         + '</body></html>'
     );
     win.document.close();
+});
+
+// ----------------------------------------------------------
+// 10. Give Discount — modal open + reference dropdown
+// ----------------------------------------------------------
+$('#discReferenceSelect, #discApprovedBySelect').select2({
+    width          : '100%',
+    dropdownParent : $('#discountModal'),
+    placeholder    : 'Select...',
+});
+
+function loadDiscountReferences(){
+    if (discountRefsLoaded) return;
+    $.get('{{ route("paynow.references") }}', function(res){
+        const opts = (res.data || []).map(function(r){
+            return '<option value="' + r.ID + '">' + r.Name + (r.ref_type ? ' (' + r.ref_type + ')' : '') + '</option>';
+        }).join('');
+        $('#discReferenceSelect, #discApprovedBySelect').append(opts);
+        discountRefsLoaded = true;
+    }).fail(function(){
+        toastr.error('Reference list load করা যায়নি।');
+    });
+}
+
+function openDiscountModal(inv){
+    const due = parseFloat(inv.DueAmount) || 0;
+    if (due <= 0) { toastr.info('This invoice has no due amount.'); return; }
+
+    $('#discInvoiceId').val(inv.ID);
+    $('#discBillNo').text(inv.BillNo);
+    $('#discPatientName').text(inv.PatientName);
+    $('#discCurrentDue').html('&#2547; ' + parseInt(due).toLocaleString());
+    $('#discAmountInput').val('').attr('max', parseInt(due));
+    $('#discAmountError').hide();
+    $('#discReferenceSelect').val(null).trigger('change');
+    $('#discApprovedBySelect').val(null).trigger('change');
+    $('#discNoteInput').val('');
+    $('#discHistoryBox').hide().empty();
+
+    loadDiscountReferences();
+    $('#discountModal').modal('show');
+}
+
+$(document).on('click', '.btn-discount-inv', function(){
+    openDiscountModal($(this).data('inv'));
+});
+
+// ----------------------------------------------------------
+// 11. Give Discount — submit AJAX
+// ----------------------------------------------------------
+$('#btnSubmitDiscount').on('click', function(){
+    const invoiceId = $('#discInvoiceId').val();
+    if (!invoiceId) return;
+
+    const due    = parseFloat($('#discCurrentDue').text().replace(/[^\d.]/g, '')) || 0;
+    const amount = parseFloat($('#discAmountInput').val()) || 0;
+    const refId  = $('#discReferenceSelect').val();
+    const apprId = $('#discApprovedBySelect').val();
+    const note   = $('#discNoteInput').val();
+
+    if (amount <= 0 || amount > due) {
+        $('#discAmountError').html('Amount must be between 1 and &#2547;' + parseInt(due).toLocaleString()).show();
+        return;
+    }
+    $('#discAmountError').hide();
+    if (!refId)  { toastr.error('Reference select করুন।');    return; }
+    if (!apprId) { toastr.error('Approved By select করুন।'); return; }
+
+    const $btn = $(this);
+    $btn.prop('disabled', true).text('Processing...');
+
+    $.ajax({
+        url         : '{{ route("paynow.adjustDiscount") }}',
+        method      : 'POST',
+        contentType : 'application/json',
+        data        : JSON.stringify({
+            invoice_id        : invoiceId,
+            adjustment_amount : amount,
+            reference_id      : refId,
+            approved_by       : apprId,
+            note              : note,
+        }),
+        success: function(res){
+            if (res.success) {
+                toastr.success('Discount applied!');
+                $('#discountModal').modal('hide');
+                loadDueList();
+                loadSummaryCards();
+            } else {
+                toastr.error(res.message || 'Failed.');
+            }
+        },
+        error: function(xhr){
+            toastr.error(xhr.responseJSON ? xhr.responseJSON.message : 'Server error.');
+        },
+        complete: function(){
+            $btn.prop('disabled', false).text('Give Discount');
+        }
+    });
+});
+
+// ----------------------------------------------------------
+// 12. Discount History — inline toggle list
+// ----------------------------------------------------------
+$('#btnViewDiscHistory').on('click', function(){
+    const invoiceId = $('#discInvoiceId').val();
+    if (!invoiceId) return;
+
+    const $box = $('#discHistoryBox');
+    if ($box.is(':visible')) { $box.slideUp(150); return; }
+
+    $box.html('<div class="cc-list-state" style="padding:10px;border:none;"><i class="fas fa-spinner fa-spin"></i> Loading...</div>').slideDown(150);
+
+    const url = '{{ route("paynow.discountHistory", ["invoiceId" => "__ID__"]) }}'.replace('__ID__', invoiceId);
+
+    $.get(url, function(res){
+        const rows = res.data || [];
+        if (!rows.length) {
+            $box.html('<div class="cc-list-state" style="padding:10px;border:none;">No discount history found.</div>');
+            return;
+        }
+        const html = rows.map(function(r){
+            return '<div style="padding:6px 10px;border-bottom:1px solid #eee;font-size:11px;">'
+                 + '<strong>&#2547; ' + parseInt(r.adjustment_amount).toLocaleString() + '</strong> discount'
+                 + ' &middot; Ref: ' + (r.reference_name || '-')
+                 + ' &middot; Approved: ' + (r.approved_by_name || '-')
+                 + '<br><span style="color:#6b7280;">' + (r.created_at || '') + (r.note ? ' — ' + r.note : '') + '</span>'
+                 + '</div>';
+        }).join('');
+        $box.html(html);
+    }).fail(function(){
+        $box.html('<div class="cc-list-state" style="padding:10px;border:none;color:#ef4444;">Load failed.</div>');
+    });
 });
 
 // ----------------------------------------------------------

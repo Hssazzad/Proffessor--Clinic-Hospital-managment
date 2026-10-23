@@ -24,6 +24,11 @@
                 <form action="{{ route('settings.wardbed.store') }}" method="POST">
                     @csrf
                     <div class="card-body">
+                        {{-- Bed Name Added Here --}}
+                        <div class="form-group">
+                            <label>Bed Name <span class="text-danger">*</span></label>
+                            <input type="text" name="bed_name" class="form-control" placeholder="e.g. VIP Bed 1 / Bed-A" required>
+                        </div>
                         <div class="form-group">
                             <label>Bed Number <span class="text-danger">*</span></label>
                             <input type="text" name="bed_number" class="form-control" placeholder="e.g. W-105" required>
@@ -65,6 +70,7 @@
                         <thead>
                             <tr>
                                 <th>ID</th>
+                                <th>Bed Name</th> {{-- Table Header Added --}}
                                 <th>Bed Number</th>
                                 <th>Type / Ward</th>
                                 <th>Price/Day</th>
@@ -76,6 +82,7 @@
                             @forelse($beds as $bed)
                                 <tr>
                                     <td>{{ $bed->id }}</td>
+                                    <td>{{ $bed->bed_name }}</td> {{-- Display Bed Name --}}
                                     <td>{{ $bed->bed_number }}</td>
                                     <td>{{ $bed->bed_type }}</td>
                                     <td>{{ $bed->price_per_day ? number_format($bed->price_per_day, 0) . ' BDT' : '—' }}</td>
@@ -95,6 +102,7 @@
                                     <td>
                                         <button class="btn btn-warning btn-sm editBtn"
                                             data-id="{{ $bed->id }}"
+                                            data-bed_name="{{ $bed->bed_name }}" {{-- Data Attribute Added --}}
                                             data-bed_number="{{ $bed->bed_number }}"
                                             data-bed_type="{{ $bed->bed_type }}"
                                             data-price_per_day="{{ $bed->price_per_day }}"
@@ -112,7 +120,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="6" class="text-center text-muted">No beds found.</td>
+                                    <td colspan="7" class="text-center text-muted">No beds found.</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -138,6 +146,11 @@
                     </div>
                     <div class="modal-body">
                         <input type="hidden" name="id" id="edit_id">
+                        {{-- Bed Name Input in Edit Modal --}}
+                        <div class="form-group">
+                            <label>Bed Name <span class="text-danger">*</span></label>
+                            <input type="text" name="bed_name" id="edit_bed_name" class="form-control" required>
+                        </div>
                         <div class="form-group">
                             <label>Bed Number <span class="text-danger">*</span></label>
                             <input type="text" name="bed_number" id="edit_bed_number" class="form-control" required>
@@ -182,6 +195,7 @@ $(function () {
     $('.editBtn').on('click', function () {
         var id = $(this).data('id');
         $('#edit_id').val(id);
+        $('#edit_bed_name').val($(this).data('bed_name')); // Bed Name JS handler
         $('#edit_bed_number').val($(this).data('bed_number'));
         $('#edit_bed_type').val($(this).data('bed_type'));
         $('#edit_price_per_day').val($(this).data('price_per_day'));

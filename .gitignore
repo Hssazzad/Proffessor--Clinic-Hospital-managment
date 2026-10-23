@@ -5,10 +5,13 @@
 /public/storage
 /storage/*.key
 /storage/pail
+/storage/fonts/
 /vendor
 .env
 .env.backup
 .env.production
+.env.*
+.env.example
 .phpactor.json
 .phpunit.result.cache
 Homestead.json
@@ -22,3 +25,47 @@ yarn-error.log
 /.vscode
 /.zed
 /config
+
+# Local databases, backups, and one-off operational artifacts. These may contain
+# production or patient data and must never be committed.
+*.sql
+*.sqlite
+*.sqlite3
+*.bak
+*.backup
+/storage/backups/
+/output/
+/tmp/
+
+# Versioned schema/deployment scripts are application source, not data exports.
+!database/
+!database/sql/
+!database/sql/*.sql
+!docs/
+!docs/*.sql
+
+# Local diagnostics and exploratory scripts (not application source).
+/*_tmp.php
+/*_inspect.php
+/*_inspect2.php
+/acct_state.php
+/accounting_backup.sql
+/accounting_fin_backfill.php
+/accounting_reconcile_check.php
+/accounting_status_backfill.php
+/cash_audit_tmp.php
+/check_income_accounts.php
+/check_routes.php
+/delete_open_ar_tmp.php
+/inv_schema_dump.php
+/phpmyadmin_response.html
+/receivable_audit_tmp.php
+/receivable_deep_tmp.php
+/receivable_reconcile_tmp.php
+/revenue_check_tmp.php
+/rxjs_tmp.js
+/verify_payment_source.php
+
+# Runtime-generated and package-vendored assets are restored by the framework or
+# Composer and should not inflate the application repository.
+/resources/views/vendor/almasaeed2010/

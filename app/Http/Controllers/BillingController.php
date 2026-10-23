@@ -155,3 +155,4 @@ class BillingController extends Controller
         return view('patients.billing.due', compact('payments'));
     }
 }
+?>

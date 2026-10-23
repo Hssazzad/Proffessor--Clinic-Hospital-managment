@@ -617,12 +617,12 @@
                                             <th rowspan="2" class="round-th-name">ঔষধের নাম</th>
                                             <th colspan="3" class="round-th-group">কখন খাবেন?</th>
                                             <th colspan="2" class="round-th-group">আহারের</th>
-                                            <th colspan="3" class="round-th-group">কতদিন?</th>
+                                            <th rowspan="2" class="round-th-name">কতদিন</th>
+                                            <th rowspan="2" class="round-th-name">নির্দেশনা</th>
                                         </tr>
                                         <tr>
                                             <th class="round-th-sub">সকাল</th><th class="round-th-sub">দুপুর</th><th class="round-th-sub">রাত</th>
                                             <th class="round-th-sub">আগে</th><th class="round-th-sub">পরে</th>
-                                            <th class="round-th-sub">দিন</th><th class="round-th-sub">মাস</th><th class="round-th-sub">চলবে</th>
                                         </tr>
                                     </thead>
                                     <tbody id="rx-med-print-tbody"></tbody>
@@ -1748,22 +1748,22 @@ function parseMedRow(m){
     if(dp){morning=dp[1].trim();noon=dp[2].trim();night=dp[3].trim();}else if(freq){morning=freq;}
     var timing=(m.timing||'').toLowerCase();var before='',after='';
     if(timing.includes('before')||timing.includes('আগে')){before='✓';}else if(timing.includes('after')||timing.includes('পরে')){after='✓';}else if(timing){after='✓';}
-    var days='',months='',cont='';var dur=(m.duration||'').toLowerCase().trim();
-    if(dur.includes('cont')||dur.includes('চলবে')||dur==='ongoing'){cont='✓';}else if(dur.includes('month')||dur.includes('মাস')){months=dur.replace(/[^0-9]/g,'')||'1';}else if(dur){days=dur.replace(/[^0-9]/g,'')||dur;}
     var name=(m.route?m.route+' ':'')+m.medicine_name;
-    return{name:name,morning:morning,noon:noon,night:night,before:before,after:after,days:days,months:months,cont:cont};
+    var duration=(m.duration||'').trim();
+    var instruction=(m.instruction||m.note||'').trim();
+    return{name:name,morning:morning,noon:noon,night:night,before:before,after:after,duration:duration,instruction:instruction};
 }
 function renderRxMedicines(){
     var tbody=document.getElementById('rx-med-print-tbody');if(!tbody)return;tbody.innerHTML='';
     var meds=selectedMeds.filter(function(m){return m.medicine_name.trim();});
-    meds.forEach(function(m){var r=parseMedRow(m);var tr=document.createElement('tr');tr.innerHTML='<td style="text-align:left;padding-left:6px;">• '+esc(r.name)+'</td><td>'+esc(r.morning)+'</td><td>'+esc(r.noon)+'</td><td>'+esc(r.night)+'</td><td>'+esc(r.before)+'</td><td>'+esc(r.after)+'</td><td>'+esc(r.days)+'</td><td>'+esc(r.months)+'</td><td>'+esc(r.cont)+'</td>';tbody.appendChild(tr);});
-    var needed=Math.max(0,8-meds.length);for(var i=0;i<needed;i++){var tr=document.createElement('tr');tr.className='empty-row';tr.innerHTML='<td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>';tbody.appendChild(tr);}
+    meds.forEach(function(m){var r=parseMedRow(m);var tr=document.createElement('tr');tr.innerHTML='<td style="text-align:left;padding-left:6px;">• '+esc(r.name)+'</td><td>'+esc(r.morning)+'</td><td>'+esc(r.noon)+'</td><td>'+esc(r.night)+'</td><td>'+esc(r.before)+'</td><td>'+esc(r.after)+'</td><td>'+esc(r.duration)+'</td><td style="text-align:left;padding-left:6px;">'+esc(r.instruction)+'</td>';tbody.appendChild(tr);});
+    var needed=Math.max(0,8-meds.length);for(var i=0;i<needed;i++){var tr=document.className='empty-row';var tr=document.createElement('tr');tr.className='empty-row';tr.innerHTML='<td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>';tbody.appendChild(tr);}
 }
 function buildMedTableHTML(meds){
     if(!meds||!meds.length)return'<p class="no-meds-note">No medicines recorded for this visit.</p>';
-    var rows=meds.filter(function(m){return m&&(m.medicine_name||'').trim();}).map(function(m){var r=parseMedRow(m);return'<tr><td style="text-align:left;padding-left:6px;">• '+esc(r.name)+'</td><td>'+esc(r.morning)+'</td><td>'+esc(r.noon)+'</td><td>'+esc(r.night)+'</td><td>'+esc(r.before)+'</td><td>'+esc(r.after)+'</td><td>'+esc(r.days)+'</td><td>'+esc(r.months)+'</td><td>'+esc(r.cont)+'</td></tr>';}).join('');
+    var rows=meds.filter(function(m){return m&&(m.medicine_name||'').trim();}).map(function(m){var r=parseMedRow(m);return'<tr><td style="text-align:left;padding-left:6px;">• '+esc(r.name)+'</td><td>'+esc(r.morning)+'</td><td>'+esc(r.noon)+'</td><td>'+esc(r.night)+'</td><td>'+esc(r.before)+'</td><td>'+esc(r.after)+'</td><td>'+esc(r.duration)+'</td><td style="text-align:left;padding-left:6px;">'+esc(r.instruction)+'</td></tr>';}).join('');
     if(!rows)return'<p class="no-meds-note">No medicines recorded.</p>';
-    return'<table class="visit-med-table"><thead><tr><th rowspan="2" style="text-align:left;min-width:160px;">ঔষধের নাম</th><th colspan="3">কখন খাবেন?</th><th colspan="2">আহারের</th><th colspan="3">কতদিন?</th></tr><tr><th>সকাল</th><th>দুপুর</th><th>রাত</th><th>আগে</th><th>পরে</th><th>দিন</th><th>মাস</th><th>চলবে</th></tr></thead><tbody>'+rows+'</tbody></table>';
+    return'<table class="visit-med-table"><thead><tr><th rowspan="2" style="text-align:left;min-width:160px;">ঔষধের নাম</th><th colspan="3">কখন খাবেন?</th><th colspan="2">আহারের</th><th rowspan="2">কতদিন</th><th rowspan="2" style="text-align:left;">নির্দেশনা</th></tr><tr><th>সকাল</th><th>দুপুর</th><th>রাত</th><th>আগে</th><th>পরে</th></tr></thead><tbody>'+rows+'</tbody></table>';
 }
 function buildVisitVitalsInlineHTML(rx){
     var bp=rx.bp||'', pulse=rx.pulse||'', note=rx.vitals_note||'';

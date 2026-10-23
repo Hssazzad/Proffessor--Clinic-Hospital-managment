@@ -22,9 +22,9 @@
           <tr>
             <th style="width:35px;">#</th>
             <th>Medicine</th>
-            <th style="width:70px;">সকাল</th>
-            <th style="width:70px;">দুপুর</th>
-            <th style="width:70px;">রাত</th>
+            <th style="width:70px;white-space:nowrap;">সকাল</th>
+            <th style="width:70px;white-space:nowrap;">দুপুর</th>
+            <th style="width:70px;white-space:nowrap;">রাত</th>
             <th style="width:90px;">Duration</th>
             <th>Note</th>
           </tr>

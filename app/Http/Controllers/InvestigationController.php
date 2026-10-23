@@ -18,22 +18,25 @@ class InvestigationController extends Controller
 
     public function create()
     {
-        return view('settings.investigation.create');
+        return redirect()->route('settings.investigation.index');
     }
 
     public function store(Request $r)
     {
+        $description = trim((string) $r->description);
+        $category = trim((string) $r->category);
+
         $r->validate([
             'name'        => 'required|string|max:255',
-            'category'    => 'required|string|max:100',
-            'description' => 'required|string',
+            'category'    => 'nullable|string|max:100',
+            'description' => 'nullable|string',
             'active'      => 'required|boolean',
         ]);
 
         CommonInvestigation::create([
             'name'        => $r->name,
-            'category'    => $r->category,
-            'description' => $r->description,
+            'category'    => $category,
+            'description' => $description,
             'active'      => $r->active,
         ]);
 
@@ -44,17 +47,18 @@ class InvestigationController extends Controller
 
     public function edit($id)
     {
-        $inv = CommonInvestigation::findOrFail($id);
-
-        return view('settings.investigation.edit', compact('inv'));
+        return redirect()->route('settings.investigation.index');
     }
 
     public function update(Request $r, $id)
     {
+        $description = trim((string) $r->description);
+        $category = trim((string) $r->category);
+
         $r->validate([
             'name'        => 'required|string|max:255',
-            'category'    => 'required|string|max:100',
-            'description' => 'required|string',
+            'category'    => 'nullable|string|max:100',
+            'description' => 'nullable|string',
             'active'      => 'required|boolean',
         ]);
 
@@ -62,8 +66,8 @@ class InvestigationController extends Controller
 
         $inv->update([
             'name'        => $r->name,
-            'category'    => $r->category,
-            'description' => $r->description,
+            'category'    => $category,
+            'description' => $description,
             'active'      => $r->active,
         ]);
 

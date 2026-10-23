@@ -22,10 +22,9 @@
                 if ($v === '0' || $v === '' || $v === null) return '০ (চলবে না)';
                 return $v;
             };
-            $doseParts = explode('+', str_replace('-', '+', $m->dose ?? ''));
-            $morning = $_val($doseParts[0] ?? '');
-            $noon    = $_val($doseParts[1] ?? '');
-            $night   = $_val($doseParts[2] ?? '');
+            $morning = $_val($m->morning ?? '');
+            $noon    = $_val($m->noon ?? '');
+            $night   = $_val($m->night ?? '');
         @endphp
         <tr>
             <td>{{ $index + 1 }}</td>
@@ -40,7 +39,6 @@
                     data-id="{{ $m->id }}"
                     data-name="{{ $m->name }}"
                     data-strength="{{ $m->strength }}"
-                    data-dose="{{ $m->dose }}"
                     data-morning="{{ $m->morning }}"
                     data-noon="{{ $m->noon }}"
                     data-night="{{ $m->night }}"

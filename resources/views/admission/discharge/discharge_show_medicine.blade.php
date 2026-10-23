@@ -94,13 +94,13 @@
             <div class="card-body p-0">
                 <table class="table table-sm table-bordered mb-0">
                     <thead>
-                        <tr><th>#</th><th>Medicine</th><th>Strength</th><th>Dose</th><th>Morning</th><th>Noon</th><th>Night</th></tr>
+                        <tr><th>#</th><th>Medicine</th><th>Strength</th><th>Morning</th><th>Noon</th><th>Night</th></tr>
                     </thead>
                     <tbody>
                         @forelse($admitMedicines as $i => $m)
-                            <tr><td>{{ $i+1 }}</td><td>{{ $m->name }}</td><td>{{ $m->strength }}</td><td>{{ $m->dose }}</td><td>{{ $m->morning }}</td><td>{{ $m->noon }}</td><td>{{ $m->night }}</td></tr>
+                            <tr><td>{{ $i+1 }}</td><td>{{ $m->name }}</td><td>{{ $m->strength }}</td><td>{{ $m->morning }}</td><td>{{ $m->noon }}</td><td>{{ $m->night }}</td></tr>
                         @empty
-                            <tr><td colspan="7" class="text-muted">No admit medicines.</td></tr>
+                            <tr><td colspan="6" class="text-muted">No admit medicines.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -117,9 +117,9 @@
                     </thead>
                     <tbody>
                         @forelse($preMedicines as $i => $m)
-                            <tr><td>{{ $i+1 }}</td><td>{{ $m->name }}</td><td>{{ $m->strength }}</td><td>{{ $m->dose }}</td><td>{{ $m->morning }}</td><td>{{ $m->noon }}</td><td>{{ $m->night }}</td></tr>
+                            <tr><td>{{ $i+1 }}</td><td>{{ $m->name }}</td><td>{{ $m->strength }}</td><td>{{ $m->morning }}</td><td>{{ $m->noon }}</td><td>{{ $m->night }}</td></tr>
                         @empty
-                            <tr><td colspan="7" class="text-muted">No pre surgery medicines.</td></tr>
+                            <tr><td colspan="6" class="text-muted">No pre surgery medicines.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -136,9 +136,9 @@
                     </thead>
                     <tbody>
                         @forelse($postMedicines as $i => $m)
-                            <tr><td>{{ $i+1 }}</td><td>{{ $m->name }}</td><td>{{ $m->strength }}</td><td>{{ $m->dose }}</td><td>{{ $m->morning }}</td><td>{{ $m->noon }}</td><td>{{ $m->night }}</td></tr>
+                            <tr><td>{{ $i+1 }}</td><td>{{ $m->name }}</td><td>{{ $m->strength }}</td><td>{{ $m->morning }}</td><td>{{ $m->noon }}</td><td>{{ $m->night }}</td></tr>
                         @empty
-                            <tr><td colspan="7" class="text-muted">No post surgery medicines.</td></tr>
+                            <tr><td colspan="6" class="text-muted">No post surgery medicines.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -155,9 +155,9 @@
                     </thead>
                     <tbody>
                         @forelse($roundMedicines as $i => $m)
-                            <tr><td>{{ $i+1 }}</td><td>{{ $m->name }}</td><td>{{ $m->strength }}</td><td>{{ $m->dose }}</td><td>{{ $m->morning }}</td><td>{{ $m->noon }}</td><td>{{ $m->night }}</td></tr>
+                            <tr><td>{{ $i+1 }}</td><td>{{ $m->name }}</td><td>{{ $m->strength }}</td><td>{{ $m->morning }}</td><td>{{ $m->noon }}</td><td>{{ $m->night }}</td></tr>
                         @empty
-                            <tr><td colspan="7" class="text-muted">No round patient medicines.</td></tr>
+                            <tr><td colspan="6" class="text-muted">No round patient medicines.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -174,9 +174,9 @@
                     </thead>
                     <tbody>
                         @forelse($freshMedicines as $i => $m)
-                            <tr><td>{{ $i+1 }}</td><td>{{ $m->name }}</td><td>{{ $m->strength }}</td><td>{{ $m->dose }}</td><td>{{ $m->morning }}</td><td>{{ $m->noon }}</td><td>{{ $m->night }}</td></tr>
+                            <tr><td>{{ $i+1 }}</td><td>{{ $m->name }}</td><td>{{ $m->strength }}</td><td>{{ $m->morning }}</td><td>{{ $m->noon }}</td><td>{{ $m->night }}</td></tr>
                         @empty
-                            <tr><td colspan="7" class="text-muted">No fresh prescription medicines.</td></tr>
+                            <tr><td colspan="6" class="text-muted">No fresh prescription medicines.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -308,7 +308,6 @@ function printSlip() {
                 '<td style="border:1px solid #2e7d32;padding:3px 5px;text-align:center;">' + (i + 1) + '</td>' +
                 '<td style="border:1px solid #2e7d32;padding:3px 5px;">' + (m.name || '') + '</td>' +
                 '<td style="border:1px solid #2e7d32;padding:3px 5px;text-align:center;">' + (m.strength || '') + '</td>' +
-                '<td style="border:1px solid #2e7d32;padding:3px 5px;text-align:center;">' + (m.dose || '') + '</td>' +
                 '<td style="border:1px solid #2e7d32;padding:3px 5px;text-align:center;">' + (m.morning || '') + '</td>' +
                 '<td style="border:1px solid #2e7d32;padding:3px 5px;text-align:center;">' + (m.noon || '') + '</td>' +
                 '<td style="border:1px solid #2e7d32;padding:3px 5px;text-align:center;">' + (m.night || '') + '</td>' +
@@ -321,7 +320,6 @@ function printSlip() {
             '<th style="border:1px solid #2e7d32;padding:4px 5px;text-align:center;">#</th>' +
             '<th style="border:1px solid #2e7d32;padding:4px 5px;">ঔষধের নাম</th>' +
             '<th style="border:1px solid #2e7d32;padding:4px 5px;text-align:center;">Strength</th>' +
-            '<th style="border:1px solid #2e7d32;padding:4px 5px;text-align:center;">Dose</th>' +
             '<th style="border:1px solid #2e7d32;padding:4px 5px;text-align:center;">সকাল</th>' +
             '<th style="border:1px solid #2e7d32;padding:4px 5px;text-align:center;">দুপুর</th>' +
             '<th style="border:1px solid #2e7d32;padding:4px 5px;text-align:center;">রাত</th>' +
@@ -416,7 +414,6 @@ function printSlip() {
         '<li style="padding:3px 0;">► ২৪ ঘণ্টা ইমার্জেন্সী সার্ভিস প্রদান।</li>' +
         '<li style="padding:3px 0;">► দিবা-রাত্রি সব সময় সিজারসহ যেকোন অপারেশনের সু-ব্যবস্থা।</li>' +
         '<li style="padding:3px 0;">► মহিলা এম.বি.বি.এস ডাক্তার দ্বারা নরমাল ডেলিভারির সু-ব্যবস্থা।</li>' +
-        '<li style="padding:3px 0;">► গরীব ও দুঃস্থ রোগীদের সুবিধার্থে প্রতি সোমবার বিকালে ফ্রি প্রেসক্রিপশন প্রদান।</li>' +
         '<li style="padding:3px 0;">► অন্তঃসত্তা মহিলাদের জন্য চেক-আপের বিশেষ সুবিধাদি প্রদান।</li>' +
         '</ul>' +
         '<div style="margin-top:30px;font-size:12px;text-align:center;color:#555;border-top:1px solid #2e7d32;padding-top:10px;">' +

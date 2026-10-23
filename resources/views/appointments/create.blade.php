@@ -9,7 +9,11 @@
 @section('content')
 @php $today = now()->toDateString(); @endphp
 
-<div class="container mt-3">
+@push('css')
+<link rel="stylesheet" href="{{ asset('css/hospital-erp.css') }}">
+@endpush
+
+<div class="container mt-3 hospital-page">
     {{-- Success/Error Alerts --}}
     @if(session('success'))
       <div class="alert alert-success alert-dismissible fade show">
@@ -29,47 +33,64 @@
       </div>
     @endif
 
-    <div class="card shadow-sm">
+    <div class="card hospital-box">
+      <div class="card-header with-border">
+        <h3 class="card-title">Appointment Booking</h3>
+      </div>
       <div class="card-body">
         {{-- Route Name Fixed: এখানে .page বাদ দিয়ে আপনার web.php এর সাথে মিলানো হয়েছে --}}
         <form id="apForm" action="{{ route('appointments.store') }}" method="POST">
           @csrf
 
-          <div class="form-group">
-            <label>Patient <span class="text-danger">*</span></label>
-            <select name="patient_id" id="patient_id" class="form-control" required>
-              <option value="">Select Patient</option>
-              @foreach($patients as $p)
-                <option value="{{ $p->id }}">{{ $p->patientname }} ({{ $p->patientcode }})</option>
-              @endforeach
-            </select>
-          </div>
+          <div class="row">
+            <div class="col-md-6">
+              <div class="form-group">
+                <label>Patient <span class="text-danger">*</span></label>
+                <select name="patient_id" id="patient_id" class="form-control" required>
+                  <option value="">Select Patient</option>
+                  @foreach($patients as $p)
+                    <option value="{{ $p->id }}">{{ $p->patientname }} ({{ $p->patientcode }})</option>
+                  @endforeach
+                </select>
+              </div>
+            </div>
 
-          <div class="form-group">
-            <label>Date <span class="text-danger">*</span></label>
-            <input type="date" name="appointment_date" id="appointment_date"
-                   class="form-control" min="{{ $today }}" value="{{ old('appointment_date') }}" required>
-          </div>
+            <div class="col-md-6">
+              <div class="form-group">
+                <label>Date <span class="text-danger">*</span></label>
+                <input type="date" name="appointment_date" id="appointment_date"
+                       class="form-control" min="{{ $today }}" value="{{ old('appointment_date') }}" required>
+              </div>
+            </div>
 
-          <div class="form-group">
-            <label>Time <span class="text-danger">*</span></label>
-            <input type="time" name="appointment_time" id="appointment_time"
-                   class="form-control" value="{{ old('appointment_time') }}" required>
-          </div>
+            <div class="col-md-6">
+              <div class="form-group">
+                <label>Time <span class="text-danger">*</span></label>
+                <input type="time" name="appointment_time" id="appointment_time"
+                       class="form-control" value="{{ old('appointment_time') }}" required>
+              </div>
+            </div>
 
-          <div class="form-group">
-            <label>Serial Number <span class="text-danger">*</span></label>
-            <select name="serial_no" id="serial_no" class="form-control" disabled required>
-              <option value="">Select date first</option>
-            </select>
-          </div>
+            <div class="col-md-6">
+              <div class="form-group">
+                <label>Serial Number <span class="text-danger">*</span></label>
+                <input type="number" name="serial_no" id="serial_no" class="form-control"
+                       readonly min="1" max="50" placeholder="Auto (select date)">
+                <small class="text-muted">Date নির্বাচন করলে automatically তৈরি হবে</small>
+              </div>
+            </div>
 
-          <div class="form-group">
-            <label>Remarks</label>
-            <textarea name="remarks" class="form-control" rows="3"></textarea>
-          </div>
+            <div class="col-md-12">
+              <div class="form-group">
+                <label>Remarks</label>
+                <textarea name="remarks" class="form-control" rows="3"></textarea>
+              </div>
+            </div>
 
-          <button type="submit" class="btn btn-primary px-4">Save Appointment</button>
+            <div class="col-md-12">
+              <button type="submit" class="btn btn-success">Save Appointment</button>
+            </div>
+          </div>
         </form>
       </div>
     </div>
@@ -81,10 +102,10 @@
 $(function(){
 
   function resetSerial(){
-    $("#serial_no").prop("disabled", true).html('<option value="">Select date first</option>');
+    $("#serial_no").val('');
   }
 
-  // Date change triggers serial check
+  // Date change triggers automatic serial assignment
   $("#appointment_date").on("change", function(){
     var date = $(this).val();
     var pid  = $("#patient_id").val();
@@ -100,18 +121,15 @@ $(function(){
         return;
       }
       
-      // AJAX Load: Get available serials
-      $.get("{{ route('appointments.availableSerials') }}", {date:date, limit:50}, function(res){
-        $("#serial_no").empty();
-        if(res.ok && res.available.length){
-          $("#serial_no").append('<option value="">Select Serial</option>');
-          res.available.forEach(function(n){
-            $("#serial_no").append('<option value="'+n+'">'+n+'</option>');
-          });
-          $("#serial_no").prop("disabled", false);
-        } else {
-          $("#serial_no").append('<option value="">No serials available</option>');
-          $("#serial_no").prop("disabled", true);
+      // AJAX: Auto-assign next serial for the date
+      $.get("{{ route('appointments.nextSerial') }}", {date:date}, function(res){
+        if(res.ok){
+          if(res.next > 50){
+            alert("No serials available for this date.");
+            resetSerial();
+          } else {
+            $("#serial_no").val(res.next);
+          }
         }
       });
     });

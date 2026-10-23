@@ -12,11 +12,14 @@ class OperationConsentController extends Controller
     {
         $query = DB::table('patient_admission as pa')
             ->join('patients as p', 'p.patientcode', '=', 'pa.patientcode')
+            ->leftJoin('beds as b', 'b.current_admission_id', '=', 'pa.id')
             ->select(
                 'pa.id as admission_id',
                 'pa.admissionid',
                 'pa.doctor_name',
                 'pa.created_at as admission_date',
+                'b.bed_number',
+                'b.bed_name',
                 'p.patientname',
                 'p.patientcode',
                 'p.age',
@@ -44,6 +47,7 @@ class OperationConsentController extends Controller
     {
         $admission = DB::table('patient_admission as pa')
             ->join('patients as p', 'p.patientcode', '=', 'pa.patientcode')
+            ->leftJoin('beds as b', 'b.current_admission_id', '=', 'pa.id')
             ->where('pa.id', $admission_id)
             ->select(
                 'pa.id as admission_id',
@@ -53,6 +57,8 @@ class OperationConsentController extends Controller
                 'pa.department',
                 'pa.discharge_date',
                 'pa.created_at as admission_date',
+                'b.bed_number',
+                'b.bed_name',
                 'p.id as patient_id',
                 'p.patientcode',
                 'p.patientname',
@@ -77,7 +83,15 @@ class OperationConsentController extends Controller
 
         $existing = OperationConsent::where('admission_id', $admission_id)->first();
 
-        return view('operation_consent.create', compact('admission', 'existing'));
+        $doctors = DB::table('doctors')->where('active', 1)->orderBy('doctor_name')->get(['id', 'doctor_name']);
+
+        $assistantSurgeons = DB::table('assistant_surgeons')->where('active', 1)->orderBy('name')->get(['id', 'name']);
+
+        $anesthesiologists = DB::table('anesthesiologists')->where('active', 1)->orderBy('name')->get(['id', 'name']);
+
+        $operationNames = DB::table('operation_names')->where('active', 1)->orderBy('name')->get(['id', 'name']);
+
+        return view('operation_consent.create', compact('admission', 'existing', 'doctors', 'assistantSurgeons', 'anesthesiologists', 'operationNames'));
     }
 
     // Save consent
@@ -91,11 +105,21 @@ class OperationConsentController extends Controller
             'signatory_name' => 'nullable|string|max:255',
         ]);
 
+        // DEBUG weight: what came from the form, is fillable OK, does the column exist?
+        \Illuminate\Support\Facades\Log::channel('single')->info('CONSENT-DEBUG', [
+            'request_weight'     => $request->input('weight'),
+            'request_post_office'=> $request->input('post_office'),
+            'fillable_has_weight'=> in_array('weight', (new OperationConsent)->getFillable()),
+            'db_has_weight_col'  => \Illuminate\Support\Facades\Schema::hasColumn('operation_consents', 'weight'),
+            'method'             => $request->method(),
+        ]);
+
         OperationConsent::where('admission_id', $request->admission_id)->delete();
 
         $consent = OperationConsent::create([
             'admission_id'          => $request->admission_id,
             'patient_id'            => $request->patient_id,
+            'weight'                => $request->weight,
             'ward_no'               => $request->ward_no,
             'post_office'           => $request->post_office,
             'disease_name'          => $request->disease_name,
@@ -111,6 +135,13 @@ class OperationConsentController extends Controller
             'signatory_relation'    => $request->signatory_relation,
             'doctor_signature_name' => $request->doctor_signature_name,
             'created_by'            => auth()->id() ?? 1,
+        ]);
+
+        \Illuminate\Support\Facades\Log::channel('single')->info('CONSENT-DEBUG-SAVED', [
+            'consent_id'     => $consent->id,
+            'saved_weight'   => $consent->weight,
+            'saved_post'     => $consent->post_office,
+            'db_weight_raw'  => DB::table('operation_consents')->where('id', $consent->id)->value('weight'),
         ]);
 
         return redirect()->route('operation.consent.print', $consent->id)
@@ -157,12 +188,16 @@ class OperationConsentController extends Controller
         $consents = DB::table('operation_consents as oc')
             ->join('patient_admission as pa', 'pa.id', '=', 'oc.admission_id')
             ->join('patients as p', 'p.id', '=', 'oc.patient_id')
+            ->leftJoin('beds as b', 'b.current_admission_id', '=', 'pa.id')
             ->select(
                 'oc.id',
                 'oc.operation_name',
                 'oc.operation_date',
                 'oc.created_at',
+                'oc.bed_no',
                 'pa.admissionid',
+                'b.bed_number',
+                'b.bed_name',
                 'p.patientname',
                 'p.patientcode',
                 'p.age',

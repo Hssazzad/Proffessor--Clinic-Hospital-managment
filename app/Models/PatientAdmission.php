@@ -10,7 +10,7 @@ class PatientAdmission extends Model
 
     protected $guarded = [];
 
-    public $timestamps = false;
+    public $timestamps = true;
 
     public function patient()
     {

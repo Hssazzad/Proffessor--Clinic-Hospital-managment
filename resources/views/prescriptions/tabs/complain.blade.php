@@ -3,6 +3,7 @@
   // Expected: $pid, $patientId, $commoncomplain (optional)
   $pid       = (int)($pid ?? request('id'));
   $patientId = (int)($patientId ?? request('patient'));
+  $wz        = $wz ?? 'rx';
 @endphp
 
 @if (!$pid)
@@ -27,8 +28,6 @@
 .select2-container--bootstrap4 .select2-selection {
     border: 1px solid #6b7280 !important;   /* gray border */
     border-radius: 6px !important;
-    min-height: 38px !important;
-    padding: 4px !important;
 }
 
 /* On focus */
@@ -97,12 +96,12 @@
 </div>
 
 <div style="display:flex;justify-content:space-between;gap:.75rem">
-  <a class="btn secondary" href="{{ route('rx.wizard',['id'=>$pid,'patient'=>$patientId,'tab'=>'patients']) }}">← Back</a>
-  <form method="get" action="{{ route('rx.wizard') }}" style="margin:0">
+  <a class="btn secondary" href="{{ route($wz.'.wizard',['id'=>$pid,'patient'=>$patientId,'tab'=>'patients']) }}">← Back</a>
+  <form method="get" action="{{ route($wz.'.wizard') }}" style="margin:0">
     <input type="hidden" name="id" value="{{ $pid }}">
     <input type="hidden" name="patient" value="{{ $patientId }}">
-    <input type="hidden" name="tab" value="investigations">
-    <button class="btn" type="submit">Next → Investigations</button>
+    <input type="hidden" name="tab" value="oe">
+    <button class="btn" type="submit">Next → O/E</button>
   </form>
 </div>
 
@@ -161,7 +160,7 @@
     fd.append('prescription_id', pid);
     fd.append('_token', csrf);
     for (const [k,v] of Object.entries(payload)) fd.append(k, v ?? '');
-    const res = await fetch(`{{ route('rx.complain.ajax') }}`, {
+    const res = await fetch(`{{ route($wz.'.complain.ajax') }}`, {
       method: 'POST',
       headers: { 'X-Requested-With':'XMLHttpRequest', 'Accept':'application/json' },
       body: fd
@@ -244,20 +243,25 @@
 
   // initial load
   loadList();
-})();
-</script>
 
-
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    // Use jQuery explicitly so it doesn't conflict with your const $ helper
+  // ------------------------------------------------------------
+  // Select2 init — jQuery loads AFTER this script tag, so retry
+  // until it is available. dropdownParent keeps the dropdown
+  // anchored right below the box (no detached/overflowing list).
+  // ------------------------------------------------------------
+  function initComplainSelect2(){
     if (window.jQuery && jQuery.fn.select2) {
-        jQuery('#cmp_text').select2({
-            theme: 'bootstrap4',
-            tags: true, // allow typing new complaints
-            placeholder: '-- Select / type complain --',        
-            width: 'resolve'
-        });
+      jQuery('#cmp_text').select2({
+        theme: 'bootstrap4',
+        tags: true, // allow typing new complaints
+        placeholder: '-- Select / type complain --',
+        width: '100%',
+        dropdownParent: jQuery('#cmp_text').parent()
+      });
+    } else {
+      setTimeout(initComplainSelect2, 200);
     }
-});
+  }
+  initComplainSelect2();
+})();
 </script>

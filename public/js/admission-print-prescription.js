@@ -207,17 +207,8 @@ function admissionPrintPrescriptionHtml(config) {
         '.rx-footer { margin-top: 11mm; padding-top: 8px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; gap: 16px; font-size: 9.5px; color: #273f5a; }' +
         '@media print { body { background: #fff; } .rx-page { width: auto; min-height: auto; margin: 0; padding: 0; box-shadow: none; } }' +
         '</style></head><body>' +
-        '<main class="rx-page">' +
-        '<header class="rx-header">' +
-        '<div class="rx-brand">' +
-        (logo ? '<img class="rx-logo" src="' + logo + '" alt="Logo">' : '') +
-        '<div><h1 class="rx-doctor-name">' + (doctorName || 'Professor Clinic') + '</h1>' +
-        '<div class="rx-doctor-line">' + (doctorSpeciality || stageTitle) + '</div>' +
-        '<div class="rx-doctor-sub">' + (doctorMeta.length ? doctorMeta.join(' | ') : 'Admission medicine prescription') + '</div></div></div>' +
-        '<div class="rx-clinic"><strong>&#2478;&#2494;&#2461;&#2495;&#2524;&#2494;, &#2486;&#2494;&#2460;&#2494;&#2489;&#2494;&#2472;&#2474;&#2497;&#2480;, &#2476;&#2455;&#2497;&#2524;&#2494;</strong>' +
-        '<div>&#2478;&#2507;&#2476;&#2494;&#2439;&#2482;: 01720-039005, 01720-039006</div>' +
-        '<div>01720-039007, 01720-039008</div></div></header>' +
-        '<div class="rx-rule"></div><div class="rx-ref-line">P</div>' +
+    '<main class="rx-page">' +
+    '<div class="rx-rule"></div><div class="rx-ref-line">P</div>' +
         '<section class="rx-info"><aside class="rx-cc">' +
         '<div class="rx-cc-title">C/C:</div><div class="rx-cc-note">' + ccHtml + '</div>' +
         '<div class="rx-cc-title" style="margin-top:15px;border-top:1px solid #e2e8f0;padding-top:10px;">O/E:</div><div class="rx-cc-note">' + oeHtml + '</div>' +

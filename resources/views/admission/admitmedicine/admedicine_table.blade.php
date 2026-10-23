@@ -98,6 +98,10 @@
     <div class="alert alert-danger" style="border-radius:6px;font-weight:600;">{{ session('error') }}</div>
 @endif
 
+@if(session('info'))
+    <div class="alert alert-info" style="border-radius:6px;font-weight:600;">{{ session('info') }}</div>
+@endif
+
 <div class="mr-select-page">
     <div class="mr-select-card">
         <div class="mr-select-header">
@@ -110,6 +114,7 @@
                 @csrf
 
                 <label class="mr-select-label">Select Patient <span class="req">*</span></label>
+
                 <select name="patientcode" id="patientcode" class="form-control select2" required>
                     <option value="">-- Search by Name or Mobile --</option>
                     @foreach($patients as $p)

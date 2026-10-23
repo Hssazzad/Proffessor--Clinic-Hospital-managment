@@ -11,6 +11,10 @@ use App\Models\TemplateDischarge;
 use App\Models\TemplateComplain;
 use App\Models\Admission;
 use App\Models\Doctor;
+use App\Models\Company;
+use App\Models\CommonMedicine;
+use App\Models\DosageForm;
+use App\Models\MedicineType;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
@@ -234,42 +238,161 @@ class TemplateController extends Controller
      */
     public function addMedicine()
     {
-        $templates    = Template::orderBy('title')->get();
-        $medicine_list = $this->getDistinctList('prescriptions_medicine');
-        return view('templates.medicine.create', compact('templates', 'medicine_list'));
+        $medicineTypes = MedicineType::where('active', 1)->orderBy('type_name')->get();
+        $companies     = Company::where('active', 1)->orderBy('name')->get();
+        $dosageForms   = DosageForm::where('active', 1)->orderBy('dosage_name')->get();
+        $templates     = Template::orderBy('title')->get();
+
+        $hasGenericName = Schema::hasColumn('common_medicine', 'generic_name');
+
+        $stages = [
+            'preorder'  => 'Pre-Operation',
+            'postorder' => 'Post-Operation',
+            'fresh'     => 'Fresh Prescription',
+        ];
+
+        return view('templates.medicine.create', compact(
+            'medicineTypes', 'companies', 'dosageForms', 'templates',
+            'hasGenericName', 'stages'
+        ));
+    }
+
+    /**
+     * Company-wise medicine selection (Select2 AJAX).
+     * Reuses the prescription page's common_medicine filter query pattern.
+     */
+    public function ajaxMedicineCompanies()
+    {
+        $companies = Company::where('active', 1)->orderBy('name')->get(['id', 'name']);
+        return response()->json(['companies' => $companies]);
+    }
+
+    public function ajaxMedicineGroups(Request $request)
+    {
+        $query = DB::table('common_medicine')->where('active', 1);
+
+        if ($request->filled('company_id') || $request->filled('company')) {
+            $query->where(function ($q) use ($request) {
+                if ($request->filled('company_id')) $q->where('company_id', $request->company_id);
+                if ($request->filled('company'))     $q->orWhere('company', $request->company);
+            });
+        }
+
+        $groups = $query->distinct()->pluck('GroupName')->filter()->sort()->values();
+
+        return response()->json(['groups' => $groups]);
+    }
+
+    public function ajaxMedicineOptions(Request $request)
+    {
+        if (!Schema::hasTable('common_medicine')) {
+            return response()->json(['medicines' => []]);
+        }
+
+        $query = DB::table('common_medicine')->where('active', 1);
+
+        if ($request->filled('medicine_type_id')) {
+            $query->where('medicine_type_id', $request->medicine_type_id);
+        }
+        if ($request->filled('medicine_subtype_id')) {
+            $query->where('medicine_sub_type_id', $request->medicine_subtype_id);
+        }
+        if ($request->filled('company_id') || $request->filled('company')) {
+            $query->where(function ($q) use ($request) {
+                if ($request->filled('company_id')) $q->where('company_id', $request->company_id);
+                if ($request->filled('company'))     $q->orWhere('company', $request->company);
+            });
+        }
+        if ($request->filled('group')) {
+            $query->where('GroupName', $request->group);
+        }
+        if ($request->filled('dosage_form_id')) {
+            $query->where('dosage_form_id', $request->dosage_form_id);
+        }
+        if ($request->filled('q')) {
+            $term = trim($request->q);
+            if ($term !== '') {
+                $query->where(function ($s) use ($term) {
+                    $s->where('name', 'like', '%' . $term . '%')
+                      ->orWhere('strength', 'like', '%' . $term . '%');
+                });
+            }
+        }
+
+        $columns = ['id', 'name', 'strength', 'GroupName', 'company', 'company_id',
+                    'medicine_type_id', 'medicine_sub_type_id', 'dosage_form_id', 'commonly_used'];
+        if (Schema::hasColumn('common_medicine', 'generic_name')) {
+            $columns[] = 'generic_name';
+        }
+
+        $medicines = $query->orderBy('name')->limit(500)->get($columns);
+
+        return response()->json(['medicines' => $medicines]);
     }
 
     public function ajaxAddMedicine(Request $request)
     {
         try {
             $request->validate([
-                'templateid' => 'required',
-                'name'       => 'required|string',
-                'order_type' => 'required|in:admit,preorder,postorder',
+                'templateid'  => 'required',
+                'order_type'  => 'required|in:preorder,postorder,fresh',
+                'company_id'  => 'required|exists:companies,id',
+                'medicine_id' => 'required|exists:common_medicine,id',
+                'dose'        => 'required|string',
+                'status'      => 'nullable|in:0,1',
+            ], [], [
+                'templateid'  => 'template',
+                'order_type'  => 'stage',
+                'company_id'  => 'company',
+                'medicine_id' => 'medicine',
+                'dose'        => 'dose',
             ]);
 
             Log::info('Medicine Add Request:', $request->all());
 
-            $row = TemplateMedicine::create([
-                'templeteid' => $request->templateid,
-                'name'       => $request->name,
-                'strength'   => $request->strength,
-                'dose'       => $request->dose ?? $request->dosage,
-                'morning'    => $request->morning,
-                'noon'       => $request->noon,
-                'night'      => $request->night,
-                'route'      => $request->route,
-                'frequency'  => $request->frequency,
-                'duration'   => $request->duration,
-                'timing'     => $request->filled('timing') ? $request->timing : $request->meal_timing,
-                'meal_timing'=> $request->meal_timing,
-                'instruction'=> $request->instruction,
-                'company'    => $request->company,
-                'order_type' => $request->order_type,
-                'note'       => $request->note,
-                'group'      => $request->group,
-                'active'     => 1,
-            ]);
+            // Duplicate check: same template + stage + medicine
+            $exists = TemplateMedicine::where('templeteid', $request->templateid)
+                ->where('order_type', $request->order_type)
+                ->where('active', 1)
+                ->where('medicine_id', $request->medicine_id)
+                ->exists();
+
+            if ($exists) {
+                return response()->json([
+                    'ok'      => false,
+                    'message' => 'This medicine already exists in this stage.',
+                ], 422);
+            }
+
+            $medicine = DB::table('common_medicine')->where('id', $request->medicine_id)->first();
+            $company  = Company::find($request->company_id);
+            $active   = $request->has('status') ? (int) $request->status : 1;
+
+            $row = DB::transaction(function () use ($request, $medicine, $company, $active) {
+                return TemplateMedicine::create([
+                    'templeteid'  => $request->templateid,
+                    'name'        => $medicine->name,
+                    'medicine_id' => (int) $request->medicine_id,
+                    'generic_name'=> $medicine->generic_name ?? null,
+                    'strength'    => $request->filled('strength') ? $request->strength : ($medicine->strength ?? null),
+                    'dose'        => $request->dose ?? $request->dosage,
+                    'morning'     => $request->morning,
+                    'noon'        => $request->noon,
+                    'night'       => $request->night,
+                    'route'       => $request->route,
+                    'frequency'   => $request->frequency,
+                    'duration'    => $request->duration,
+                    'timing'      => $request->filled('timing') ? $request->timing : $request->meal_timing,
+                    'meal_timing' => $request->meal_timing,
+                    'instruction' => $request->instruction,
+                    'company'     => $company?->name,
+                    'company_id'  => (int) $request->company_id,
+                    'group'       => $medicine->GroupName ?? $request->group,
+                    'order_type'  => $request->order_type,
+                    'note'        => $request->note,
+                    'active'      => $active,
+                ]);
+            });
 
             return response()->json([
                 'ok'      => true,
@@ -321,30 +444,60 @@ class TemplateController extends Controller
     {
         try {
             $request->validate([
-                'name'       => 'required|string|max:100',
-                'order_type' => 'required|in:admit,preorder,postorder',
+                'order_type'  => 'required|in:preorder,postorder,fresh',
+                'company_id'  => 'required|exists:companies,id',
+                'medicine_id' => 'required|exists:common_medicine,id',
+                'status'      => 'nullable|in:0,1',
+            ], [], [
+                'order_type'  => 'stage',
+                'company_id'  => 'company',
+                'medicine_id' => 'medicine',
             ]);
 
             $medicine = TemplateMedicine::findOrFail($id);
 
-            $medicine->update([
-                'name'       => trim($request->name),
-                'strength'   => $request->strength,
-                'dose'       => $request->dose ?? $request->dosage,
-                'morning'    => $request->morning,
-                'noon'       => $request->noon,
-                'night'      => $request->night,
-                'route'      => $request->route,
-                'frequency'  => $request->frequency,
-                'duration'   => $request->duration,
-                'timing'     => $request->filled('timing') ? $request->timing : $request->meal_timing,
-                'meal_timing'=> $request->meal_timing,
-                'instruction'=> $request->instruction,
-                'company'    => $request->company,
-                'order_type' => $request->order_type,
-                'note'       => $request->note,
-                'group'      => $request->group,
-            ]);
+            // Duplicate check: same template + stage + medicine (excluding self)
+            $exists = TemplateMedicine::where('templeteid', $medicine->templeteid)
+                ->where('order_type', $request->order_type)
+                ->where('active', 1)
+                ->where('id', '!=', $id)
+                ->where('medicine_id', $request->medicine_id)
+                ->exists();
+
+            if ($exists) {
+                return response()->json([
+                    'ok'      => false,
+                    'message' => 'This medicine already exists in this stage.',
+                ], 422);
+            }
+
+            $cm      = DB::table('common_medicine')->where('id', $request->medicine_id)->first();
+            $company = Company::find($request->company_id);
+
+            DB::transaction(function () use ($request, $medicine, $cm, $company) {
+                $medicine->update([
+                    'name'        => $cm->name,
+                    'medicine_id' => (int) $request->medicine_id,
+                    'generic_name'=> $cm->generic_name ?? null,
+                    'strength'    => $request->filled('strength') ? $request->strength : ($cm->strength ?? $medicine->strength),
+                    'dose'        => $request->dose ?? $request->dosage,
+                    'morning'     => $request->morning,
+                    'noon'        => $request->noon,
+                    'night'       => $request->night,
+                    'route'       => $request->route,
+                    'frequency'   => $request->frequency,
+                    'duration'    => $request->duration,
+                    'timing'      => $request->filled('timing') ? $request->timing : $request->meal_timing,
+                    'meal_timing' => $request->meal_timing,
+                    'instruction' => $request->instruction,
+                    'company'     => $company?->name ?? $medicine->company,
+                    'company_id'  => (int) $request->company_id,
+                    'group'       => $cm->GroupName ?? $medicine->group,
+                    'order_type'  => $request->order_type,
+                    'note'        => $request->note,
+                    'active'      => $request->has('status') ? (int) $request->status : $medicine->active,
+                ]);
+            });
 
             Log::info('Medicine Updated:', ['id' => $id, 'data' => $request->all()]);
 
@@ -372,36 +525,66 @@ class TemplateController extends Controller
     public function ajaxListMedicine(Request $request)
     {
         try {
-            $rows = TemplateMedicine::where('templeteid', $request->templateid)
-                ->orderBy('id', 'desc')
-                ->get();
+            $request->validate([
+                'templateid' => 'required',
+                'order_type'  => 'required|in:preorder,postorder,fresh',
+            ], [], [
+                'templateid' => 'template',
+                'order_type' => 'stage',
+            ]);
+
+            $select = [
+                'tm.id', 'tm.templeteid', 'tm.name', 'tm.strength', 'tm.dose',
+                'tm.morning', 'tm.noon', 'tm.night', 'tm.route', 'tm.frequency',
+                'tm.duration', 'tm.timing', 'tm.meal_timing', 'tm.instruction',
+                'tm.company', 'tm.company_id', 'tm.medicine_id', 'tm.group',
+                'tm.order_type', 'tm.note', 'tm.active',
+                'mt.type_name', 'mt.id as type_id',
+                'ms.subtype_name', 'ms.id as subtype_id',
+                'df.dosage_name', 'df.id as dosage_id',
+                'cm.commonly_used',
+            ];
+
+            if (Schema::hasColumn('common_medicine', 'generic_name')) {
+                $select[] = DB::raw('COALESCE(tm.generic_name, cm.generic_name) as generic_name');
+            } else {
+                $select[] = 'tm.generic_name as generic_name';
+            }
+
+            $query = DB::table('template_medicine as tm')
+                ->leftJoin('common_medicine as cm', 'cm.id', '=', 'tm.medicine_id')
+                ->leftJoin('medicine_types as mt', 'mt.id', '=', 'cm.medicine_type_id')
+                ->leftJoin('medicine_subtypes as ms', 'ms.id', '=', 'cm.medicine_sub_type_id')
+                ->leftJoin('dosage_forms as df', 'df.id', '=', 'cm.dosage_form_id')
+                ->select($select)
+                ->where('tm.templeteid', $request->templateid)
+                ->where('tm.order_type', $request->order_type)
+                ->orderBy('tm.id', 'desc');
+
+            $commonlyUsed = $request->get('commonly_used_filter');
+            if ($commonlyUsed === 'yes') {
+                $query->where('cm.commonly_used', 1);
+            } elseif ($commonlyUsed === 'no') {
+                $query->where(function ($q) {
+                    $q->where('cm.commonly_used', 0)->orWhereNull('cm.commonly_used');
+                });
+            }
+
+            $rows = $query->get();
 
             return response()->json([
                 'ok'   => true,
                 'rows' => $rows
             ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'ok'      => false,
+                'message' => 'The stage (order_type) is required and must be one of preorder, postorder or fresh.',
+                'errors'  => $e->errors()
+            ], 422);
         } catch (\Exception $e) {
             return response()->json([
                 'ok'      => false,
-                'message' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    public function getTemplateMedicines($id)
-    {
-        try {
-            $medicines = TemplateMedicine::where('templeteid', $id)
-                ->orderBy('id', 'asc')
-                ->get();
-
-            return response()->json([
-                'success'   => true,
-                'medicines' => $medicines
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
                 'message' => $e->getMessage()
             ], 500);
         }
@@ -578,146 +761,6 @@ class TemplateController extends Controller
             return response()->json([
                 'ok'      => false,
                 'message' => 'Error: ' . $e->getMessage() . ' (Line: ' . $e->getLine() . ')'
-            ], 500);
-        }
-    }
-
-    /**
-     * ১০. ফ্রেশ প্রেসক্রিপশন
-     */
-    public function addFreshPrescription()
-    {
-        $templates          = Template::orderBy('title')->get();
-        $medicine_list      = $this->getDistinctList('prescriptions_medicine');
-        $investigation_list = $this->getDistinctList('prescriptions_investigations');
-        $diagnosis_list     = $this->getDistinctList('prescriptions_diagnosis');
-
-        return view('templates.fresh_prescription.create', compact(
-            'templates', 'medicine_list', 'investigation_list', 'diagnosis_list'
-        ));
-    }
-
-    public function ajaxStoreFreshPrescription(Request $request)
-    {
-        try {
-            $request->validate([
-                'templateid' => 'required',
-                'order_type' => 'required|in:admit,preorder,postorder,fresh prescription',
-                'name'       => 'required|string',
-            ]);
-
-            Log::info('Fresh Prescription Request:', [
-                'templateid' => $request->templateid,
-                'order_type' => $request->order_type,
-                'name'       => $request->name,
-                'dosage'     => $request->dosage,
-                'duration'   => $request->duration
-            ]);
-
-            $data = [
-                'templeteid' => $request->templateid,
-                'name'       => $request->name,
-                'dose'       => $request->dosage,
-                'morning'    => $request->morning,
-                'noon'       => $request->noon,
-                'night'     => $request->night,
-                'meal_timing'=> $request->meal_timing,
-                'duration'   => $request->duration,
-                'route'      => $request->route,
-                'instruction'=> $request->instruction,
-                'order_type' => $request->order_type,
-                'active'     => 1,
-            ];
-
-            $row = TemplateMedicine::create($data);
-
-            Log::info('Prescription saved successfully:', ['id' => $row->id, 'order_type' => $row->order_type]);
-
-            return response()->json([
-                'ok'      => true,
-                'message' => 'Item Saved Successfully',
-                'row'     => $row
-            ]);
-
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return response()->json([
-                'ok'      => false,
-                'message' => 'Validation Error',
-                'errors'  => $e->errors()
-            ], 422);
-        } catch (\Exception $e) {
-            Log::error('Prescription save error: ' . $e->getMessage());
-            return response()->json([
-                'ok'      => false,
-                'message' => 'Error: ' . $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * ১১. সেভ করা প্রেসক্রিপশনের লিস্ট দেখানো
-     */
-    public function listSavedPrescriptions()
-    {
-        $templates = Template::with(['medicines' => function ($query) {
-            $query->whereNotNull('order_type')
-                  ->orderBy('id', 'desc');
-        }])->orderBy('created_at', 'desc')->paginate(10);
-
-        return view('templates.fresh_prescription.list', compact('templates'));
-    }
-
-    /**
-     * ১২. নির্দিষ্ট প্রেসক্রিপশন দেখানো এবং প্রিন্টের জন্য
-     */
-    public function showPrescription($templateid)
-    {
-        try {
-            $template = Template::findOrFail($templateid);
-
-            $medicines = [
-                'admit' => TemplateMedicine::where('templeteid', $templateid)
-                    ->where('order_type', 'admit')
-                    ->orderBy('id')
-                    ->get(),
-                'preorder' => TemplateMedicine::where('templeteid', $templateid)
-                    ->where('order_type', 'preorder')
-                    ->orderBy('id')
-                    ->get(),
-                'postorder' => TemplateMedicine::where('templeteid', $templateid)
-                    ->where('order_type', 'postorder')
-                    ->orderBy('id')
-                    ->get(),
-            ];
-
-            return view('templates.fresh_prescription.show', compact('template', 'medicines'));
-
-        } catch (\Exception $e) {
-            Log::error('Error in showPrescription: ' . $e->getMessage());
-            return back()->with('error', 'Prescription not found: ' . $e->getMessage());
-        }
-    }
-
-    /**
-     * ১৩. প্রেসক্রিপশন ডিলিট করা
-     */
-    public function deletePrescription($templateid)
-    {
-        try {
-            $deleted = TemplateMedicine::where('templeteid', $templateid)
-                ->whereNotNull('order_type')
-                ->delete();
-
-            return response()->json([
-                'ok'      => true,
-                'message' => $deleted . ' prescription(s) deleted successfully'
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Delete error: ' . $e->getMessage());
-            return response()->json([
-                'ok'      => false,
-                'message' => 'Error: ' . $e->getMessage()
             ], 500);
         }
     }

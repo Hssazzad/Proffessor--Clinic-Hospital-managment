@@ -11,6 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('prescription_items')) {
+            return;
+        }
+
         Schema::create('prescription_items', function (Blueprint $table) {
             $table->id();
             $table->timestamps();
@@ -22,6 +26,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('prescription_items');
+        // The canonical create_prescription_items_table migration owns dropping this table.
     }
 };

@@ -1,4 +1,5 @@
 <?php
+
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\DashboardController;
@@ -7,6 +8,9 @@ use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\BroadcastSmsController;
 use App\Http\Controllers\Account\AccountController;
 use App\Http\Controllers\SystemController;
+use App\Http\Controllers\TemplateController; // ✅ ADDED: Missing import
+use App\Http\Controllers\PreConAssessmentController; // ✅ ADDED: Import for PreCon
+use App\Http\Controllers\BillingNotificationController;
 
 /*
 |--------------------------------------------------------------------------
@@ -28,6 +32,9 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
     Route::resource('doctors', DoctorController::class);
     Route::resource('appointments', AppointmentController::class);
+    
+    // ⚠️ NOTE: If you put PreConAssessment here, it will be named admin.preconassessment.create
+    // Route::resource('preconassessment', PreConAssessmentController::class);
 });
 
 /*
@@ -60,6 +67,18 @@ Route::match(['get', 'post'], '/system/clear', [SystemController::class, 'clearA
     ->middleware('auth')
     ->name('system.clear');
 
+/*
+|--------------------------------------------------------------------------
+| Billing Notifications (Protected)
+|--------------------------------------------------------------------------
+*/
+Route::middleware(['auth'])->group(function () {
+    Route::get('/billing-notifications', [BillingNotificationController::class, 'index'])
+        ->name('billing.notifications.index');
+    Route::post('/billing-notifications/{notification}/read', [BillingNotificationController::class, 'markRead'])
+        ->name('billing.notifications.read');
+});
+
 Route::get('/sms/test', [BroadcastSmsController::class, 'testsend'])->name('sms.testsend');
 
 Route::get('/test-payments', function () {
@@ -78,14 +97,29 @@ Route::get('/test-payments', function () {
 
 /*
 |--------------------------------------------------------------------------
-| Template Discharge Routes (must be before any wildcard)
+| Template Discharge & PreCon Assessment Routes
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth'])->group(function () {
+    // Template routes
     Route::post('/templates/discharge/ajax/add', [TemplateController::class, 'ajaxAddDischarge'])
         ->name('templates.discharge.ajax.add');
     Route::get('/templates/discharge/ajax/get', [TemplateController::class, 'ajaxGetDischarge'])
         ->name('templates.discharge.ajax.get');
+
+    // Followup dues
+    Route::get('/followup-dues', [\App\Http\Controllers\FollowupDueController::class, 'index'])->name('followupdues.index');
+    Route::post('/followup-dues/{id}/mark-paid', [\App\Http\Controllers\FollowupDueController::class, 'markPaid'])->name('followupdues.markPaid');
+
+    // ✅ ADDED: PreCon Assessment Routes HERE (Outside of 'admin.' prefix group)
+    // This guarantees the route name is exactly 'preconassessment.create'
+    Route::resource('preconassessment', PreConAssessmentController::class);
+    
+    // If you prefer the manual routes from your previous file instead of the resource, 
+    // delete the Route::resource line above and uncomment these:
+    // Route::get('/prescriptions/PreConAssessment', [PreConAssessmentController::class, 'create'])->name('preconassessment.create');
+    // Route::post('/prescriptions/PreConAssessmentSave', [PreConAssessmentController::class, 'store'])->name('preconassessment.save');
+    // Route::get('/preconassessment/history/{patientcode}', [PreConAssessmentController::class, 'getHistory'])->name('preconassessment.history');
 });
 
 /*

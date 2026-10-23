@@ -1,0 +1,26 @@
+/* ============================================================
+   AdminLTE fixes - loads after adminlte.min.css
+   ============================================================ */
+
+/* Sidebar menu labels: allow wrapping instead of clipping */
+.sidebar-mini .nav-sidebar .nav-link,
+.sidebar-mini-md .nav-sidebar .nav-link,
+.sidebar-mini-xs .nav-sidebar .nav-link,
+.sidebar .nav-sidebar .nav-link {
+    white-space: normal;
+    overflow: visible;
+}
+
+/* Info-box titles: show full text instead of "..." */
+.info-box .info-box-text,
+.info-box .progress-description {
+    display: block;
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    line-height: 1.3;
+}
+.info-box .info-box-content {
+    min-width: 0;
+    overflow: visible;
+}

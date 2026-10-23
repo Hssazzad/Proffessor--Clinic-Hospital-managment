@@ -19,6 +19,9 @@ Route::middleware(['auth'])->group(function () {
 	Route::get('admission/show-admission-slip', [PatientAdmitController::class, 'showAdmissionSlip'])
     ->name('admission.showAdmissionSlip');
 
+    Route::post('admission/update-procedure-type', [PatientAdmitController::class, 'updateProcedureType'])
+        ->name('admission.updateProcedureType');
+
     Route::get('admission/PatientAccomodation', [PatientAccomodationController::class, 'index'])
         ->name('admission.patient_accomodation');
 
@@ -39,28 +42,14 @@ Route::middleware(['auth'])->group(function () {
     Route::get('admission/PatientAccomodation/{bed}/update-status', [PatientAccomodationController::class, 'updateStatusForm'])
         ->name('admission.patient_accomodation.updateStatus');
 		
-	Route::get('admission/insmedicine', [PatientAdmitController::class, 'insmedicine'])
-        ->name('admission.admedicine');	
-		
-	Route::post('/admission/showinsMedicine', [PatientAdmitController::class, 'showinsMedicine'])
-    ->name('admission.showinsMedicine');
 	
-	
-	Route::post('/admission/insmedicineList/list', [PatientAdmitController::class, 'insmedicineList'])
-    ->name('admission.insmedicineList.list');
-
-	Route::post('/admission/insmedicineSave/save', [PatientAdmitController::class, 'insmedicineSave'])
-		->name('admission.insmedicineSave.save');
-
-	Route::post('/admission/insmedicineDelete/delete', [PatientAdmitController::class, 'admedicineDelete'])
-		->name('admission.insmedicine.delete');
 		
 		
 	 // --- Admission for select Admission Medicine---	
 	Route::get('admission/admedicine', [PatientAdmitController::class, 'admedicine'])
         ->name('admission.admedicine');	
 		
-	Route::post('/admission/showadMedicine', [PatientAdmitController::class, 'showadMedicine'])
+	Route::match(['get', 'post'], '/admission/showadMedicine', [PatientAdmitController::class, 'showadMedicine'])
     ->name('admission.showadMedicine');
 	
 	
@@ -75,6 +64,21 @@ Route::middleware(['auth'])->group(function () {
 
 	Route::post('/admission/admedicineDelete/delete', [PatientAdmitController::class, 'admedicineDelete'])
 		->name('admission.admedicine.delete');
+
+	Route::get('admission/admedicine-print', [PatientAdmitController::class, 'admedicinePrint'])
+		->name('admission.admedicine.print');
+
+	Route::get('admission/premedicine-print', [PatientAdmitController::class, 'premedicinePrint'])
+		->name('admission.premedicine.print');
+
+	Route::get('admission/postmedicine-print', [PatientAdmitController::class, 'postmedicinePrint'])
+		->name('admission.postmedicine.print');
+
+	Route::get('admission/roundmedicine-print', [PatientAdmitController::class, 'roundmedicinePrint'])
+		->name('admission.roundmedicine.print');
+
+	Route::get('admission/freshmedicine-print', [PatientAdmitController::class, 'freshmedicinePrint'])
+		->name('admission.freshmedicine.print');
 		
 	 // --- Admission for select Pre surgery Medicine---	
 	
@@ -136,6 +140,13 @@ Route::middleware(['auth'])->group(function () {
 		->name('admission.freshmedicineSave.save');
 	Route::post('/admission/freshmedicineDelete/delete', [PatientAdmitController::class, 'freshmedicineDelete'])
 		->name('admission.freshmedicine.delete');
+	Route::post('/admission/freshmedicineSaveAll/save', [PatientAdmitController::class, 'freshmedicineSaveAll'])
+		->name('admission.freshmedicineSaveAll.save');
+
+	// --- Shared draft-based medicine endpoints (all order types) ---
+
+	Route::post('/admission/medicine-load-template', [PatientAdmitController::class, 'loadTemplateMedicines'])
+		->name('admission.medicine.load-template');
 		
 	// --- Admission for Release Patient---	
 	
@@ -144,6 +155,9 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('admission/Discharge', [PatientAdmitController::class, 'dischargeList'])
         ->name('admission.discharge');
+
+    Route::get('admission/discharge-history', [PatientAdmitController::class, 'dischargeHistory'])
+        ->name('admission.discharge.history');
 
     Route::post('/admission/showdischargeMedicine', [PatientAdmitController::class, 'showdischargeMedicine'])
         ->name('admission.showdischargeMedicine');

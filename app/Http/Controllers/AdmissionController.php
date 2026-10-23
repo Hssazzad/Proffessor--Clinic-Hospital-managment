@@ -5,6 +5,10 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
+use App\Models\OperationName;
+use App\Models\Doctor;
+use App\Models\Anesthesiologist;
+use App\Models\AssistantSurgeon;
 
 class AdmissionController extends Controller
 {
@@ -43,7 +47,12 @@ class AdmissionController extends Controller
                 ->get();
         }
         
-        return view('usermenu.discharge_show_medicine', compact('patient', 'admission', 'discharge', 'savedMedicines', 'patientcode'));
+        $operationNames   = OperationName::where('active', 1)->orderBy('name', 'asc')->get();
+        $surgeons         = Doctor::where('active', 1)->orderBy('doctor_name', 'asc')->get();
+        $anesthesiologists = Anesthesiologist::where('active', 1)->orderBy('name', 'asc')->get();
+        $assistantSurgeons = AssistantSurgeon::where('active', 1)->orderBy('name', 'asc')->get();
+        
+        return view('usermenu.discharge_show_medicine', compact('patient', 'admission', 'discharge', 'savedMedicines', 'patientcode', 'operationNames', 'surgeons', 'anesthesiologists', 'assistantSurgeons'));
     }
 
     /**

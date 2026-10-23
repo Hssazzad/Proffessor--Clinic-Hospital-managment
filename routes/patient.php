@@ -25,10 +25,17 @@ Route::middleware('auth')->group(function () {
         
         // Search patient
         Route::get('/searchpatient', [PatientController::class, 'searchpatient'])->name('searchpatient');
+
+        // Patient Audit / Visit Report (read-only)
+        Route::get('/patientreport', [PatientController::class, 'patientreport'])->name('patientreport');
+        Route::get('/patientreport/export', [PatientController::class, 'patientreportExport'])->name('patientreport.export');
         
         // Edit & Update patient (with optional id)
         Route::get('/{id?}/edit', [PatientController::class, 'editpatient'])->name('editpatient');
         Route::put('/{id}/update', [PatientController::class, 'updatepatient'])->name('updatepatient');
+
+        // Delete patient
+        Route::delete('/{patient}/delete', [PatientController::class, 'destroy'])->name('delete');
         
         /*
         |----------------------------------------------------------------------
@@ -87,7 +94,11 @@ Route::middleware('auth')->group(function () {
         // Village Routes
         Route::post('/fetch-village', [LocationController::class, 'fetch_village'])->name('fetch_village');
         Route::post('/village/store', [LocationController::class, 'storeVillage'])->name('village.store');
-        
+
+        // Post Routes
+        Route::post('/fetch-post', [LocationController::class, 'fetch_post'])->name('fetch_post');
+        Route::post('/post/store', [LocationController::class, 'storePost'])->name('post.store');
+
         // Reference Person Routes
         Route::post('/fetch-reference-person', [PatientController::class, 'fetch_reference_person'])->name('fetch_reference_person');
         Route::post('/reference-person/store', [PatientController::class, 'store_reference_person'])->name('reference_person.store');

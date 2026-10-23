@@ -1,0 +1,73 @@
+/* ============================================================
+   Sidebar logo / brand bar styling
+   ============================================================ */
+
+/* --- Brand bar (expanded sidebar) --- */
+.brand-link.sidebar-logo-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 92px;
+    padding: 10px 12px;
+    background-color: #ffffff;
+    border-bottom: 1px solid rgba(0, 0, 0, .12);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .15);
+    overflow: hidden;
+}
+
+/* --- Logo image --- */
+.brand-link.sidebar-logo-bar .sidebar-logo-img {
+    height: 64px;
+    width: auto;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+/* --- Content-header logo (topbar, next to page title) --- */
+.content-header-logo {
+    height: 56px;
+    width: auto;
+    margin-right: 12px;
+    object-fit: contain;
+    vertical-align: middle;
+}
+
+/* --- Collapsed (icon-only) sidebar: keep logo centered, fully visible --- */
+@media (min-width: 992px) {
+    body.sidebar-mini.sidebar-collapse .brand-link.sidebar-logo-bar,
+    body.sidebar-mini-md.sidebar-collapse .brand-link.sidebar-logo-bar,
+    body.sidebar-mini-xs.sidebar-collapse .brand-link.sidebar-logo-bar {
+        height: 84px;
+        padding: 6px;
+        justify-content: center;
+    }
+
+    body.sidebar-mini.sidebar-collapse .brand-link.sidebar-logo-bar .sidebar-logo-img,
+    body.sidebar-mini-md.sidebar-collapse .brand-link.sidebar-logo-bar .sidebar-logo-img,
+    body.sidebar-mini-xs.sidebar-collapse .brand-link.sidebar-logo-bar .sidebar-logo-img {
+        height: auto;
+        max-height: 60px;
+        max-width: 100%;
+    }
+}
+
+/* ============================================================
+   Sidebar theme — base background override
+   (menu text, hover, active highlight colors untouched)
+   ============================================================ */
+.main-sidebar {
+    background-color: #1a1d29; /* Variant A: charcoal navy (ACTIVE) */
+}
+
+/* Variant B — dark maroon-tinted (matches the red in our logo):
+.main-sidebar {
+    background-color: #201619;
+}
+*/
+
+/* Variant C — AdminLTE original default dark gray (#343a40):
+.main-sidebar {
+    background-color: #343a40;
+}
+*/

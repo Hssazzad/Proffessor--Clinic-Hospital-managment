@@ -3,7 +3,7 @@
 @section('title', 'Select Patient - Operation Consent')
 
 @section('content_header')
-    <h1>Select Patient — Operation Consent Form</h1>
+    <h1>Select Patient ï¿½ Operation Consent Form</h1>
 @stop
 
 @section('content')
@@ -33,6 +33,7 @@
                         <th>Patient Name</th>
                         <th>Age / Gender</th>
                         <th>Admission ID</th>
+                        <th>Bed</th>
                         <th>Patient Code</th>
                         <th>Doctor</th>
                         <th>Admission Date</th>
@@ -47,6 +48,7 @@
                             <td>{{ $a->patientname }}</td>
                             <td>{{ $a->age }} / {{ $a->gender }}</td>
                             <td>{{ $a->admissionid }}</td>
+                            <td>{{ $a->bed_name ?: $a->bed_number }}</td>
                             <td>{{ $a->patientcode }}</td>
                             <td>{{ $a->doctor_name }}</td>
                             <td>{{ $a->admission_date ? date('d-m-Y', strtotime($a->admission_date)) : '' }}</td>
@@ -60,7 +62,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="9" class="text-center text-muted py-4">
+                            <td colspan="10" class="text-center text-muted py-4">
                                 No admission records found.
                             </td>
                         </tr>

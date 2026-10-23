@@ -45,9 +45,48 @@ public function show(Request $request)
     
     // Get patients list for dropdown
     $patients = $this->getPatientsList();
+	
+	
+	// ========== O/E Master data coming  ==========
+// ========== O/E Master Options ==========
+$masterOptions = [];
+
+if (Schema::hasTable('oe_master')) {
+    $query = DB::table('oe_master');
+
+    // active কলাম থাকলে ফিল্টার করো, না থাকলে সব নাও
+    if (Schema::hasColumn('oe_master', 'active')) {
+        $query->where(function($q) {
+            $q->where('active', 1)->orWhereNull('active');
+        });
+    }
+
+    // sort_order থাকলে সেই অনুযায়ী সাজাও
+    if (Schema::hasColumn('oe_master', 'sort_order')) {
+        $query->orderBy('sort_order');
+    }
+
+    $query->orderBy('id');
+
+    $rows = $query->get();
+
+    $masterOptions = $rows->map(function ($m) {
+        return [
+            'id'         => $m->id,
+            'name'       => $m->name ?? '',
+            'short_name' => $m->short_name ?? '',
+            'unit'       => $m->unit ?? '',
+            'input_type' => $m->input_type ?? 'text',
+        ];
+    })->toArray();
+}
+
+
+
    
     $viewData = [
         'tab' => $tab,
+		'active' => $tab,
         'pid' => $prescriptionId,
         'patientId' => $patientId,
         'patient' => $patient,
@@ -65,7 +104,14 @@ public function show(Request $request)
         'commonInvestigations' => $masterLists['commonInvestigations'],
         'commonDiagnoses' => $masterLists['commonDiagnoses'],
         'commonMedicines' => $masterLists['commonMedicines'],
-        'commonDoctors' => $masterLists['commonDoctors']
+        'commonDoctors' => $masterLists['commonDoctors'],
+        'companies' => $this->getCompanies(),
+        'medicineTypes' => $this->getMedicineTypes(),
+        'dosageForms' => $this->getDosageForms(),
+		
+		'masterOptions'         => $masterOptions,
+		
+		'oeText' => $this->buildWizardOeText((int) ($prescriptionId ?? 0), $patient, $prescription),
     ];
 
     return view('prescriptions.wizard-master', $viewData);
@@ -196,19 +242,17 @@ public function show(Request $request)
             return collect();
         }
         
-        return DB::table('patients as p')
-        ->join('preconassessment as pa', 'pa.patientcode', '=', 'p.patientcode')
-        ->where('pa.status', 0)
-        ->orderBy('p.patientname')
+        return DB::table('patients')
+        ->orderBy('patientname')
         ->get([
-            'p.id',
-            'p.patientname',
-            'p.mobile_no',
-            'p.patientcode',
-            'p.gender',
-            'p.age',
-            'p.blood_group',
-            'p.nid_number'
+            'id',
+            'patientname',
+            'mobile_no',
+            'patientcode',
+            'gender',
+            'age',
+            'blood_group',
+            'nid_number'
         ]);
 
     }
@@ -296,6 +340,180 @@ public function show(Request $request)
         return $data;
     }
     
+    // ------- Filtered Medicines (AJAX) -------
+    public function filteredMedicines(Request $request)
+    {
+        if (!Schema::hasTable('common_medicine')) {
+            return response()->json([]);
+        }
+
+        $query = DB::table('common_medicine')->where('active', 1);
+
+        if ($request->filled('company')) {
+            $query->where('company', $request->company);
+        }
+        if ($request->filled('medicine_type_id')) {
+            $query->where('medicine_type_id', (int) $request->medicine_type_id);
+        }
+        if ($request->filled('medicine_sub_type_id')) {
+            $query->where('medicine_sub_type_id', (int) $request->medicine_sub_type_id);
+        }
+        if ($request->filled('dosage_form_id')) {
+            $query->where('dosage_form_id', (int) $request->dosage_form_id);
+        }
+
+        return $query->orderBy('name')->get(['id', 'name', 'strength', 'GroupName', 'company', 'note']);
+    }
+
+    // ------- Commonly Used Medicines (AJAX) -------
+    // Returns medicines flagged as commonly_used with pagination for lazy loading.
+    public function commonlyUsedMedicines(Request $request)
+    {
+        if (!Schema::hasTable('common_medicine')) {
+            return response()->json(['medicines' => [], 'total' => 0, 'loaded' => 0]);
+        }
+
+        $query = DB::table('common_medicine')
+            ->leftJoin('dosage_forms', 'dosage_forms.id', '=', 'common_medicine.dosage_form_id')
+            ->where('common_medicine.commonly_used', 1)
+            ->where('common_medicine.active', 1)
+            ->select(
+                'common_medicine.id',
+                'common_medicine.name',
+                'common_medicine.strength',
+                'common_medicine.company',
+                'common_medicine.company_id',
+                'common_medicine.note',
+                'dosage_forms.dosage_name'
+            )
+            ->orderBy('common_medicine.name');
+
+        $total = $query->count();
+
+        $offset = max(0, (int) $request->get('offset', 0));
+        $limit  = 12;
+
+        $medicines = $query->skip($offset)->take($limit)->get();
+
+        return response()->json([
+            'medicines' => $medicines,
+            'total'     => $total,
+            'loaded'    => $offset + $medicines->count(),
+        ]);
+    }
+
+    // ------- Quick-Add Medicine (AJAX) -------
+    // Lightweight quick-add — only 3 fields from the doctor.
+    // Defaults: active=1, commonly_used=1, medicine_type="Unknown", company="General".
+    public function quickAddMedicine(Request $request)
+    {
+        $request->validate([
+            'medicine_name'  => 'required|string|max:255',
+            'strength'       => 'required|string|max:50',
+            'dosage_form_id' => 'required|exists:dosage_forms,id',
+        ]);
+
+        $name     = trim($request->medicine_name);
+        $strength = trim($request->strength);
+        $formId   = $request->dosage_form_id;
+
+        // Duplicate check: same name + strength + dosage form
+        $existing = DB::table('common_medicine')
+            ->where('name', $name)
+            ->where('strength', $strength)
+            ->where('dosage_form_id', $formId)
+            ->first();
+
+        if ($existing) {
+            return response()->json([
+                'ok'        => true,
+                'duplicate' => true,
+                'medicine'  => [
+                    'id'        => $existing->id,
+                    'name'      => $existing->name,
+                    'strength'  => $existing->strength,
+                    'GroupName' => $existing->GroupName ?? 'N/A',
+                    'company'   => $existing->company,
+                ],
+            ]);
+        }
+
+        // System defaults
+        $company = DB::table('companies')->where('name', 'General')->orWhere('id', 1)->first();
+        $type    = DB::table('medicine_types')->where('type_name', 'Unknown')->orWhere('id', 1)->first();
+
+        $id = DB::table('common_medicine')->insertGetId([
+            'name'                 => $name,
+            'strength'             => $strength,
+            'medicine_type_id'     => $type?->id ?? 1,
+            'medicine_sub_type_id' => null,
+            'company_id'           => $company?->id ?? 1,
+            'company'              => $company?->name ?? 'General',
+            'dosage_form_id'       => $formId,
+            'commonly_used'        => 1,
+            'active'               => 1,
+            'name_normalized'      => $this->normalizeName($name),
+            'GroupName'            => 'N/A',
+            'created_at'           => now(),
+            'updated_at'           => now(),
+        ]);
+
+        return response()->json([
+            'ok'        => true,
+            'duplicate' => false,
+            'medicine'  => [
+                'id'        => $id,
+                'name'      => $name,
+                'strength'  => $strength,
+                'GroupName' => 'N/A',
+                'company'   => $company?->name ?? 'General',
+            ],
+        ]);
+    }
+
+    private function normalizeName($name)
+    {
+        $name = trim($name ?? '');
+        $name = preg_replace('/\s+/', ' ', $name);
+        return mb_strtolower($name);
+    }
+
+    // ------- Sub Medicine Types for the filter cascade (AJAX) -------
+    // Returns the ACTIVE sub types of one medicine type: [{id, subtype_name}].
+    // Types without sub types return [] and the UI keeps the dropdown hidden.
+    public function subTypes(Request $request)
+    {
+        if (!Schema::hasTable('medicine_subtypes')) {
+            return response()->json([]);
+        }
+
+        $query = DB::table('medicine_subtypes')->where('active', 1);
+
+        if ($request->filled('medicine_type_id')) {
+            $query->where('medicine_type_id', (int) $request->medicine_type_id);
+        }
+
+        return $query->orderBy('subtype_name')->get(['id', 'subtype_name']);
+    }
+
+    private function getCompanies(): \Illuminate\Support\Collection
+    {
+        if (!Schema::hasTable('companies')) return collect();
+        return DB::table('companies')->where('active', 1)->orderBy('name')->get(['id', 'name']);
+    }
+
+    private function getMedicineTypes(): \Illuminate\Support\Collection
+    {
+        if (!Schema::hasTable('medicine_types')) return collect();
+        return DB::table('medicine_types')->where('active', 1)->orderBy('type_name')->get(['id', 'type_name']);
+    }
+
+    private function getDosageForms(): \Illuminate\Support\Collection
+    {
+        if (!Schema::hasTable('dosage_forms')) return collect();
+        return DB::table('dosage_forms')->where('active', 1)->orderBy('dosage_name')->get(['id', 'dosage_name']);
+    }
+
     /**
      * Get master lists for auto-suggestions
      */
@@ -331,12 +549,26 @@ public function show(Request $request)
 
 
     // ------- Helpers -------
-    private function nextTab(string $current): string
-    {
-        $order = ['patients','complain','investigations','diagnosis','medicine','preview'];
-        $i = array_search($current, $order, true);
-        return $order[min($i+1, count($order)-1)] ?? 'preview';
+  private function nextTab(string $current): string
+{
+    $order = [
+        'patients',
+        'complain',
+        'oe',
+        'investigations',
+        'medicine',
+        'preview',
+        'finish'
+    ];
+
+    $index = array_search($current, $order, true);
+
+    if ($index === false || $index >= count($order) - 1) {
+        return $current;
     }
+
+    return $order[$index + 1];
+}
 
     private function makePatientCode(): string
     {
@@ -350,15 +582,25 @@ public function show(Request $request)
         return $prefix . str_pad((string)$n,4,'0',STR_PAD_LEFT);
     }
 
-    private function go(Request $r, string $fromTab, int $pid, ?int $patientId = null)
-    {
-        $to = $r->input('next', $this->nextTab($fromTab));
-        return redirect()->route('rx.wizard', [
-            'id' => $pid,
-            'patient' => $patientId,
-            'tab' => $to,
-        ])->with('success','Saved.');
+private function go(Request $r, string $fromTab, int $pid, ?int $patientId = null)
+{
+    $to = $r->input('next') ?: $this->nextTab($fromTab);
+
+    $allowed = [
+        'patients', 'complain', 'oe', 'investigations',
+        'medicine', 'preview', 'finish'
+    ];
+
+    if (!in_array($to, $allowed, true)) {
+        $to = $this->nextTab($fromTab);
     }
+
+    return redirect()->route('rx.wizard', [
+        'id'      => $pid,
+        'patient' => $patientId,
+        'tab'     => $to,
+    ])->with('success', 'Saved successfully.');
+}
 
     // ------- TAB 1: Patients -------
     public function savePatient1(Request $r)
@@ -1258,10 +1500,26 @@ public function ajaxMedicine(Request $r)
 
             case 'list':
             default:
-                $rows = DB::table($tbl)
-                    ->select('id','name','strength','dose','route','frequency','duration','timing','note')
-                    ->where('prescription_id', $pid)
-                    ->orderByDesc('id')
+                $rows = DB::table($tbl . ' as pm')
+                    ->leftJoin('common_medicine as cm', 'cm.name', '=', 'pm.name')
+                    ->leftJoin('medicine_types as mt', 'mt.id', '=', 'cm.medicine_type_id')
+                    ->leftJoin('dosage_forms as df', 'df.id', '=', 'cm.dosage_form_id')
+                    ->select(
+                        'pm.id',
+                        'pm.name',
+                        'pm.strength',
+                        'pm.dose',
+                        'pm.route',
+                        'pm.frequency',
+                        'pm.duration',
+                        'pm.timing',
+                        'pm.note',
+                        'cm.company',
+                        'mt.type_name',
+                        'df.dosage_name as form_name'
+                    )
+                    ->where('pm.prescription_id', $pid)
+                    ->orderByDesc('pm.id')
                     ->get();
                 return response()->json(['ok'=>true,'rows'=>$rows]);
         }
@@ -1296,6 +1554,15 @@ public function finishNew(Request $r)
         }
         $prescriptionNo = $prefix . str_pad((string)$nextNo, 4, '0', STR_PAD_LEFT);
 
+        $draftId = (int) DB::table('prescriptions')
+            ->where('patient_id', $patientId)
+            ->where(function ($q) {
+                $q->whereNull('status')
+                  ->orWhere('status', 0);
+            })
+            ->orderByDesc('id')
+            ->value('id');
+
         DB::table('prescriptions')
             ->where('patient_id', $patientId)
             ->where(function ($q) {
@@ -1308,6 +1575,25 @@ public function finishNew(Request $r)
                 'prescription_no' => $prescriptionNo,
                 'updated_at'      => $now,
             ]);
+
+        // Freeze the vitals snapshot: if the draft has no assessment yet, link
+        // the patient's latest Pre-Con Assessment so the print always shows a
+        // per-prescription snapshot (old prescriptions are never affected).
+        if ($draftId && Schema::hasColumn('prescriptions', 'preconassessment_id')) {
+            $latestAssessmentId = DB::table('preconassessment')
+                ->where('patient_id', $patientId)
+                ->orderByDesc('id')
+                ->value('id');
+            if ($latestAssessmentId) {
+                DB::table('prescriptions')
+                    ->where('id', $draftId)
+                    ->whereNull('preconassessment_id')
+                    ->update([
+                        'preconassessment_id' => $latestAssessmentId,
+                        'updated_at' => $now,
+                    ]);
+            }
+        }
     }
 
     $tab = $patientId ? 'patients' : 'patients';
@@ -1500,10 +1786,15 @@ public function pdf($id, Request $r)
         ->get();
 
     // ✅ Doctors for this prescription (from prescription_doctors + doctors)
-    $rxdoctors = DB::table('prescription_doctors')
-        ->where('prescription_id', $pid)
-        ->orderBy('id')
-        ->get();
+    $rxDoctors = collect();
+    if (Schema::hasTable('prescription_doctors')) {
+        $rxDoctors = DB::table('prescription_doctors as pd')
+            ->leftJoin('doctors as d', 'd.id', '=', 'pd.doctor_id')
+            ->where('pd.prescription_id', $pid)
+            ->orderBy('pd.id')
+            ->select('pd.*', 'd.doctor_name', 'd.name', 'd.speciality', 'd.reg_no', 'd.contact')
+            ->get();
+    }
 
     // ---- OPTIONAL: clean weird private-use chars from DB (recommended) ----
     $cleanBangla = function ($text) {
@@ -1512,8 +1803,6 @@ public function pdf($id, Request $r)
         $text = preg_replace('/[\x{E000}-\x{F8FF}]/u', '', $text);
         // remove zero-width chars
         $text = preg_replace('/[\x{200B}-\x{200D}\x{FEFF}]/u', '', $text);
-        // remove question marks
-        $text = str_replace('?', '', $text);
         return trim($text);
     };
 
@@ -1567,17 +1856,17 @@ public function pdf($id, Request $r)
             base_path('public/fonts'),
         ]),
 
-        // register SolaimanLipi
+        // register NotoSansBengali
         'fontdata' => $fontData + [
-            'solaimanlipi' => [
-                'R'  => 'SolaimanLipi.ttf',
-                'B'  => 'SolaimanLipi_Bold.ttf',
-                'I'  => 'SolaimanLipi.ttf',
-                'BI' => 'SolaimanLipi.ttf',
+            'notobengali' => [
+                'R'  => 'NotoSansBengali-Regular.ttf',
+                'B'  => 'NotoSansBengali-Bold.ttf',
+                'I'  => 'NotoSansBengali-Regular.ttf',
+                'BI' => 'NotoSansBengali-Bold.ttf',
             ],
         ],
 
-        'default_font' => 'solaimanlipi',
+        'default_font' => 'notobengali',
 
         // Bangla shaping / ligatures ON
         'useOTL' => 1,
@@ -1907,9 +2196,249 @@ public function debugCaesarean()
     }
 }
 
+
+public function oeAjax(Request $request)
+{
+    $action = $request->input('action');
+    $pid    = (int) $request->input('prescription_id');
+
+    if (!$pid) {
+        return response()->json(['ok' => false, 'error' => 'Prescription ID required'], 422);
+    }
+
+    $usesPrescriptionOe = in_array($action, ['list', 'add', 'update', 'delete'], true);
+    if ($usesPrescriptionOe && !Schema::hasTable('prescription_oe')) {
+        return response()->json(['ok' => false, 'error' => 'Table prescription_oe not found'], 500);
+    }
+
+    try {
+        if ($action === 'list') {
+            $rows = DB::table('prescription_oe as po')
+                ->leftJoin('oe_master as om', 'om.id', '=', 'po.oe_master_id')
+                ->where('po.prescription_id', $pid)
+                ->orderBy('om.sort_order')
+                ->orderBy('po.id')
+                ->get([
+                    'po.id',
+                    'po.oe_master_id as field_id',
+                    'po.value',
+                    'om.name',
+                    'om.unit',
+                ]);
+            return response()->json(['ok' => true, 'rows' => $rows]);
+        }
+
+        if ($action === 'add') {
+            $fieldId = (int) $request->input('field_id');
+            $value   = trim((string) $request->input('value'));
+
+            if (!$fieldId || $value === '') {
+                return response()->json(['ok' => false, 'error' => 'Field and Value required'], 422);
+            }
+
+            if (DB::table('prescription_oe')->where('prescription_id', $pid)->where('oe_master_id', $fieldId)->exists()) {
+                return response()->json(['ok' => false, 'error' => 'This field already added'], 422);
+            }
+
+            $id = DB::table('prescription_oe')->insertGetId([
+                'prescription_id' => $pid,
+                'oe_master_id'    => $fieldId,
+                'value'           => $value,
+                'created_at'      => now(),
+                'updated_at'      => now(),
+            ]);
+            return response()->json(['ok' => true, 'id' => $id]);
+        }
+
+        if ($action === 'latest') {
+            $fieldId = (int) $request->input('field_id');
+
+            if (!$fieldId) {
+                return response()->json(['ok' => false, 'error' => 'Field required'], 422);
+            }
+
+            // Resolve the patient from the prescription
+            $patient = DB::table('patients')
+                ->join('prescriptions', 'prescriptions.patient_id', '=', 'patients.id')
+                ->where('prescriptions.id', $pid)
+                ->select('patients.*')
+                ->first();
+
+            $value = null;
+            $foundAssessmentId = null;
+            if ($patient) {
+                // Shared resolver: prescription snapshot link → patient latest
+                $foundAssessmentId = app(\App\Services\PreconAssessmentReader::class)
+                    ->latestAssessmentId($pid, $patient->patientcode ?? null, $patient->id ?? null);
+
+                if ($foundAssessmentId && Schema::hasTable('preconassessment_values')) {
+                    $row = DB::table('preconassessment_values')
+                        ->where('assessment_id', $foundAssessmentId)
+                        ->where('oe_master_id', $fieldId)
+                        ->first();
+                    $value = $row->value ?? null;
+                }
+            }
+
+            return response()->json([
+                'ok'            => true,
+                'assessment_id' => $foundAssessmentId,
+                'oe_master_id'  => $fieldId,
+                'value'         => $value,
+            ]);
+        }
+
+        if ($action === 'update') {
+            $id    = (int) $request->input('id');
+            $value = trim((string) $request->input('value'));
+
+            if (!$id || $value === '') {
+                return response()->json(['ok' => false, 'error' => 'ID and Value required'], 422);
+            }
+
+            DB::table('prescription_oe')
+                ->where('id', $id)
+                ->where('prescription_id', $pid)
+                ->update(['value' => $value, 'updated_at' => now()]);
+
+            return response()->json(['ok' => true]);
+        }
+
+        if ($action === 'delete') {
+            $id = (int) $request->input('id');
+            if (!$id) return response()->json(['ok' => false, 'error' => 'ID required'], 422);
+
+            DB::table('prescription_oe')
+                ->where('id', $id)
+                ->where('prescription_id', $pid)
+                ->delete();
+
+            return response()->json(['ok' => true]);
+        }
+
+        return response()->json(['ok' => false, 'error' => 'Invalid action'], 422);
+
+    } catch (\Throwable $e) {
+        return response()->json(['ok' => false, 'error' => $e->getMessage()], 500);
+    }
+}
+
+public function printPreview(Request $request, $id = null)
+{
+    // ... আপনার কোড (ঠিক আছে) ...
+}
+
+// ========== এখানে নতুন মেথড ==========
+private function buildWizardOeText(int $pid, $patient, $rx): string
+{
+    $always = ['Pulse', 'BP', 'Temp', 'Weight'];
+    $values = ['Pulse' => '', 'BP' => '', 'Temp' => '', 'Weight' => ''];
+    $extra  = [];
+
+    // 1) Wizard O/E tab (prescription_oe + oe_master)
+    if (Schema::hasTable('prescription_oe') && Schema::hasTable('oe_master')) {
+        $oeRows = DB::table('prescription_oe as po')
+            ->join('oe_master as om', 'om.id', '=', 'po.oe_master_id')
+            ->where('po.prescription_id', $pid)
+            ->whereNotNull('po.value')
+            ->where('po.value', '<>', '')
+            ->orderBy('om.sort_order')
+            ->orderBy('om.id')
+            ->get(['om.name', 'om.short_name', 'om.unit', 'po.value']);
+
+        foreach ($oeRows as $row) {
+            $label = trim((string) (($row->short_name !== '' && $row->short_name !== null) ? $row->short_name : $row->name));
+            $val   = trim((string) $row->value);
+            $unit  = trim((string) ($row->unit ?? ''));
+            $full  = $val . ($unit !== '' ? ' ' . $unit : '');
+
+            $lower = mb_strtolower($label);
+            if (str_contains($lower, 'pulse')) {
+                $values['Pulse'] = $full;
+            } elseif (str_contains($lower, 'bp') || str_contains($lower, 'blood')) {
+                $values['BP'] = $full;
+            } elseif (str_contains($lower, 'temp')) {
+                $values['Temp'] = $full;
+            } elseif (str_contains($lower, 'weight') || str_contains($lower, 'wt')) {
+                $values['Weight'] = $full;
+            } else {
+                $extra[] = ($label !== '' ? $label . ': ' : '') . $full;
+            }
+        }
+    }
+
+    // 1.5+2) Pre-Con Assessment via shared reader (per-prescription snapshot → patient latest).
+    // Keeps ALL fields: matched ones fill Pulse/BP/Temp/Weight gaps, the rest go to $extra.
+    $preconText = app(\App\Services\PreconAssessmentReader::class)
+        ->textFor($pid, $patient->patientcode ?? null, $patient->id ?? null);
+    if ($preconText !== '') {
+        foreach (explode("\n", $preconText) as $oeLine) {
+            $oeLine = trim($oeLine);
+            if ($oeLine === '') {
+                continue;
+            }
+            $colon = strpos($oeLine, ':');
+            if ($colon === false) {
+                $extra[] = $oeLine;
+                continue;
+            }
+            $label = trim(substr($oeLine, 0, $colon));
+            $full  = trim(substr($oeLine, $colon + 1));
+            $lower = mb_strtolower($label);
+            if ($values['Pulse'] === '' && str_contains($lower, 'pulse')) {
+                $values['Pulse'] = $full;
+            } elseif ($values['BP'] === '' && (str_contains($lower, 'bp') || str_contains($lower, 'blood'))) {
+                $values['BP'] = $full;
+            } elseif ($values['Temp'] === '' && str_contains($lower, 'temp')) {
+                $values['Temp'] = $full;
+            } elseif ($values['Weight'] === '' && (str_contains($lower, 'weight') || str_contains($lower, 'wt'))) {
+                $values['Weight'] = $full;
+            } else {
+                $extra[] = $oeLine;
+            }
+        }
+    }
+
+    // 3) nursing_admissions
+    $patientcode = $patient->patientcode ?? null;
+    if ($patientcode && Schema::hasTable('nursing_admissions')) {
+        $rec = DB::table('nursing_admissions')
+            ->where('patient_code', $patientcode)
+            ->orderByDesc('id')
+            ->first();
+
+        if ($rec) {
+            if ($values['Pulse'] === '' && !empty($rec->pulse)) {
+                $values['Pulse'] = (string) $rec->pulse;
+            }
+            if ($values['BP'] === '' && !empty($rec->bp)) {
+                $values['BP'] = (string) $rec->bp;
+            }
+            if ($values['Temp'] === '') {
+                $t = $rec->temp ?? $rec->temperature ?? '';
+                if ($t !== '') {
+                    $values['Temp'] = (string) $t;
+                }
+            }
+            if ($values['Weight'] === '' && !empty($rec->weight)) {
+                $values['Weight'] = (string) $rec->weight;
+            }
+        }
+    }
+
+    $lines = [];
+    foreach ($always as $label) {
+        $lines[] = $label . ': ' . ($values[$label] ?? '');
+    }
+    foreach ($extra as $line) {
+        $lines[] = $line;
+    }
+
+    return implode("\n", $lines);
+}
+
 public function markAsCaesarean($prescriptionId)
 {
-    // Simple method to mark a prescription as Caesarean for testing
     try {
         $updated = DB::table('prescriptions')
             ->where('id', $prescriptionId)
@@ -1923,12 +2452,12 @@ public function markAsCaesarean($prescriptionId)
                 'success' => true,
                 'message' => "Prescription {$prescriptionId} marked as Caesarean"
             ]);
-        } else {
-            return response()->json([
-                'success' => false,
-                'message' => "Prescription {$prescriptionId} not found"
-            ]);
         }
+
+        return response()->json([
+            'success' => false,
+            'message' => "Prescription {$prescriptionId} not found"
+        ]);
 
     } catch (\Exception $e) {
         return response()->json([
@@ -1937,5 +2466,4 @@ public function markAsCaesarean($prescriptionId)
         ]);
     }
 }
-
 }

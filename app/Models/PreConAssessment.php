@@ -21,6 +21,8 @@ class PreConAssessment extends Model
     // ৪. ইনসার্ট করার যোগ্য কলামগুলো
     protected $fillable = [
         'patientcode', 
+        'patient_id',
+        'status',
         'weight',
         'height',
         'temp',

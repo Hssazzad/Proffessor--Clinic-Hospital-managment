@@ -1,521 +1,607 @@
 @php
-  // Expected: $pid, $patientId (like your other tabs)
-  $pid       = (int)($pid ?? request('id'));
+  $pid = (int)($pid ?? request('id'));
   $patientId = (int)($patientId ?? request('patient'));
+  $wz = $wz ?? 'rx';
+  $pName = $patient->patientname ?? '--';
+  $pAge = $patient->age ?? '--';
+  $pGender = $patient->gender ?? '--';
+  $pCode = $patient->patientcode ?? '--';
+  $pDoctor = $rx->doctor_name ?? '--';
+  $pType = $patient->patient_type ?? '--';
+  $pWeight = $vitals->weight ?? '--';
+  $pBP = '--';
+  if (isset($vitals)) {
+    if (!empty($vitals->bp)) {
+      $pBP = $vitals->bp;
+    } elseif (!empty($vitals->bp_sys)) {
+      $pBP = $vitals->bp_sys . '/' . ($vitals->bp_dia ?? '--');
+    }
+  }
 @endphp
-
 @if (!$pid)
-  <div class="alert alert-danger">No prescription selected. Save Patient first.</div>
+  <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+    No prescription selected. Save Patient first.
+  </div>
   @php return; @endphp
 @endif
-
-<style>
-  .card{background:#fff;border:1px solid #e5eaf3;border-radius:.75rem;padding:1rem;margin-bottom:1rem}
-  .btn{padding:.5rem .9rem;border-radius:.5rem;border:1px solid #dbe3f0;background:#0ea5e9;color:#fff;cursor:pointer}
-  .btn.secondary{background:#f8fafc;color:#0e1a2a}
-  .btn.danger{background:#ef4444}
-  .btn[disabled]{opacity:.6;cursor:not-allowed}
-  .form-control{width:100%;padding:.45rem .55rem;border:1px solid #d9e2ef;border-radius:.5rem}
-  .table{width:100%;border-collapse:collapse}
-  .table th,.table td{border:1px solid #e5eaf3;padding:.5rem .6rem;vertical-align:top}
-  .table th{background:#f4f7fb}
-  label{display:block;margin-bottom:.35rem;font-weight:600}
-  .nowrap{white-space:nowrap}
-
-  /* Grid for add-new row */
-  .grid7{
-      display:grid;
-      grid-template-columns: repeat(7, minmax(0, 1fr));
-      gap:.5rem;
-      align-items:flex-end;
-  }
-
-  /* Mobile: stack add row vertically */
-  @media (max-width: 768px){
-      .grid7{
-          grid-template-columns: 1fr;
-      }
-  }
-
-  .grid7 label{
-      font-size:.85rem;
-      font-weight:500;
-  }
-
-  #btnAddMed{
-      width:100%;
-  }
-
-  /* ===== MOBILE: TABLE -> VERTICAL CARDS FOR MED LIST ===== */
-  @media (max-width: 768px){
-      .med-table-wrap{
-          margin:0 -0.5rem;
-      }
-      .med-table-wrap .table{
-          border:0;
-      }
-      .med-table-wrap thead{
-          display:none;
-      }
-      .med-table-wrap tbody tr{
-          display:block;
-          border:1px solid #e5eaf3;
-          border-radius:.75rem;
-          margin-bottom:.75rem;
-          padding:.35rem .5rem;
-      }
-      .med-table-wrap tbody td{
-          display:flex;
-          align-items:center;
-          border:0;
-          border-bottom:1px dashed #e5eaf3;
-          padding:.25rem .2rem;
-      }
-      .med-table-wrap tbody td:last-child{
-          border-bottom:0;
-          justify-content:flex-end;
-      }
-      .med-table-wrap tbody td::before{
-          content:attr(data-label);
-          flex:0 0 35%;
-          font-weight:600;
-          color:#4b5563;
-          margin-right:.5rem;
-          font-size:.85rem;
-      }
-      .med-table-wrap tbody td .form-control{
-          width:100%;
-      }
-      .med-table-wrap tbody td.nowrap{
-          display:flex;
-          gap:.25rem;
-      }
-      .med-table-wrap tbody td.nowrap::before{
-          content:"Actions";
-          flex:0 0 auto;
-          font-weight:600;
-          color:#4b5563;
-          margin-right:.5rem;
-      }
-      .med-table-wrap .btn{
-          padding:.3rem .6rem;
-          font-size:.8rem;
-      }
-  }
-
-  /* Select2 styling */
-  .select2-container--bootstrap4 .select2-selection {
-      border: 1px solid #6b7280 !important;
-      border-radius: 6px !important;
-      min-height: 38px !important;
-      padding: 4px !important;
-  }
-
-  .select2-container--bootstrap4.select2-container--focus .select2-selection {
-      border-color: #2563eb !important;
-      box-shadow: 0 0 0 1px #2563eb33 !important;
-  }
-
-  .select2-container--bootstrap4 .select2-dropdown {
-      border: 1px solid #6b7280 !important;
-      border-radius: 6px !important;
-  }
-
-  .select2-container--bootstrap4 .select2-results__option--highlighted {
-      background: #0ea5e9 !important;
-      color: #fff !important;
-  }
-
-  .select2-container--bootstrap4 .select2-results__option[aria-selected="true"] {
-      background: #e0f2fe !important;
-      color: #0e7490 !important;
-  }
-</style>
-
-{{-- ADD NEW (AJAX) --}}
-<div class="card">
-  <div class="grid7">
-    <div>
-      <label>Medicine *</label>
-      <select id="med_name" class="form-control select2" style="width:100%" required>
-        <option value="">-- Select Medicine --</option>
-        @foreach($commonMedicines as $m)
-          <option
-              value="{{ $m->name }}"
-              data-strength="{{ $m->strength }}"
-              data-group="{{ $m->GroupName }}"
-          >
-              {{ $m->name }} {{ $m->strength }} ({{ $m->GroupName }})
-          </option>
-        @endforeach
-      </select>
-      <button type="button" id="getmedicine" class="btn btn-info mt-1 w-100">
-        Load Medicine
-      </button>
+{{-- Tailwind CDN --}}
+<script src="https://cdn.tailwindcss.com"></script>
+<div class="max-w-full bg-white text-slate-800">
+  {{-- Patient Summary --}}
+  <div class="flex flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3 mb-5 bg-slate-50 border border-slate-200 rounded-xl text-sm">
+    <div><span class="text-slate-500 font-semibold text-xs uppercase">Patient</span> <strong class="ml-1">{{ $pName }}</strong></div>
+    <div><span class="text-slate-500 font-semibold text-xs uppercase">Age/Sex</span> <strong class="ml-1">{{ $pAge }}/{{ $pGender && $pGender !== '--' ? substr($pGender,0,1) : $pGender }}</strong></div>
+    <div><span class="text-slate-500 font-semibold text-xs uppercase">UHID</span> <strong class="ml-1">{{ $pCode }}</strong></div>
+    <div><span class="text-slate-500 font-semibold text-xs uppercase">Doctor</span> <strong class="ml-1">{{ $pDoctor }}</strong></div>
+    <div><span class="text-slate-500 font-semibold text-xs uppercase">Wt</span> <strong class="ml-1">{{ $pWeight }}{{ is_numeric($pWeight) ? 'kg' : '' }}</strong></div>
+    <div><span class="text-slate-500 font-semibold text-xs uppercase">BP</span> <strong class="ml-1">{{ $pBP }}</strong></div>
+  </div>
+  {{-- Medicine Entry --}}
+  <div class="mb-6">
+    <h3 class="text-xs font-bold text-slate-600 uppercase tracking-wider mb-4 pb-2 border-b-2 border-slate-200">Medicine Entry</h3>
+    {{-- Search + Common + Quick Add --}}
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-3 mb-4">
+      <div class="md:col-span-5">
+        <label for="medSearchInput" class="block text-xs font-semibold text-slate-500 uppercase mb-1">Search Medicine</label>
+        <input type="text" id="medSearchInput" name="medSearchInput" class="w-full h-10 px-3 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Type medicine name..." autocomplete="off" autofocus>
+      </div>
+      <div class="md:col-span-3 relative">
+        <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">&nbsp;</label>
+        <div id="commonMedSection" style="display:none;">
+          <button type="button" id="commonMedBtn" class="w-full h-10 px-3 border border-slate-300 rounded-lg text-sm bg-white text-left flex justify-between items-center">
+            <span id="commonMedBtnText">Common Medicines</span>
+            <span class="text-slate-400 text-xs">▼</span>
+          </button>
+          <div id="commonMedPanel" class="absolute top-full left-0 right-0 z-50 hidden bg-white border border-slate-200 rounded-b-lg shadow-lg">
+            <div class="p-2 border-b">
+              <input type="text" id="commonMedSearch" class="w-full px-2 py-1.5 border border-slate-300 rounded text-sm" placeholder="Search common..." autocomplete="off">
+            </div>
+            <div class="max-h-60 overflow-y-auto">
+              <table class="w-full text-sm">
+                <thead class="bg-slate-50 sticky top-0">
+                  <tr>
+                    <th class="px-3 py-2 text-left text-xs font-bold text-slate-500">Medicine</th>
+                    <th class="px-3 py-2 text-left text-xs font-bold text-slate-500">Strength</th>
+                    <th class="px-3 py-2 text-left text-xs font-bold text-slate-500">Type</th>
+                  </tr>
+                </thead>
+                <tbody id="commonMedList">
+                  <tr><td colspan="3" class="px-3 py-4 text-center text-slate-400">Loading...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="md:col-span-2">
+        <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">&nbsp;</label>
+        <button type="button" id="quickAddBtn" class="w-full h-10 px-3 border border-slate-300 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-50">
+          + Quick Add
+        </button>
+      </div>
+      <div class="md:col-span-2">
+        <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">&nbsp;</label>
+        <input type="text" id="quickAddInput" class="w-full h-10 px-3 border border-slate-300 rounded-lg text-sm" placeholder="Quick add..." style="display:none;" autocomplete="off">
+      </div>
     </div>
-
-    <div>
-      <label>Strength</label>
-      <input id="med_strength" class="form-control" placeholder="20 mg">
+    {{-- Filters --}}
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+      <div>
+        <label for="filterType" class="block text-xs font-semibold text-slate-500 uppercase mb-1">Type</label>
+        <select id="filterType" name="filterType" class="w-full h-10 px-3 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <option value="">-- All Types --</option>
+          @foreach($medicineTypes as $t)
+            <option value="{{ $t->id }}">{{ $t->type_name }}</option>
+          @endforeach
+        </select>
+      </div>
+      <div id="subTypeFilterWrap" style="display:none;">
+        <label for="filterSubType" class="block text-xs font-semibold text-slate-500 uppercase mb-1">Sub Type</label>
+        <select id="filterSubType" name="filterSubType" class="w-full h-10 px-3 border border-slate-300 rounded-lg text-sm bg-white">
+          <option value="">-- All Sub Types --</option>
+        </select>
+      </div>
+      <div>
+        <label for="filterCompany" class="block text-xs font-semibold text-slate-500 uppercase mb-1">Company</label>
+        <select id="filterCompany" name="filterCompany" class="w-full h-10 px-3 border border-slate-300 rounded-lg text-sm bg-white">
+          <option value="">-- All Companies --</option>
+          @foreach($companies as $c)
+            <option value="{{ $c->name }}">{{ $c->name }}</option>
+          @endforeach
+        </select>
+      </div>
+      <div>
+        <label for="filterForm" class="block text-xs font-semibold text-slate-500 uppercase mb-1">Form</label>
+        <select id="filterForm" name="filterForm" class="w-full h-10 px-3 border border-slate-300 rounded-lg text-sm bg-white">
+          <option value="">-- All Forms --</option>
+          @foreach($dosageForms as $f)
+            <option value="{{ $f->id }}">{{ $f->dosage_name }}</option>
+          @endforeach
+        </select>
+      </div>
     </div>
-
-    <div>
-      <label>Dose</label>
-      <select id="med_dose" class="form-control select2" style="width:100%" required>
-        <option value="">-- Select Dose --</option>
-        <option value="½ Tablet">1/2 Tablet</option>
-        <option value="1 Tablet">1 Tablet</option>
-        <option value="2 Tablet">2 Tablet</option>
-        <option value="3 Tablet">3 Tablet</option>
-        <option value="1 Capsule">1 Capsule</option>
-        <option value="2 Capsule">2 Capsule</option>
-      </select>
+    {{-- Results --}}
+    <div class="mb-4">
+      <div class="flex items-center gap-2 mb-2">
+        <span class="text-xs font-semibold text-slate-500 uppercase">Matching Medicines</span>
+        <span id="medResultCount" class="px-2 py-0.5 bg-slate-100 text-slate-600 text-xs font-semibold rounded">0</span>
+      </div>
+      <div class="border border-slate-200 rounded-lg max-h-56 overflow-y-auto">
+        <table class="w-full text-sm">
+          <thead class="bg-slate-50 sticky top-0">
+            <tr>
+              <th class="px-3 py-2 text-left text-xs font-bold text-slate-500 w-10">#</th>
+              <th class="px-3 py-2 text-left text-xs font-bold text-slate-500">Medicine</th>
+              <th class="px-3 py-2 text-left text-xs font-bold text-slate-500">Strength</th>
+              <th class="px-3 py-2 text-left text-xs font-bold text-slate-500">Group</th>
+              <th class="px-3 py-2 text-left text-xs font-bold text-slate-500">Company</th>
+              <th class="px-3 py-2 w-20"></th>
+            </tr>
+          </thead>
+          <tbody id="medResults">
+            <tr>
+              <td colspan="6" class="px-4 py-8 text-center text-slate-400">
+                <div class="text-2xl mb-2">🔍</div>
+                <p>Type medicine name or select filters above.</p>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
-
-    <div>
-      <label>When take</label>
-      <select id="med_frequency" class="form-control select2" style="width:100%" required>
-        <option value="">-- Select Dose --</option>
-        <option value="1+0+0">1+0+0</option>
-        <option value="1+1+0">1+1+0</option>
-        <option value="1+1+1">1+1+1</option>
-        <option value="1+0+1">1+0+1</option>
-        <option value="0+0+1">0+0+1</option>
-        <option value="0+1+1">0+1+1</option>
-      </select>
-    </div>
-
-    <div>
-      <label>Timing</label>
-      <select id="med_timing" class="form-control select2" style="width:100%" required>
-        <option value="After Meal">After Meal</option>
-        <option value="Before Meal">Before Meal</option>
-      </select>
-    </div>
-
-    <div>
-      <label>Duration/Till</label>
-      <select id="med_duration" class="form-control select2" style="width:100%" required>
-        <option value="5 days">5 days</option>
-        <option value="7 days">7 days</option>
-        <option value="15 days">15 days</option>
-        <option value="30 days">30 days</option>
-        <option value="Continue">Continue</option>
-      </select>
-    </div>
-
-    <div>
-      <label>&nbsp;</label>
-      <button id="btnAddMed" class="btn btn-primary">
-        Add
-      </button>
+    {{-- Selected + Form --}}
+    <div class="bg-slate-50 border border-slate-200 rounded-xl p-5">
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4">
+        <div class="md:col-span-5">
+          <label for="selectedMedText" class="block text-xs font-semibold text-slate-500 uppercase mb-1">Selected Medicine</label>
+          <input type="hidden" id="med_name" name="med_name" value="">
+          <input type="hidden" id="med_route" name="med_route" value="">
+          <div id="selectedMedBox" class="h-10 px-3 flex items-center border border-slate-300 rounded-lg bg-white text-sm font-semibold text-slate-400">
+            <span id="selectedMedText">Pick a medicine from the list above</span>
+          </div>
+        </div>
+        <div class="md:col-span-2">
+          <label for="med_strength" class="block text-xs font-semibold text-slate-500 uppercase mb-1">Strength</label>
+          <input type="text" id="med_strength" name="med_strength" class="w-full h-10 px-3 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. 500mg" autocomplete="off">
+        </div>
+        <div class="md:col-span-2">
+          <label for="med_dose" class="block text-xs font-semibold text-slate-500 uppercase mb-1">Dose</label>
+          <select id="med_dose" name="med_dose" class="w-full h-10 px-3 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="">-- Select --</option>
+            <option value="½ Tablet">1/2 Tablet</option>
+            <option value="1 Tablet">1 Tablet</option>
+            <option value="2 Tablet">2 Tablet</option>
+            <option value="3 Tablet">3 Tablet</option>
+            <option value="1 Capsule">1 Capsule</option>
+            <option value="2 Capsule">2 Capsule</option>
+            <option value="1 Tsp">1 Tsp</option>
+            <option value="2 Tsp">2 Tsp</option>
+            <option value="1 Ampoule">1 Ampoule</option>
+            <option value="2 Ampoule">2 Ampoule</option>
+            <option value="As directed">As directed</option>
+          </select>
+        </div>
+        <div class="md:col-span-3">
+          <label for="med_frequency" class="block text-xs font-semibold text-slate-500 uppercase mb-1">Frequency</label>
+          <select id="med_frequency" name="med_frequency" class="w-full h-10 px-3 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="">-- Select --</option>
+            <option value="1+0+0">1+0+0 (Once Daily)</option>
+            <option value="1+0+1">1+0+1 (Morning + Night)</option>
+            <option value="1+1+0">1+1+0 (Morning + Noon)</option>
+            <option value="1+1+1">1+1+1 (Three Times)</option>
+            <option value="0+0+1">0+0+1 (At Night)</option>
+            <option value="0+1+0">0+1+0 (At Noon)</option>
+            <option value="0+1+1">0+1+1 (Noon + Night)</option>
+            <option value="Stat">Stat</option>
+            <option value="SOS">SOS</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+        <div class="md:col-span-2">
+          <label for="med_duration" class="block text-xs font-semibold text-slate-500 uppercase mb-1">Duration</label>
+          <input type="text" id="med_duration" name="med_duration" class="w-full h-10 px-3 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. 7 days" autocomplete="off">
+        </div>
+        <div class="md:col-span-2">
+          <label for="med_timing" class="block text-xs font-semibold text-slate-500 uppercase mb-1">Timing</label>
+          <select id="med_timing" name="med_timing" class="w-full h-10 px-3 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="After Meal">After Meal</option>
+            <option value="Before Meal">Before Meal</option>
+            <option value="With Meal">With Meal</option>
+            <option value="Empty Stomach">Empty Stomach</option>
+            <option value="At Bedtime">At Bedtime</option>
+          </select>
+        </div>
+        <div class="md:col-span-5">
+          <label for="med_note" class="block text-xs font-semibold text-slate-500 uppercase mb-1">Instruction</label>
+          <input type="text" id="med_note" name="med_note" class="w-full h-10 px-3 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Optional instructions..." autocomplete="off">
+        </div>
+        <div class="md:col-span-3">
+          <label class="block text-xs font-semibold text-slate-500 uppercase mb-1 invisible">Add</label>
+          <button type="button" id="btnAddMed" class="w-full h-10 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg text-sm flex items-center justify-center gap-2">
+            + Add Medicine
+          </button>
+        </div>
+      </div>
+      <div id="medMsg" class="mt-3 text-sm hidden"></div>
     </div>
   </div>
-
-  <div style="margin-top:.5rem">
-    <label>Note</label>
-    <input id="med_note" class="form-control" placeholder="optional general note (per medicine)">
+  {{-- Prescribed List --}}
+  <div class="border-t border-slate-200 pt-5 mb-6">
+    <div class="flex items-center gap-2 mb-3">
+      <h3 class="text-xs font-bold text-slate-600 uppercase tracking-wider">Prescribed Medicines</h3>
+      <span id="medCount" class="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-bold rounded-full">0</span>
+    </div>
+    <div class="border border-slate-200 rounded-lg overflow-hidden">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-50">
+          <tr>
+            <th class="px-3 py-2.5 text-left text-xs font-bold text-slate-500 w-10">#</th>
+            <th class="px-3 py-2.5 text-left text-xs font-bold text-slate-500">Medicine</th>
+            <th class="px-3 py-2.5 text-left text-xs font-bold text-slate-500">Strength</th>
+            <th class="px-3 py-2.5 text-left text-xs font-bold text-slate-500">Dose</th>
+            <th class="px-3 py-2.5 text-left text-xs font-bold text-slate-500">Frequency</th>
+            <th class="px-3 py-2.5 text-left text-xs font-bold text-slate-500">Duration</th>
+            <th class="px-3 py-2.5 text-left text-xs font-bold text-slate-500">Timing</th>
+            <th class="px-3 py-2.5 text-left text-xs font-bold text-slate-500">Remarks</th>
+            <th class="px-3 py-2.5 w-16"></th>
+          </tr>
+        </thead>
+        <tbody id="medRows">
+          <tr>
+            <td colspan="9" class="px-4 py-10 text-center text-slate-400">
+              <div class="text-3xl mb-2">💊</div>
+              <p>No medicines added yet.</p>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </div>
-
-  <div id="medMsg" style="margin-top:.5rem;font-size:.9rem;display:none"></div>
+  {{-- Navigation --}}
+  <div class="flex justify-between items-center pt-4 border-t border-slate-200">
+    <a href="{{ route($wz.'.wizard',['id'=>$pid,'patient'=>$patientId,'tab'=>'investigations']) }}" class="h-10 px-5 border border-slate-300 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-50 flex items-center gap-2">
+      ← Back to Investigations
+    </a>
+    <form method="get" action="{{ route($wz.'.wizard') }}">
+      <input type="hidden" name="id" value="{{ $pid }}">
+      <input type="hidden" name="patient" value="{{ $patientId }}">
+      <input type="hidden" name="tab" value="doctor">
+      <button type="submit" class="h-10 px-5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg text-sm">
+        Next: Doctor →
+      </button>
+    </form>
+  </div>
 </div>
-
-{{-- LIST (AJAX) --}}
-<div class="card med-table-wrap">
-  <table class="table">
-    <thead>
-      <tr>
-        <th style="width:18%">Name</th>
-        <th style="width:10%">Strength</th>
-        <th style="width:10%">Dose</th>
-        <th style="width:12%">Frequency</th>
-        <th style="width:10%">Duration</th>
-        <th style="width:10%">Timing</th>
-        <th>Note</th>
-        <th style="width:160px">Actions</th>
-      </tr>
-    </thead>
-    <tbody id="medRows">
-      <tr><td colspan="8" class="text-muted">Loading…</td></tr>
-    </tbody>
-  </table>
+{{-- Toast --}}
+<div id="qaToast" class="fixed bottom-6 right-6 z-50 min-w-[260px] px-4 py-3 rounded-lg text-sm font-semibold text-white shadow-lg translate-y-32 opacity-0 transition-all duration-300"></div>
+{{-- Quick Add Modal --}}
+<div id="quickAddModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-sm mx-4">
+    <div class="px-5 py-4 border-b flex justify-between items-center">
+      <h5 class="font-bold text-slate-800">Quick Add Medicine</h5>
+      <button type="button" id="qaCloseBtn" class="text-slate-400 hover:text-slate-600 text-xl">&times;</button>
+    </div>
+    <div class="p-5 space-y-4">
+      <div>
+        <label for="qaMedName" class="block text-xs font-semibold text-slate-600 mb-1">Medicine Name <span class="text-red-500">*</span></label>
+        <input type="text" id="qaMedName" class="w-full h-10 px-3 border border-slate-300 rounded-lg text-sm" placeholder="e.g. Amoxicillin" autocomplete="off">
+      </div>
+      <div>
+        <label for="qaForm" class="block text-xs font-semibold text-slate-600 mb-1">Type of Medicine <span class="text-red-500">*</span></label>
+        <select id="qaForm" class="w-full h-10 px-3 border border-slate-300 rounded-lg text-sm bg-white">
+          <option value="">-- Select Type --</option>
+          @foreach($dosageForms as $f)
+            <option value="{{ $f->id }}">{{ $f->dosage_name }}</option>
+          @endforeach
+        </select>
+      </div>
+    </div>
+    <div class="px-5 py-3 border-t flex justify-end gap-2">
+      <button type="button" id="qaCancelBtn" class="h-9 px-4 border border-slate-300 rounded-lg text-sm font-semibold text-slate-600">Cancel</button>
+      <button type="button" id="qaSaveBtn" class="h-9 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold">Save & Use</button>
+    </div>
+  </div>
 </div>
-
-<div style="display:flex;justify-content:space-between;gap:.75rem">
-  <a class="btn secondary" href="{{ route('rx.wizard',['id'=>$pid,'patient'=>$patientId,'tab'=>'diagnosis']) }}">← Back</a>
-  <form method="get" action="{{ route('rx.wizard') }}" style="margin:0">
-    <input type="hidden" name="id" value="{{ $pid }}">
-    <input type="hidden" name="patient" value="{{ $patientId }}">
-    <input type="hidden" name="tab" value="doctor">
-    <button class="btn" type="submit">Next → Doctor</button>
-  </form>
-</div>
-
-{{-- =============== MAIN AJAX SCRIPT (NO jQuery HERE) =============== --}}
 <script>
 (function(){
-  const $ = (s,ctx=document)=>ctx.querySelector(s);
-  const pid  = {{ $pid }};
-  const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-  const rowsTbody = $('#medRows');
-  const msg = $('#medMsg');
-
-  function esc(s){
-    return String(s||'')
-      .replaceAll('&','&amp;')
-      .replaceAll('<','&lt;')
-      .replaceAll('>','&gt;')
-      .replaceAll('"','&quot;');
+  var pid = {{ $pid }};
+  var csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+  var afterCreateId = null;
+  var searchTimer = null;
+  function $(id){ return document.getElementById(id); }
+  function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function showMsg(text, ok){
+    var el = $('medMsg');
+    if(!el) return;
+    el.classList.remove('hidden');
+    el.className = 'mt-3 text-sm ' + (ok !== false ? 'text-emerald-700' : 'text-red-600');
+    el.textContent = text;
+    setTimeout(function(){ el.classList.add('hidden'); }, 3000);
   }
-
-  function showMsg(text, ok=true){
-    if (!msg) return;
-    msg.style.display='block';
-    msg.style.color = ok ? '#065f46' : '#b91c1c';
-    msg.textContent = text;
-    setTimeout(()=>{ msg.style.display='none'; }, 1600);
+  function showToast(msg, type){
+    var t = $('qaToast');
+    t.textContent = msg;
+    t.className = 'fixed bottom-6 right-6 z-50 min-w-[260px] px-4 py-3 rounded-lg text-sm font-semibold text-white shadow-lg transition-all duration-300 ' + (type==='error'?'bg-red-700':'bg-emerald-800');
+    t.style.transform = 'translateY(0)';
+    t.style.opacity = '1';
+    setTimeout(function(){ t.style.transform='translateY(8rem)'; t.style.opacity='0'; }, 3000);
   }
-
-  function renderList(rows){
-    if (!rows || rows.length===0) {
-      rowsTbody.innerHTML = `<tr><td colspan="8" class="text-muted">No medicines added.</td></tr>`;
-      return;
-    }
-    rowsTbody.innerHTML = rows.map(r=>`
-      <tr data-id="${r.id}">
-        <td data-label="Name">
-          <input class="form-control med-name" value="${esc(r.name||'')}" required>
-        </td>
-        <td data-label="Strength">
-          <input class="form-control med-strength" value="${esc(r.strength||'')}">
-        </td>
-        <td data-label="Dose">
-          <input class="form-control med-dose" value="${esc(r.dose||'')}">
-        </td>
-        <td data-label="Frequency">
-          <input class="form-control med-frequency" value="${esc(r.frequency||'')}">
-        </td>
-        <td data-label="Duration">
-          <input class="form-control med-duration" value="${esc(r.duration||'')}">
-        </td>
-        <td data-label="Timing">
-          <input class="form-control med-timing" value="${esc(r.timing||'')}">
-        </td>
-        <td data-label="Note">
-          <input class="form-control med-note" value="${esc(r.note||'')}">
-        </td>
-        <td class="nowrap">
-          <button type="button" class="btn btn-save">Save</button>
-          <button type="button" class="btn danger btn-del">Delete</button>
-        </td>
-      </tr>
-    `).join('');
-  }
-
-  async function call(action, payload={}){
-    const fd = new FormData();
+  // ===== List =====
+  async function call(action, payload){
+    var fd = new FormData();
     fd.append('action', action);
     fd.append('prescription_id', pid);
     fd.append('_token', csrf);
-    for (const [k,v] of Object.entries(payload)) fd.append(k, v ?? '');
-
-    const res = await fetch(`{{ route('rx.med.ajax') }}`, {
-      method: 'POST',
-      headers: { 'X-Requested-With':'XMLHttpRequest', 'Accept':'application/json' },
-      body: fd
-    });
-
-    if (res.status === 422) {
-      const j = await res.json();
-      throw new Error(j?.message || 'Validation error');
-    }
-    const j = await res.json().catch(()=>({ok:false,error:'Bad JSON'}));
-    if (j.ok === false && j.error) throw new Error(j.error);
+    if(payload) Object.keys(payload).forEach(function(k){ fd.append(k, payload[k]??''); });
+    var res = await fetch('{{ route($wz.".med.ajax") }}', { method:'POST', headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json'}, body:fd });
+    if(res.status===422){ var j=await res.json(); throw new Error(j.message||'Validation error'); }
+    var j = await res.json().catch(function(){ return {ok:false,error:'Bad JSON'}; });
+    if(j.ok===false && j.error) throw new Error(j.error);
     return j;
   }
-
+  function renderList(rows){
+    var tbody = $('medRows');
+    var count = $('medCount');
+    if(!rows || !rows.length){
+      tbody.innerHTML = '<tr><td colspan="9" class="px-4 py-10 text-center text-slate-400"><div class="text-3xl mb-2">💊</div><p>No medicines added yet.</p></td></tr>';
+      if(count) count.textContent = '0';
+      return;
+    }
+    if(count) count.textContent = rows.length;
+    tbody.innerHTML = rows.map(function(r,i){
+      return '<tr class="border-t border-slate-100 hover:bg-slate-50" data-id="'+r.id+'">'+
+        '<td class="px-3 py-2.5">'+(i+1)+'</td>'+
+        '<td class="px-3 py-2.5 font-semibold">'+esc(r.name)+'</td>'+
+        '<td class="px-3 py-2.5">'+esc(r.strength||'')+'</td>'+
+        '<td class="px-3 py-2.5">'+esc(r.dose||'')+'</td>'+
+        '<td class="px-3 py-2.5"><span class="px-2 py-0.5 bg-blue-50 text-blue-700 text-xs font-semibold rounded">'+esc(r.frequency||'')+'</span></td>'+
+        '<td class="px-3 py-2.5">'+esc(r.duration||'')+'</td>'+
+        '<td class="px-3 py-2.5">'+esc(r.timing||'')+'</td>'+
+        '<td class="px-3 py-2.5">'+esc(r.note||'')+'</td>'+
+        '<td class="px-3 py-2.5"><button type="button" class="btn-del h-8 w-8 rounded bg-red-50 text-red-600 hover:bg-red-100 text-sm">🗑</button></td>'+
+      '</tr>';
+    }).join('');
+  }
   async function loadList(){
+    try{ var j = await call('list'); renderList(j.rows||[]); }
+    catch(e){ $('medRows').innerHTML = '<tr><td colspan="9" class="px-4 py-6 text-center text-red-500">Load failed</td></tr>'; }
+  }
+  // ===== Select medicine (note from Medicine Master is prefilled into Instruction) =====
+  function fillMedicine(name, strength, note){
+    $('med_name').value = name;
+    $('med_strength').value = strength || '';
+    if($('med_note')) $('med_note').value = note || '';
+    var box = $('selectedMedBox');
+    box.className = 'h-10 px-3 flex items-center border border-blue-400 rounded-lg bg-blue-50 text-sm font-semibold text-slate-800';
+    $('selectedMedText').textContent = name + (strength ? ' — ' + strength : '');
+  }
+  function clearSelection(){
+    $('med_name').value = '';
+    $('med_strength').value = '';
+    var box = $('selectedMedBox');
+    box.className = 'h-10 px-3 flex items-center border border-slate-300 rounded-lg bg-white text-sm font-semibold text-slate-400';
+    $('selectedMedText').textContent = 'Pick a medicine from the list above';
+  }
+  // ===== Results =====
+  function renderResults(rows){
+    var tbody = $('medResults');
+    var count = $('medResultCount');
+    if(count) count.textContent = rows.length;
+    if(!rows.length){
+      tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-8 text-center text-slate-400"><p>No medicines match.</p><button type="button" id="quickAddFromEmpty" class="mt-2 text-sm text-blue-600 font-semibold">+ Quick Add</button></td></tr>';
+      var btn = $('quickAddFromEmpty');
+      if(btn) btn.onclick = function(){ openQuickAdd($('medSearchInput')?.value || ''); };
+      return;
+    }
+    tbody.innerHTML = rows.map(function(m,i){
+      return '<tr class="border-t border-slate-100 hover:bg-blue-50 cursor-pointer med-result-row" data-name="'+esc(m.name)+'" data-strength="'+esc(m.strength||'')+'" data-note="'+esc(m.note||'')+'" data-id="'+m.id+'">'+
+        '<td class="px-3 py-2">'+(i+1)+'</td>'+
+        '<td class="px-3 py-2 font-semibold">'+esc(m.name)+'</td>'+
+        '<td class="px-3 py-2">'+esc(m.strength||'—')+'</td>'+
+        '<td class="px-3 py-2">'+esc(m.GroupName||'—')+'</td>'+
+        '<td class="px-3 py-2">'+esc(m.company||'—')+'</td>'+
+        '<td class="px-3 py-2"><button type="button" class="text-xs px-2 py-1 border border-slate-300 rounded hover:bg-white">Select</button></td>'+
+      '</tr>';
+    }).join('');
+  }
+  // ===== AJAX Search + Filters (type name → show results) =====
+  async function loadMedicines(){
+    var q = ($('medSearchInput')?.value || '').trim();
+    var typeId = $('filterType')?.value || '';
+    var subTypeId = $('filterSubType')?.value || '';
+    var company = $('filterCompany')?.value || '';
+    var formId = $('filterForm')?.value || '';
+    clearSelection();
+    if(!q && !typeId && !subTypeId && !company && !formId){
+      $('medResultCount').textContent = '0';
+      $('medResults').innerHTML = '<tr><td colspan="6" class="px-4 py-8 text-center text-slate-400"><div class="text-2xl mb-2">🔍</div><p>Type medicine name or select filters above.</p></td></tr>';
+      return;
+    }
+    var params = new URLSearchParams();
+    if(q) params.set('q', q);
+    if(company) params.set('company', company);
+    if(typeId) params.set('medicine_type_id', typeId);
+    if(subTypeId) params.set('medicine_sub_type_id', subTypeId);
+    if(formId) params.set('dosage_form_id', formId);
+    $('medResults').innerHTML = '<tr><td colspan="6" class="px-4 py-6 text-center text-slate-400">Searching...</td></tr>';
     try{
-      const j = await call('list');
-      renderList(j.rows||[]);
+      var res = await fetch('{{ route("ajax.filtered.medicines") }}?'+params.toString());
+      var data = await res.json();
+      var rows = Array.isArray(data) ? data : (data.medicines || data.data || data.rows || []);
+      renderResults(rows);
     }catch(e){
-      rowsTbody.innerHTML = `<tr><td colspan="8" class="text-danger">Load failed: ${esc(e.message)}</td></tr>`;
+      $('medResults').innerHTML = '<tr><td colspan="6" class="px-4 py-6 text-center text-red-500">Could not load</td></tr>';
     }
   }
-
-  // Add
-  document.getElementById('btnAddMed')?.addEventListener('click', async ()=>{
-    const payload = {
-      name:      document.getElementById('med_name')?.value || '',
-      strength:  document.getElementById('med_strength')?.value || '',
-      dose:      document.getElementById('med_dose')?.value || '',
-      route:     document.getElementById('med_route')?.value || '',
-      frequency: document.getElementById('med_frequency')?.value || '',
-      duration:  document.getElementById('med_duration')?.value || '',
-      timing:    document.getElementById('med_timing')?.value || '',
-      note:      document.getElementById('med_note')?.value || '',
+  // Filter change
+  ['filterType','filterSubType','filterCompany','filterForm'].forEach(function(id){
+    var el = $(id);
+    if(el) el.addEventListener('change', function(){
+      if(id==='filterType'){
+        var wrap = $('subTypeFilterWrap');
+        var sel = $('filterSubType');
+        sel.innerHTML = '<option value="">-- All Sub Types --</option>';
+        wrap.style.display = 'none';
+        if(this.value){
+          fetch('{{ route("ajax.medicine.subtypes") }}?medicine_type_id='+this.value)
+            .then(r=>r.json()).then(function(data){
+              if(Array.isArray(data) && data.length){
+                data.forEach(function(st){
+                  var o = document.createElement('option');
+                  o.value = st.id; o.textContent = st.subtype_name;
+                  sel.appendChild(o);
+                });
+                wrap.style.display = '';
+              }
+            });
+        }
+      }
+      loadMedicines();
+    });
+  });
+  // Click result
+  $('medResults').addEventListener('click', function(e){
+    var tr = e.target.closest('.med-result-row');
+    if(!tr) return;
+    fillMedicine(tr.getAttribute('data-name'), tr.getAttribute('data-strength'), tr.getAttribute('data-note'));
+  });
+  // AJAX search on type (debounce 300ms) — 1 letter thekei start
+  $('medSearchInput').addEventListener('input', function(){
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(function(){ loadMedicines(); }, 300);
+  });
+  // Add medicine
+  $('btnAddMed').addEventListener('click', async function(){
+    var payload = {
+      name: $('med_name').value,
+      strength: $('med_strength').value,
+      dose: $('med_dose').value,
+      frequency: $('med_frequency').value,
+      duration: $('med_duration').value,
+      timing: $('med_timing').value,
+      note: $('med_note').value,
+      route: ''
     };
-    if (!payload.name) { showMsg('Medicine name required', false); return; }
-
-    const btn = document.getElementById('btnAddMed');
-    btn.disabled = true; btn.textContent = 'Saving...';
-
+    if(!payload.name){ showMsg('Please select a medicine first.', false); return; }
+    this.disabled = true;
+    this.textContent = 'Saving...';
     try{
       await call('add', payload);
-      ['med_name','med_strength','med_dose','med_route','med_frequency','med_duration','med_timing','med_note']
-        .forEach(id => { const el = document.getElementById(id); if (el) el.value=''; });
+      ['med_dose','med_frequency','med_duration','med_timing','med_note'].forEach(function(id){ if($(id)) $(id).value=''; });
+      clearSelection();
       await loadList();
-      showMsg('Added.');
-    }catch(e){
-      showMsg(e.message || 'Save error', false);
-    }finally{
-      btn.disabled = false; btn.textContent = 'Add';
-    }
+      showMsg('Medicine added successfully.');
+      $('medSearchInput').focus();
+    }catch(e){ showMsg(e.message||'Save error', false); }
+    finally{ this.disabled=false; this.innerHTML='+ Add Medicine'; }
   });
-
-  // Inline Save/Delete
-  rowsTbody?.addEventListener('click', async (e)=>{
-    const tr = e.target.closest('tr[data-id]');
-    if (!tr) return;
-    const id = tr.getAttribute('data-id');
-
-    if (e.target.classList.contains('btn-save')) {
-      const payload = {
-        id,
-        name:      tr.querySelector('.med-name')?.value || '',
-        strength:  tr.querySelector('.med-strength')?.value || '',
-        dose:      tr.querySelector('.med-dose')?.value || '',
-        route:     tr.querySelector('.med-route')?.value || '',
-        frequency: tr.querySelector('.med-frequency')?.value || '',
-        duration:  tr.querySelector('.med-duration')?.value || '',
-        timing:    tr.querySelector('.med-timing')?.value || '',
-        note:      tr.querySelector('.med-note')?.value || '',
-      };
-      if (!payload.name) { showMsg('Medicine name required', false); return; }
-      const btn = e.target; btn.disabled = true; btn.textContent = 'Saving...';
-      try{
-        await call('update', payload);
-        showMsg('Updated.');
-      }catch(err){
-        showMsg(err.message || 'Update failed', false);
-      }finally{
-        btn.disabled = false; btn.textContent = 'Save';
-      }
-    }
-
-    if (e.target.classList.contains('btn-del')) {
-      if (!confirm('Delete this item?')) return;
-      const btn = e.target; btn.disabled = true; btn.textContent = 'Deleting...';
-      try{
-        await call('delete', { id });
-        tr.remove();
-        if (!rowsTbody.children.length)
-          rowsTbody.innerHTML = `<tr><td colspan="8" class="text-muted">No medicines added.</td></tr>`;
-        showMsg('Deleted.');
-      }catch(err){
-        showMsg(err.message || 'Delete failed', false);
-        btn.disabled = false; btn.textContent = 'Delete';
-      }
-    }
+  // Delete
+  $('medRows').addEventListener('click', async function(e){
+    var btn = e.target.closest('.btn-del');
+    if(!btn) return;
+    var tr = btn.closest('tr[data-id]');
+    if(!tr || !confirm('Delete this medicine?')) return;
+    try{
+      await call('delete', {id: tr.getAttribute('data-id')});
+      showMsg('Deleted.');
+      await loadList();
+    }catch(err){ showMsg(err.message||'Delete failed', false); }
   });
-
-  // initial load
+  // Common medicines
+  var cmMedicines = [];
+  async function loadCommonMedicines(){
+    try{
+      // The endpoint paginates (12 per page) for "lazy loading", but the panel
+      // does client-side search, so load ALL pages once and join them.
+      var all = [], offset = 0;
+      for (;;) {
+        var res = await fetch('{{ route("ajax.commonly.used.medicines") }}?offset='+offset);
+        var data = await res.json();
+        var page = data.medicines || [];
+        if (!page.length) break;
+        all = all.concat(page);
+        offset = (data.loaded != null) ? data.loaded : (offset + page.length);
+        if (data.total != null && offset >= data.total) break;
+      }
+      cmMedicines = all;
+      if(!cmMedicines.length){ $('commonMedSection').style.display='none'; return; }
+      $('commonMedSection').style.display = '';
+      renderCmList(cmMedicines);
+    }catch(e){ $('commonMedSection').style.display='none'; }
+  }
+  function renderCmList(items){
+    var tbody = $('commonMedList');
+    if(!items.length){ tbody.innerHTML='<tr><td colspan="3" class="px-3 py-4 text-center text-slate-400">No medicines</td></tr>'; return; }
+    tbody.innerHTML = items.map(function(m){
+      return '<tr class="hover:bg-blue-50 cursor-pointer" data-name="'+esc(m.name)+'" data-strength="'+esc(m.strength||'')+'" data-note="'+esc(m.note||'')+'">'+
+        '<td class="px-3 py-2 font-semibold">'+esc(m.name)+'</td>'+
+        '<td class="px-3 py-2 text-slate-500">'+esc(m.strength||'—')+'</td>'+
+        '<td class="px-3 py-2 text-slate-500">'+esc(m.dosage_form||m.form_name||'—')+'</td></tr>';
+    }).join('');
+  }
+  $('commonMedBtn').addEventListener('click', function(e){
+    e.stopPropagation();
+    var panel = $('commonMedPanel');
+    panel.classList.toggle('hidden');
+  });
+  document.addEventListener('click', function(e){
+    if(!$('commonMedSection').contains(e.target)) $('commonMedPanel').classList.add('hidden');
+  });
+  $('commonMedSearch').addEventListener('input', function(){
+    var q = this.value.toLowerCase();
+    renderCmList(cmMedicines.filter(function(m){
+      return !q || (m.name||'').toLowerCase().indexOf(q)!==-1 || (m.strength||'').toLowerCase().indexOf(q)!==-1;
+    }));
+  });
+  $('commonMedList').addEventListener('click', function(e){
+    var tr = e.target.closest('tr[data-name]');
+    if(!tr) return;
+    fillMedicine(tr.getAttribute('data-name'), tr.getAttribute('data-strength'), tr.getAttribute('data-note'));
+    $('commonMedPanel').classList.add('hidden');
+    showMsg('"'+tr.getAttribute('data-name')+'" selected');
+  });
+  // Quick Add Modal
+  function openQuickAdd(name){
+    $('qaMedName').value = name||'';
+    $('qaForm').value = '';
+    $('quickAddModal').classList.remove('hidden');
+    $('quickAddModal').classList.add('flex');
+    $('qaMedName').focus();
+  }
+  function closeQuickAdd(){
+    $('quickAddModal').classList.add('hidden');
+    $('quickAddModal').classList.remove('flex');
+  }
+  $('quickAddBtn').onclick = function(){ openQuickAdd(''); };
+  $('qaCloseBtn').onclick = closeQuickAdd;
+  $('qaCancelBtn').onclick = closeQuickAdd;
+  window.openQuickAdd = openQuickAdd;
+  $('qaSaveBtn').addEventListener('click', async function(){
+    var name = $('qaMedName').value.trim();
+    var formId = $('qaForm').value;
+    if(!name){ $('qaMedName').focus(); return; }
+    if(!formId){ $('qaForm').focus(); return; }
+    this.disabled = true;
+    this.textContent = 'Saving...';
+    try{
+      var res = await fetch('{{ route("ajax.quick.add.medicine") }}', {
+        method:'POST',
+        headers:{'Content-Type':'application/json','X-CSRF-TOKEN':csrf},
+        body: JSON.stringify({medicine_name:name, dosage_form_id:formId})
+      });
+      var data = await res.json();
+      if(!data.ok) throw new Error(data.message||'Save failed');
+      closeQuickAdd();
+      afterCreateId = data.medicine?.id;
+      loadMedicines();
+      showToast(data.duplicate ? 'Already exists, selected.' : 'Medicine added.', 'success');
+    }catch(e){ showToast(e.message||'Failed', 'error'); }
+    finally{ this.disabled=false; this.textContent='Save & Use'; }
+  });
+  // Init
   loadList();
+  loadMedicines();
+  loadCommonMedicines();
 })();
 </script>
-
-{{-- =============== SELECT2 + AUTOFOCUS + LOAD MEDICINES (jQuery) =============== --}}
-@push('js')
-<script>
-jQuery(function($){
-
-    if (!$.fn.select2) {
-        console.warn('Select2 plugin not loaded.');
-        return;
-    }
-
-    const $medName      = $('#med_name');
-    const $medDose      = $('#med_dose');
-    const $med_frequency = $('#med_frequency');
-    const $btn          = $('#getmedicine');
-
-    function bindAutoFocus($el){
-        $el.on('select2:open', function(e){
-            const id = e.target.id;
-            const selector = ".select2-search__field[aria-controls='select2-" + id + "-results']";
-            setTimeout(function(){
-                const el = document.querySelector(selector);
-                if (el) el.focus();
-            }, 0);
-        });
-    }
-
-    // Init Select2 for dropdowns
-    $medName.select2({
-        theme: 'bootstrap4',
-        placeholder: '-- Select Medicine --',
-        width: '100%'
-    });
-    $medDose.select2({
-        theme: 'bootstrap4',
-        placeholder: '-- Select Dose --',
-        width: '100%'
-    });
-    $med_frequency.select2({
-        theme: 'bootstrap4',
-        placeholder: '-- Select Dose --',
-        width: '100%'
-    });
-
-    // Auto-focus when opened
-    bindAutoFocus($medName);
-    bindAutoFocus($medDose);
-    bindAutoFocus($med_frequency);
-
-    // Load medicines via AJAX
-    $btn.on('click', async function () {
-        $btn.text("Loading...");
-        $btn.prop('disabled', true);
-
-        try {
-            const res = await fetch("{{ route('ajax.load.medicines') }}");
-            const data = await res.json();
-
-            // Reset options
-            $medName.empty().append(
-                $('<option>', {value: '', text: '-- Select Medicine --'})
-            );
-
-            data.forEach(row => {
-                const $opt = $('<option>', {
-                    value: row.name,
-                    text: `${row.name} ${row.strength} (${row.GroupName})`
-                })
-                .attr('data-strength', row.strength || '')
-                .attr('data-group', row.GroupName || '');
-
-                $medName.append($opt);
-            });
-
-            $medName.trigger('change.select2');
-            alert("Medicines loaded successfully!");
-
-        } catch (e) {
-            console.error(e);
-            alert("Failed to load medicines.");
-        } finally {
-            $btn.text("Load Medicine");
-            $btn.prop('disabled', false);
-        }
-    });
-
-    // Auto-fill strength when medicine changes
-    $medName.on('change', function () {
-        const opt   = this.options[this.selectedIndex];
-        const power = opt ? (opt.getAttribute('data-strength') || '') : '';
-        document.getElementById('med_strength').value = power;
-    });
-
-});
-</script>
-@endpush

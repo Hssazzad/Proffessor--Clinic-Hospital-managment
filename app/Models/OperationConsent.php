@@ -11,6 +11,7 @@ class OperationConsent extends Model
     protected $fillable = [
         'admission_id',
         'patient_id',
+        'weight',
         'ward_no',
         'post_office',
         'disease_name',

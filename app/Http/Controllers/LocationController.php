@@ -147,13 +147,30 @@ class LocationController extends Controller
 			'name'  => 'required|string|max:100'
 		]);
 
-		$code = \Str::uuid()->toString();
+		$exists = DB::table('configvillage')
+			->where('union_code', $request->union)
+			->where('name', $request->name)
+			->exists();
 
-		\DB::table('configvillage')->insert([
-			'code'       => $request->name,
-			'union_code'=> $request->union,
-			'name'       => $request->name,
-		]);
+		if ($exists) {
+			return response()->json([
+				'ok'      => false,
+				'message' => 'This village already exists in the selected union.'
+			]);
+		}
+
+		try {
+			DB::table('configvillage')->insert([
+				'code'       => $request->name,
+				'union_code' => $request->union,
+				'name'       => $request->name,
+			]);
+		} catch (\Exception $e) {
+			return response()->json([
+				'ok'      => false,
+				'message' => 'Failed to save village. Please try again.'
+			], 500);
+		}
 
 		return response()->json([
 			'ok'   => true,
@@ -162,7 +179,43 @@ class LocationController extends Controller
 		]);
 	}
 
+    // Village -> Post
+    public function fetch_post(Request $request)
+    {
+        $village = $request->village;
 
+        $rows = DB::table('configpost')
+            ->where('village_code', $village)
+            ->orderBy('name')
+            ->get();
+
+        $html = '<option value="">-- Select Post --</option>';
+        foreach ($rows as $r) {
+            $html .= '<option value="'.$r->code.'">'.$r->name.'</option>';
+        }
+
+        return response($html);
+    }
+
+    public function storePost(Request $request)
+    {
+        $request->validate([
+            'village' => 'required',
+            'name'    => 'required|string|max:100'
+        ]);
+
+        \DB::table('configpost')->insert([
+            'code'         => $request->name,
+            'village_code' => $request->village,
+            'name'         => $request->name,
+        ]);
+
+        return response()->json([
+            'ok'   => true,
+            'id'   => $request->name,
+            'name' => $request->name
+        ]);
+    }
 
 }
 

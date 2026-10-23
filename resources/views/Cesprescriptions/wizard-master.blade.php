@@ -4,7 +4,10 @@
 @section('title','Prescription Wizard')
 
 @section('content_header')
-  <h1 class="text-primary"><i class="fas fa-file-medical"></i> Cesarean Prescription</h1>
+  @php $active = $tab ?? request('tab') ?? 'patients'; @endphp
+  @if($active !== 'preview')
+    <h1 class="text-primary"><i class="fas fa-file-medical"></i> Cesarean Prescription</h1>
+  @endif
 @stop
 
 @push('css')
@@ -107,9 +110,10 @@
   $active = $tab ?? 'patients';
   $p_id = $pid ?? request('id');
   $p_patient = $patientId ?? request('patient');
+  $wz = 'ces';
 
   // nav helper
-  $nav = fn($t) => route('rx.wizard', [
+  $nav = fn($t) => route($wz.'.wizard', [
       'tab'     => $t,
       'id'      => $p_id,
       'patient' => $p_patient
@@ -121,11 +125,12 @@
     $steps = [
         'patients' => '1) Patients',
         'complain' => '2) Complain',
-        'investigations' => '3) Investigations',
-        'diagnosis' => '4) Diagnosis',
-        'medicine' => '5) Medicine',
-        'preview' => '6) Preview',
-        'finish' => '7) Finish'
+        'oe' => '3) O/E',
+        'investigations' => '4) Investigations',
+        'diagnosis' => '5) Diagnosis',
+        'medicine' => '6) Medicine',
+        'preview' => '7) Preview',
+        'finish' => '8) Finish'
     ];
   @endphp
 
@@ -137,7 +142,8 @@
 </div>
 
 <div class="row">
-  <!-- Patient Vitals Sidebar -->
+  <!-- Patient Vitals Sidebar (hidden on the full-width Preview tab) -->
+  @if($active !== 'preview')
   <div class="col-md-3">
     @if($patientId && $patient)
       <div class="card card-primary card-outline">
@@ -174,7 +180,6 @@
           <div class="vitals-section">
             <h6 class="text-bold text-info">Latest Vitals</h6>
             
-            {{-- DEBUGGING SECTION - Remove after fixing --}}
             @if(request()->has('debug'))
               <div class="alert alert-info">
                 <h6>🔍 Debug Information:</h6>
@@ -201,7 +206,6 @@
               </div>
             @endif
             
-            {{-- DEBUGGING SECTION - Remove after fixing --}}
             @if(request()->has('debug'))
               <div class="alert alert-warning">
                 <h6>🔍 Debug Information:</h6>
@@ -323,12 +327,19 @@
       </div>
     @endif
   </div>
+  @endif
 
-  <!-- Main Content -->
-  <div class="col-md-9">
+  <!-- Main Content (full width on the Preview tab) -->
+  <div class="{{ $active === 'preview' ? 'col-12' : 'col-md-9' }}">
     <div class="card card-prescription">
       <div class="card-body">
-         @include('prescriptions.tabs.'.$active)
+         @php
+             $tabView = 'prescriptions.tabs.' . $active;
+             if ($active === 'preview' && view()->exists('Cesprescriptions.tabs.' . $active)) {
+                 $tabView = 'Cesprescriptions.tabs.' . $active;
+             }
+         @endphp
+         @include($tabView)
       </div>
     </div>
   </div>
@@ -348,10 +359,10 @@
 
         if (confirm(msg)) {
             // YES → Continue (URL string template logic)
-            window.location.href = "{{ route('rx.wizard') }}?tab=patients&id=" + draftId + "&patient=" + patientId + "&draft=continue";
+            window.location.href = "{{ route('ces.wizard') }}?tab=patients&id=" + draftId + "&patient=" + patientId + "&draft=continue";
         } else {
             // NO → Discard
-            window.location.href = "{{ route('rx.wizard') }}?tab=patients&id=" + draftId + "&draft=discard";
+            window.location.href = "{{ route('ces.wizard') }}?tab=patients&id=" + draftId + "&draft=discard";
         }
     });
     </script>
@@ -362,26 +373,9 @@
 @push('js')
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
-$(document).ready(function() {
+ $(document).ready(function() {
     // Initialize Select2 if exists
     $('.select2').select2({ theme: 'bootstrap4' });
-
-    // Tab Preview refresh logic
-    document.addEventListener('click', function(e){
-      const a = e.target.closest('a.tab-btn');
-      if(!a) return;
-
-      const href = a.getAttribute('href') || '';
-      if(href.includes('tab=preview')){
-        setTimeout(() => {
-          const frame = document.getElementById('rxPdfFrame');
-          if(frame){
-            const url = frame.src.split('?')[0];
-            frame.src = url + '?t=' + Date.now();
-          }
-        }, 300);
-      }
-    });
 });
 </script>
 @endpush

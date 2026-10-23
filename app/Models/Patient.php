@@ -10,6 +10,7 @@ class Patient extends Model
     protected $fillable = [
         // ✅ Required fields
         'patientcode',
+        'registration_date',
         'patientname',
         'patientfather',
         'mobile_no',
@@ -29,6 +30,7 @@ class Patient extends Model
         'upozila',
         'union',
         'village',
+        'post',
         'address',
         // ✅ Optional health info
         'blood_group',
@@ -40,9 +42,10 @@ class Patient extends Model
         'notes',
     ];
     protected $casts = [
-        'date_of_birth' => 'date',
-        'created_at'    => 'datetime',
-        'updated_at'    => 'datetime',
+        'date_of_birth'     => 'date',
+        'registration_date' => 'datetime',
+        'created_at'        => 'datetime',
+        'updated_at'        => 'datetime',
     ];
 
     // =====================
@@ -73,6 +76,7 @@ class Patient extends Model
     {
         $parts = array_filter([
             $this->village,
+            $this->post,
             $this->union,
             $this->upozila,
             $this->district,

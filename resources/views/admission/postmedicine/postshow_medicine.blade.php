@@ -198,12 +198,12 @@ body,input,select,textarea,button{font-family:var(--font)!important;}
     padding:16px 20px;
     border-bottom:1px solid var(--bdr);
     display:flex;align-items:center;justify-content:space-between;
-    gap:12px;
+    gap:12px;flex-wrap:wrap;
 }
 .mr-form-header-left{display:flex;align-items:center;gap:10px;}
 .mr-form-title{font-size:16px;font-weight:800;color:var(--txt);letter-spacing:-.2px;}
 .mr-form-subtitle{font-size:13px;color:var(--txt-secondary);font-weight:500;}
-.mr-form-actions{display:flex;align-items:center;gap:8px;}
+.mr-form-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
 .mr-form-body{padding:20px;}
 
 /* ── FORM ELEMENTS ── */
@@ -244,17 +244,6 @@ body,input,select,textarea,button{font-family:var(--font)!important;}
     background-repeat:no-repeat;
     background-position:right 12px center;
     padding-right:32px;
-}
-
-/* Dose grid */
-.mr-dose-grid{
-    display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;
-}
-.mr-dose-cell{text-align:center;}
-.mr-dose-cell .mr-label{text-align:center;font-size:9px;}
-.mr-dose-cell .mr-input{
-    text-align:center;font-size:15px;font-weight:800;
-    color:var(--primary);padding:8px 6px;
 }
 
 /* ── BUTTONS ── */
@@ -499,8 +488,13 @@ body,input,select,textarea,button{font-family:var(--font)!important;}
                         </div>
                     </div>
                     <div class="mr-form-actions">
+                        <select id="nextStageSelect" class="mr-input mr-select" style="width:auto;min-width:175px;padding-top:8px;padding-bottom:8px;font-size:12px;" title="Next stage for this patient">
+                            <option value="5">Go to: Fresh Prescription</option>
+                            <option value="2">Go to: Pre Surgery</option>
+                            <option value="6">Go to: Discharge</option>
+                        </select>
                         <button type="button" class="mr-btn mr-btn-success btn-save-print-next">
-                            <i class="fas fa-check-double"></i> Save & Print & Next
+                            <i class="fas fa-check-double"></i> Save & Print & Go to Fresh Prescription
                         </button>
                     </div>
                 </div>
@@ -509,37 +503,38 @@ body,input,select,textarea,button{font-family:var(--font)!important;}
                         @csrf
                         <input type="hidden" name="id"           id="inf_id">
                         <input type="hidden" name="patientcode"  id="inf_patientcode" value="{{ $patientcode }}">
-                        <input type="hidden" name="order_type"   id="inf_order_type"  value="preorder">
+                        <input type="hidden" name="order_type"   id="inf_order_type"  value="postorder">
                         <input type="hidden" name="templeteid"   id="inf_templeteid"  value="TPL-000001">
 
                         <div class="mr-form-grid">
                             <div class="mr-form-group span-2">
                                 <label class="mr-label">Medicine Name <span class="req">*</span></label>
-                                <input type="text" name="name" id="inf_name" class="mr-input" required placeholder="e.g. Paracetamol, Metformin...">
+                                <select name="name" id="inf_name" class="mr-input mr-select" required>
+                                    <option value="">-- Select Medicine --</option>
+                                    @foreach($medicine as $med)
+                                        <option value="{{ $med->name }}">{{ $med->name }}</option>
+                                    @endforeach
+                                </select>
                             </div>
                             <div class="mr-form-group">
                                 <label class="mr-label">Strength</label>
                                 <input type="text" name="strength" id="inf_strength" class="mr-input" placeholder="e.g. 500mg">
                             </div>
-                            <div class="mr-form-group">
-                                <label class="mr-label">Dose</label>
-                                <input type="text" name="dose" id="inf_dose" class="mr-input" placeholder="e.g. 1 Tablet">
-                            </div>
 
                             <div class="mr-form-group">
                                 <label class="mr-label">Dose Schedule (M · N · N)</label>
-                                <div class="mr-dose-grid">
-                                    <div class="mr-dose-cell">
-                                        <label class="mr-label">AM</label>
-                                        <input type="text" name="morning" id="inf_morning" class="mr-input" placeholder="1">
+                                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">
+                                    <div style="text-align:center;">
+                                        <label class="mr-label" style="text-align:center;font-size:9px;">AM</label>
+                                        <input type="text" name="morning" id="inf_morning" class="mr-input" placeholder="1" style="text-align:center;font-size:15px;font-weight:800;color:var(--primary);padding:8px 6px;">
                                     </div>
-                                    <div class="mr-dose-cell">
-                                        <label class="mr-label">Noon</label>
-                                        <input type="text" name="noon" id="inf_noon" class="mr-input" placeholder="0">
+                                    <div style="text-align:center;">
+                                        <label class="mr-label" style="text-align:center;font-size:9px;">Noon</label>
+                                        <input type="text" name="noon" id="inf_noon" class="mr-input" placeholder="0" style="text-align:center;font-size:15px;font-weight:800;color:var(--primary);padding:8px 6px;">
                                     </div>
-                                    <div class="mr-dose-cell">
-                                        <label class="mr-label">PM</label>
-                                        <input type="text" name="night" id="inf_night" class="mr-input" placeholder="1">
+                                    <div style="text-align:center;">
+                                        <label class="mr-label" style="text-align:center;font-size:9px;">PM</label>
+                                        <input type="text" name="night" id="inf_night" class="mr-input" placeholder="1" style="text-align:center;font-size:15px;font-weight:800;color:var(--primary);padding:8px 6px;">
                                     </div>
                                 </div>
                             </div>
@@ -635,6 +630,7 @@ body,input,select,textarea,button{font-family:var(--font)!important;}
         <form id="medicineForm">
             @csrf
             <input type="hidden" name="id"          id="medicine_id">
+            <input type="hidden" name="key"         id="key">
             <input type="hidden" name="patientcode" id="modal_patientcode" value="{{ $patientcode }}">
             <div class="modal-content">
                 <div class="modal-header bg-primary text-white">
@@ -650,10 +646,6 @@ body,input,select,textarea,button{font-family:var(--font)!important;}
                         <div class="col-md-6 form-group">
                             <label>Strength</label>
                             <input type="text" name="strength" id="strength" class="form-control">
-                        </div>
-                        <div class="col-md-6 form-group">
-                            <label>Dose</label>
-                            <input type="text" name="dose" id="dose" class="form-control">
                         </div>
                         <div class="col-md-6 form-group">
                             <label>Morning</label>
@@ -685,7 +677,7 @@ body,input,select,textarea,button{font-family:var(--font)!important;}
                             <label>Instruction</label>
                             <input type="text" name="instruction" id="instruction" class="form-control">
                         </div>
-                        <input type="hidden" name="order_type" id="order_type" value="preorder">
+                        <input type="hidden" name="order_type" id="order_type" value="postorder">
                         <div class="col-md-6 form-group">
                             <label>Template ID</label>
                             <input type="text" name="templeteid" id="templeteid" class="form-control" value="TPL-000001">
@@ -708,49 +700,17 @@ body,input,select,textarea,button{font-family:var(--font)!important;}
 <script>
 var logoUrl = @json(config('app.logo_url'));
 
-/* ── getSlipHtml / printSlip / saveSlip / savePrintNext — UNCHANGED ── */
-function getSlipHtml(){
-    var rows='';var i=1;
-    $('#medicineTableArea table tbody tr').each(function(){
-        var row=$(this);var tds=$(this).find('td');
-        if(tds.length>=7){
-            rows+=admissionPrintMedicineRow(
-                tds.eq(1).text().trim(),tds.eq(2).text().trim(),
-                tds.eq(3).text().trim(),tds.eq(4).text().trim(),
-                row.data('strength')||'',
-                row.data('timing')||tds.eq(5).text().trim(),
-                row.data('duration')||tds.eq(6).text().trim(),
-                row.data('instruction')||''
-            );i++;
-        }
-    });
-    rows+=admissionPrintBlankMedicineRows(Math.max(0,8-(i-1)));
-    return admissionPrintPrescriptionHtml({
-        title:'Post Surgery Medicine Prescription',stageTitle:'Post Surgery Medicine Prescription',
-        patientCode:$('#patientcode').val(),patientName:$('#print_patientname').val(),
-        mobile:$('#print_mobile').val(),admissionDate:$('#print_admissiondate').val(),
-        logoUrl:logoUrl,
-        doctorName:@json($printDoctor->doctor_name ?? $printDoctor->name ?? ''),
-        doctorSpeciality:@json($printDoctor->speciality ?? $printDoctor->Posting ?? ''),
-        doctorRegNo:@json($printDoctor->reg_no ?? ''),
-        doctorContact:@json($printDoctor->contact ?? ''),
-        rows:rows
-    });
-}
-
+/* ── printSlip — print via server-side route (partials/rx_page) ── */
 function printSlip(){
-    var html=getSlipHtml();
-    var pname=$('#print_patientname').val();
-    var pw=window.open('','_blank','width=1000,height=700');
-    pw.document.open();pw.document.write(html);pw.document.close();
-    var today=new Date().toLocaleDateString('en-GB').replace(/\//g,'-');
-    pw.document.title='PostSurgery_Medicine_'+pname+'_'+today;
-    pw.onload=function(){pw.focus();pw.print();setTimeout(function(){pw.close();},500);};
+    var patientcode = $('#patientcode').val();
+    var stageTitle = 'Post Surgery Medicine';
+    var printUrl = "{{ route('admission.postmedicine.print') }}?patientcode=" + encodeURIComponent(patientcode) + "&stageTitle=" + encodeURIComponent(stageTitle);
+    window.open(printUrl,'_blank');
 }
 
 function saveSlip(){
     $.ajax({
-        url:"{{ route('admission.premedicineSaveAllPreorder') }}",type:"POST",
+        url:"{{ route('admission.postmedicineSaveAllPostorder') }}",type:"POST",
         data:{_token:"{{ csrf_token() }}",patientcode:$('#patientcode').val()},
         success:function(response){
             if(response.success){
@@ -778,23 +738,45 @@ function saveSlip(){
     });
 }
 
+var STAGE_LABELS = {2:'Pre Surgery', 3:'Post Surgery', 5:'Fresh Prescription', 6:'Discharge'};
+
+$(document).on('change','#nextStageSelect',function(){
+    var label = STAGE_LABELS[$(this).val()] || '';
+    $('.btn-save-print-next').html('<i class="fas fa-check-double"></i> Save & Print & Go to ' + label);
+});
+
 function savePrintNext(){
+    var patientcode = $('#patientcode').val();
+    var targetStatus = $('#nextStageSelect').val();
+
     $.ajax({
-        url:"{{ route('admission.premedicineSaveAllPreorder') }}",type:"POST",
-        data:{_token:"{{ csrf_token() }}",patientcode:$('#patientcode').val()},
+        url:"{{ route('admission.postmedicineSaveAllPostorder') }}",type:"POST",
+        data:{_token:"{{ csrf_token() }}",patientcode:patientcode},
         success:function(response){
             if(response.success){
-                printSlip();
-                $.ajax({
-                    url:"{{ route('admission.nextStage') }}",type:"POST",
-                    data:{_token:"{{ csrf_token() }}",patientcode:$('#patientcode').val()},
-                    success:function(res){
-                        if(res.success){
-                            $('#ajaxMessage').html('<div class="alert alert-success">Saved & Printed. '+res.message+'</div>');
-                            setTimeout(function(){location.reload();},2000);
+
+                // 1. Open print first
+                var stageTitle = 'Post Surgery Medicine';
+                var printUrl = "{{ route('admission.postmedicine.print') }}?patientcode=" + encodeURIComponent(patientcode) + "&stageTitle=" + encodeURIComponent(stageTitle);
+                window.open(printUrl,'_blank');
+
+                // 2. Next Stage after short delay (let print request start first)
+                setTimeout(function(){
+                    $.ajax({
+                        url:"{{ route('admission.nextStage') }}",type:"POST",
+                        data:{_token:"{{ csrf_token() }}",patientcode:patientcode,target_status:targetStatus},
+                        success:function(res){
+                            if(res.success){
+                                $('#ajaxMessage').html('<div class="alert alert-success">Saved & Printed. '+res.message+'</div>');
+                                setTimeout(function(){
+                                    window.location.href = res.redirect_url || "{{ route('admission.postsurgery') }}";
+                                }, 1500);
+                            }else{
+                                $('#ajaxMessage').html('<div class="alert alert-danger">'+(res.message||'Failed to move to next stage.')+'</div>');
+                            }
                         }
-                    }
-                });
+                    });
+                }, 800);
             }else{
                 $('#ajaxMessage').html('<div class="alert alert-danger">'+(response.message||'Save failed.')+'</div>');
             }
@@ -809,7 +791,7 @@ function savePrintNext(){
 <script>
 function loadMedicineTable(){
     $.ajax({
-        url:"{{ route('admission.premedicineList.list') }}",type:"POST",
+        url:"{{ route('admission.postmedicineList.list') }}",type:"POST",
         data:{_token:"{{ csrf_token() }}",patientcode:$('#patientcode').val()},
         success:function(response){$('#medicineTableArea').html(response);}
     });
@@ -831,18 +813,17 @@ $(document).ready(function(){
             patientcode:$('#patientcode').val(),
             name:$('#inf_name').val(),
             strength:$('#inf_strength').val(),
-            dose:$('#inf_dose').val(),
             morning:$('#inf_morning').val(),
             noon:$('#inf_noon').val(),
             night:$('#inf_night').val(),
             timing:$('#inf_timing').val(),
             duration:$('#inf_duration').val(),
             instruction:$('#inf_instruction').val(),
-            order_type:'preorder',
+            order_type:'postorder',
             templeteid:$('#inf_templeteid').val()
         };
         $.ajax({
-            url:"{{ route('admission.premedicineSave.save') }}",type:"POST",data:data,
+            url:"{{ route('admission.postmedicineSave.save') }}",type:"POST",data:data,
             success:function(response){
                 $('#ajaxMessage').html('<div class="alert alert-success">'+response.message+'</div>');
                 $('#medicineFormInline')[0].reset();
@@ -863,7 +844,7 @@ $(document).ready(function(){
     $('#medicineForm').on('submit',function(e){
         e.preventDefault();
         $.ajax({
-            url:"{{ route('admission.premedicineSave.save') }}",type:"POST",data:$(this).serialize(),
+            url:"{{ route('admission.postmedicineSave.save') }}",type:"POST",data:$(this).serialize(),
             success:function(response){
                 $('#medicineModal').modal('hide');
                 $('#ajaxMessage').html('<div class="alert alert-success">'+response.message+'</div>');
@@ -876,9 +857,9 @@ $(document).ready(function(){
     /* ── Edit button (in table rows) ── */
     $(document).on('click','.editMedicineBtn',function(){
         $('#medicine_id').val($(this).data('id'));
+        $('#key').val($(this).data('key'));
         $('#name').val($(this).data('name'));
         $('#strength').val($(this).data('strength'));
-        $('#dose').val($(this).data('dose'));
         $('#morning').val($(this).data('morning'));
         $('#noon').val($(this).data('noon'));
         $('#night').val($(this).data('night'));
@@ -886,18 +867,18 @@ $(document).ready(function(){
         $('#duration').val($(this).data('duration'));
         $('#instruction').val($(this).data('instruction'));
         $('#templeteid').val($(this).data('templeteid'));
-        $('#order_type').val('preorder');
+        $('#order_type').val('postorder');
         $('#modalTitle').text('Edit Medicine');
         $('#medicineModal').modal('show');
     });
 
     /* ── Delete button ── */
     $(document).on('click','.deleteMedicineBtn',function(){
-        if(!confirm('Are you sure you want to delete this medicine?'))return;
-        var id=$(this).data('id');
+if(!confirm('Are you sure you want to delete this medicine?'))return;
+        var key=$(this).data('key');
         $.ajax({
-            url:"{{ route('admission.premedicine.delete') }}",type:"POST",
-            data:{_token:"{{ csrf_token() }}",id:id},
+            url:"{{ route('admission.postmedicine.delete') }}",type:"POST",
+            data:{_token:"{{ csrf_token() }}",patientcode:$('#patientcode').val(),key:key},
             success:function(response){
                 $('#ajaxMessage').html('<div class="alert alert-success">'+response.message+'</div>');
                 loadMedicineTable();

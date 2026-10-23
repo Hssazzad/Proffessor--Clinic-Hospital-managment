@@ -38,8 +38,9 @@
                             <th>Name</th>
                             <th>Mobile</th>
                             <th>Age</th>
-                            <th>Date of Birth</th>
                             <th>Gender</th>
+                            <th>Notes</th>
+                            <th>Reference Type</th>
                             <th>Edit</th>
                             <th class="text-right">Actions</th>
                         </tr>
@@ -50,32 +51,54 @@
                             <td><span class="badge badge-info">{{ $p->patientcode }}</span></td>
                             <td>
                                 <img src="{{ !empty($p->photo) ? asset('uploads/photos/' . $p->photo) : asset('uploads/photos/no_image.png') }}"
-                                     style="width:45px;height:45px;object-fit:cover;border-radius:4px;border:1px solid #ddd;">
+                                     onerror="this.onerror=null; this.src='https://placehold.co/45x45/eeeeee/999999?text=No+Photo';"
+                                     alt="Patient Photo"
+                                     style="width:45px !important; height:45px !important; object-fit:cover; border-radius:4px; border:1px solid #ddd;">
                             </td>
                             <td>{{ $p->patientname }}</td>
                             <td>{{ $p->mobile_no }}</td>
                             <td>{{ $p->age }}</td>
-                            <td>{{ optional($p->date_of_birth)->format('d-m-Y') }}</td>
                             <td>{{ $p->gender }}</td>
-		<td>
-    @if(!empty($p->id))
-        <a href="{{ route('patients.editpatient', ['id' => $p->id]) }}"
-           class="btn btn-sm btn-warning">
-            <i class="fa fa-edit"></i> Edit
-        </a>
-    @else
-        <span class="text-danger">ID missing</span>
-    @endif
-</td>
+                            <td>{{ $p->notes }}</td>
+                            <td>
+                                @if(!empty($p->reference_person) || !empty($p->reference_name))
+                                    <span class="badge badge-secondary">{{ $p->reference_type ?? '—' }}</span>
+                                    @if(!empty($p->reference_name))
+                                        <span class="ml-1">{{ $p->reference_name }}</span>
+                                    @endif
+                                @else
+                                    <span class="text-muted">—</span>
+                                @endif
+                            </td>
+                            <td>
+                                @if(!empty($p->id))
+                                    <a href="{{ route('patients.editpatient', ['id' => $p->id]) }}"
+                                       class="btn btn-sm btn-warning">
+                                        <i class="fa fa-edit"></i> Edit
+                                    </a>
+                                @else
+                                    <span class="text-danger">ID missing</span>
+                                @endif
+                            </td>
                             <td class="text-right">
                                 <button type="button" class="btn btn-sm btn-primary btn-open-appointment"
                                     data-patient-id="{{ $p->id }}" data-patient-name="{{ $p->patientname }}">
                                     Appointment
                                 </button>
+                                @if(!empty($p->id))
+                                <form action="{{ route('patients.delete', $p->id) }}" method="post" class="d-inline"
+                                      onsubmit="return confirm('Are you sure you want to delete this patient? This cannot be undone.');">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="btn btn-sm btn-danger">
+                                        <i class="fa fa-trash"></i> Delete
+                                    </button>
+                                </form>
+                                @endif
                             </td>
                         </tr>
                         @empty
-                        <tr><td colspan="9" class="text-center text-muted">No patient found.</td></tr>
+                        <tr><td colspan="11" class="text-center text-muted">No patient found.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -155,7 +178,7 @@
 
 @push('js')
 <script>
-$(document).ready(function () {
+ $(document).ready(function () {
 
     function showError(msg){
         $("#ap_error").removeClass("d-none").text(msg);

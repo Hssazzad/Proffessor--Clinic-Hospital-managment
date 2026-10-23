@@ -3,11 +3,10 @@ use App\Http\Controllers\InvestigationController;
 
 Route::prefix('settings')->group(function () {
 
+    Route::permanentRedirect('AddInvestigation', 'investigations');
+
     Route::get('investigations', [InvestigationController::class, 'index'])
         ->name('settings.investigation.index');
-
-    Route::get('AddInvestigation', [InvestigationController::class, 'create'])
-        ->name('settings.investigation.create');
 
     Route::post('investigations/add', [InvestigationController::class, 'store'])
         ->name('settings.investigation.store');

@@ -5,11 +5,201 @@
 
 @push('css')
 <style>
+    /* ====== Hospital EMR — Pre-Con Assessment ====== */
+    :root {
+        --pca-primary: #2563eb;
+        --pca-border: #e2e8f0;
+        --pca-border-strong: #cbd5e1;
+        --pca-text: #0f172a;
+        --pca-text-muted: #64748b;
+        --pca-soft: #f8fafc;
+        --pca-danger: #dc2626;
+    }
+
     .select2-container--bootstrap4 .select2-selection {
         border: 1px solid #6b7280 !important;
         border-radius: 6px !important;
         min-height: 38px !important;
         padding: 4px !important;
+    }
+
+    /* Card shell */
+    .pca-card {
+        background: #fff;
+        border: 1px solid var(--pca-border);
+        border-radius: 14px;
+        overflow: hidden;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 8px 24px -16px rgba(15, 23, 42, .16);
+    }
+    .pca-card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 16px 20px;
+        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+        border-bottom: 1px solid var(--pca-border);
+    }
+    .pca-card-title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--pca-text);
+        letter-spacing: -.01em;
+    }
+    .pca-card-title i {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        background: #eff6ff;
+        color: var(--pca-primary);
+        font-size: .95rem;
+    }
+    .pca-card-badge {
+        font-size: .68rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .06em;
+        color: var(--pca-primary);
+        background: #eff6ff;
+        border: 1px solid #dbeafe;
+        padding: 5px 10px;
+        border-radius: 999px;
+        white-space: nowrap;
+    }
+    .pca-card-body {
+        padding: 20px;
+    }
+
+    /* Section block */
+    .pca-section {
+        margin-top: 20px;
+    }
+    .pca-section-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0 0 12px;
+        font-size: .72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .08em;
+        color: var(--pca-text-muted);
+    }
+    .pca-section-title::after {
+        content: "";
+        flex: 1;
+        height: 1px;
+        background: var(--pca-border);
+    }
+
+    /* O/E field rows */
+    .oe-field {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-height: 54px;
+        padding: 8px 12px;
+        background: var(--pca-soft);
+        border: 1px solid var(--pca-border);
+        border-radius: 10px;
+        transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
+    }
+    .oe-field:hover {
+        border-color: #d3dce8;
+    }
+    .oe-field:focus-within {
+        border-color: var(--pca-primary);
+        background: #fff;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, .10);
+    }
+    .oe-label {
+        flex: 0 0 42%;
+        min-width: 0;
+        margin: 0;
+        padding-right: 8px;
+        font-size: .8rem;
+        font-weight: 600;
+        color: var(--pca-text);
+        text-transform: uppercase;
+        letter-spacing: .02em;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .oe-input-wrap {
+        flex: 1 1 auto;
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .oe-input {
+        flex: 1 1 auto;
+        min-width: 0;
+        height: 38px;
+        padding: 6px 12px;
+        font-size: .9rem;
+        font-weight: 500;
+        color: var(--pca-text);
+        background: #fff;
+        border: 1px solid var(--pca-border-strong);
+        border-radius: 8px;
+        transition: border-color .15s ease, box-shadow .15s ease;
+    }
+    .oe-input::placeholder {
+        color: #94a3b8;
+        font-weight: 400;
+    }
+    .oe-input:focus {
+        outline: none;
+        border-color: var(--pca-primary);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, .12);
+    }
+    .oe-unit {
+        flex: 0 0 auto;
+        min-width: 34px;
+        text-align: right;
+        font-size: .74rem;
+        font-weight: 600;
+        color: var(--pca-text-muted);
+        white-space: nowrap;
+    }
+
+    /* Empty state */
+    .oe-empty {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        min-height: 160px;
+        text-align: center;
+        color: var(--pca-text-muted);
+        background: var(--pca-soft);
+        border: 1px dashed var(--pca-border-strong);
+        border-radius: 12px;
+    }
+    .oe-empty i {
+        font-size: 2rem;
+        color: #94a3b8;
+    }
+    .oe-empty p {
+        margin: 0;
+        font-size: .9rem;
+        font-weight: 600;
+    }
+
+    @media (max-width: 575.98px) {
+        .pca-card-header { padding: 14px 16px; }
+        .pca-card-body { padding: 16px; }
+        .oe-label { flex-basis: 40%; }
     }
 </style>
 @endpush
@@ -44,6 +234,11 @@
         </ul>
     </div>
 @endif
+
+@php
+    // $oeFields comes from the controller, already enriched with latest saved values
+    $oeMasters = isset($oeFields) && $oeFields->isNotEmpty() ? $oeFields : collect();
+@endphp
 
 <div class="row">
     <div class="col-md-7">
@@ -110,11 +305,15 @@
         </div>
 
         @if(request('patientcode'))
-        <div class="card card-outline card-success shadow">
-            <div class="card-header">
-                <h5>Clinical Vitals Entry</h5>
+        <div class="pca-card">
+            <div class="pca-card-header">
+                <h5 class="pca-card-title">
+                    <i class="fas fa-heartbeat"></i>
+                    <span>Clinical Vitals</span>
+                </h5>
+                <span class="pca-card-badge">O/E Assessment</span>
             </div>
-            <div class="card-body">
+            <div class="pca-card-body">
                 <form method="POST" action="{{ route('prescriptions.preconassessment.save') }}">
                     @csrf
                     <input type="hidden" name="patientcode" value="{{ request('patientcode') }}">
@@ -132,84 +331,54 @@
                         </div>
                     </div>
 
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label><b>Weight</b></label>
-                                <div class="input-group">
-                                    <input type="number" step="0.1" min="0" name="weight"
-                                           class="form-control" value="{{ old('weight') }}" placeholder="0.0">
-                                    <div class="input-group-append"><span class="input-group-text">kg</span></div>
+                    <div class="pca-section">
+                        <h6 class="pca-section-title">
+                            <i class="fas fa-stethoscope"></i> Objective Examination
+                        </h6>
+
+                        @if($oeMasters->count())
+                        <div class="row">
+                            @foreach($oeMasters as $oe)
+                                @php
+                                    $isNumeric = in_array($oe->input_type ?? 'text', ['number', 'decimal'], true);
+                                    $step = ($oe->input_type ?? 'text') === 'decimal' ? '0.01' : '1';
+                                @endphp
+                                <div class="col-12 col-md-6 mb-3">
+                                    <div class="oe-field">
+                                        <label class="oe-label" for="oe-{{ $oe->id }}"
+                                               title="{{ $oe->name }}">{{ $oe->name }}</label>
+                                        <div class="oe-input-wrap">
+                                            <input type="{{ $isNumeric ? 'number' : 'text' }}"
+                                                   id="oe-{{ $oe->id }}"
+                                                   name="oe_values[{{ $oe->id }}]"
+                                                   class="oe-input"
+                                                   @if($isNumeric) step="{{ $step }}" min="0" @endif
+                                                   placeholder="—"
+                                                   value="{{ old('oe_values.' . $oe->id, $oe->value ?? null) }}">
+                                            @if($oe->unit)
+                                                <span class="oe-unit">{{ $oe->unit }}</span>
+                                            @endif
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
+                            @endforeach
                         </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label><b>Height</b></label>
-                                <div class="input-group">
-                                    <input type="number" step="0.1" min="0" name="height"
-                                           class="form-control" value="{{ old('height') }}" placeholder="0.0">
-                                    <div class="input-group-append"><span class="input-group-text">cm</span></div>
-                                </div>
-                            </div>
+                        @else
+                        <div class="oe-empty">
+                            <i class="fas fa-clipboard-list"></i>
+                            <p>No O/E fields configured.</p>
                         </div>
+                        @endif
                     </div>
 
-                    <div class="row">
-                        <div class="col-md-4">
-                            <div class="form-group">
-                                <label><b>BP Systolic</b></label>
-                                <input type="number" min="0" name="bp_sys"
-                                       class="form-control" value="{{ old('bp_sys') }}" placeholder="120">
-                            </div>
+                    <div class="pca-section">
+                        <h6 class="pca-section-title">
+                            <i class="fas fa-comment-medical"></i> Notes
+                        </h6>
+                        <div class="form-group mb-0">
+                            <textarea name="notes" rows="3" class="form-control"
+                                      placeholder="Describe any visible symptoms or patient complaints...">{{ old('notes') }}</textarea>
                         </div>
-                        <div class="col-md-4">
-                            <div class="form-group">
-                                <label><b>BP Diastolic</b></label>
-                                <input type="number" min="0" name="bp_dia"
-                                       class="form-control" value="{{ old('bp_dia') }}" placeholder="80">
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="form-group">
-                                <label><b>SpO₂ (%)</b></label>
-                                <input type="number" min="0" max="100" name="spo2"
-                                       class="form-control" value="{{ old('spo2') }}" placeholder="98">
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-4">
-                            <div class="form-group">
-                                <label><b>Temperature</b></label>
-                                <div class="input-group">
-                                    <input type="number" step="0.1" min="0" name="temp"
-                                           class="form-control" value="{{ old('temp') }}" placeholder="98.6">
-                                    <div class="input-group-append"><span class="input-group-text">°F</span></div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="form-group">
-                                <label><b>Pulse (BPM)</b></label>
-                                <input type="number" min="0" name="pulse"
-                                       class="form-control" value="{{ old('pulse') }}" placeholder="72">
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="form-group">
-                                <label><b>Resp. Rate (RPM)</b></label>
-                                <input type="number" min="0" name="rr"
-                                       class="form-control" value="{{ old('rr') }}" placeholder="16">
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label><b>Observations &amp; Complaints</b></label>
-                        <textarea name="notes" rows="3" class="form-control"
-                                  placeholder="Describe any visible symptoms or patient complaints...">{{ old('notes') }}</textarea>
                     </div>
 
                     <hr>

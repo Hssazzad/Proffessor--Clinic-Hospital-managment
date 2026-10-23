@@ -7,9 +7,7 @@ use Illuminate\Support\Str;
 use App\Models\CommonComplaint;
 use App\Models\CommonDiagnosis;
 use App\Models\CommonInvestigation;
-use App\Models\CommonMedicine;
 use App\Models\Bed;
-use Illuminate\Support\Facades\DB;
 
 class MasterDataController extends Controller
 {
@@ -61,26 +59,26 @@ class MasterDataController extends Controller
     }
 
     /* ////////////////////////*/
-    /* 3. Ward & Bed Management (New) */
+    /* 3. Ward & Bed Management */
     /* ////////////////////////*/
 
-    // GET /settings/AddWardBed
     public function wardBedIndex()
     {
         $beds = Bed::orderBy('id', 'desc')->paginate(20);
         return view('settings.ward_bed', compact('beds'));
     }
 
-    // POST /settings/wardbed
     public function wardBedStore(Request $request)
     {
         $request->validate([
+            'bed_name'      => 'required|string|max:100',
             'bed_number'    => 'required|string|max:50|unique:beds,bed_number',
             'bed_type'      => 'required|string|max:100',
             'price_per_day' => 'nullable|numeric|min:0',
         ]);
 
         Bed::create([
+            'bed_name'      => $request->bed_name,
             'bed_number'    => $request->bed_number,
             'bed_type'      => $request->bed_type,
             'price_per_day' => $request->price_per_day,
@@ -90,10 +88,10 @@ class MasterDataController extends Controller
         return back()->with('success', 'Bed added successfully.');
     }
 
-    // PUT /settings/wardbed/{id}
     public function wardBedUpdate(Request $request, $id)
     {
         $request->validate([
+            'bed_name'      => 'required|string|max:100',
             'bed_number'    => 'required|string|max:50|unique:beds,bed_number,' . $id,
             'bed_type'      => 'required|string|max:100',
             'price_per_day' => 'nullable|numeric|min:0',
@@ -101,6 +99,7 @@ class MasterDataController extends Controller
         ]);
 
         Bed::where('id', $id)->update([
+            'bed_name'      => $request->bed_name,
             'bed_number'    => $request->bed_number,
             'bed_type'      => $request->bed_type,
             'price_per_day' => $request->price_per_day,
@@ -110,7 +109,6 @@ class MasterDataController extends Controller
         return back()->with('success', 'Bed updated successfully.');
     }
 
-    // DELETE /settings/wardbed/{id}
     public function wardBedDestroy($id)
     {
         Bed::where('id', $id)->delete();
@@ -118,73 +116,8 @@ class MasterDataController extends Controller
     }
 
     /* ////////////////////////*/
-    /* 4. Medicine Management */
+    /* Helper Functions         */
     /* ////////////////////////*/
-
-    // GET /settings/AddMedicine
-    public function medicinesIndex()
-    {
-        $medicines = CommonMedicine::orderBy('id', 'desc')->paginate(20);
-        return view('settings.medicines.index', compact('medicines'));
-    }
-
-    // POST /settings/medicines
-    public function medicinesStore(Request $request)
-    {
-        $request->validate([
-            'code'      => 'nullable|integer',
-            'name'      => 'nullable|string',
-            'GroupName' => 'required|string|max:100',
-            'company' => 'required|string|max:50',
-            'strength'  => 'required|string|max:15',
-            'active'    => 'required|in:0,1',
-        ]);
-
-        $data = $request->only('code','name','GroupName','strength','company','active');
-        $data['name_normalized'] = $this->normalizeName($request->name);
-
-        CommonMedicine::create($data);
-
-        return back()->with('success', 'Medicine added successfully.');
-    }
-
-    // PUT /settings/medicines/{medicine}
-    public function medicinesUpdate(Request $request, CommonMedicine $medicine)
-    {
-        $request->validate([
-            'code'      => 'nullable|integer',
-            'name'      => 'nullable|string',
-            'GroupName' => 'required|string|max:100',
-            'company' => 'required|string|max:50',
-            'strength'  => 'required|string|max:15',
-            'active'    => 'required|in:0,1',
-        ]);
-
-        $data = $request->only('code','name','GroupName','strength','company','active');
-        $data['name_normalized'] = $this->normalizeName($request->name);
-
-        $medicine->update($data);
-
-        return back()->with('success', 'Medicine updated successfully.');
-    }
-
-    // DELETE /settings/medicines/{medicine}
-    public function medicinesDestroy(CommonMedicine $medicine)
-    {
-        $medicine->delete();
-        return back()->with('success', 'Medicine deleted successfully.');
-    }
-
-    /* ////////////////////////*/
-    /* 5. Helper Functions */
-    /* ////////////////////////*/
-
-    private function normalizeName($name)
-    {
-        $name = trim($name ?? '');
-        $name = preg_replace('/\s+/', ' ', $name);
-        return Str::lower($name);
-    }
 
     private function validatedName(Request $request): string
     {

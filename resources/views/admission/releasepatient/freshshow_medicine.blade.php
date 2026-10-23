@@ -73,11 +73,6 @@
                         </div>
 
                         <div class="col-md-6 form-group">
-                            <label>Dose</label>
-                            <input type="text" name="dose" id="dose" class="form-control">
-                        </div>
-
-                        <div class="col-md-6 form-group">
                             <label>Morning</label>
                             <input type="text" name="morning" id="morning" class="form-control">
                         </div>
@@ -158,7 +153,6 @@ $(document).ready(function () {
         $('#medicine_id').val($(this).data('id'));
         $('#name').val($(this).data('name'));
         $('#strength').val($(this).data('strength'));
-        $('#dose').val($(this).data('dose'));
         $('#morning').val($(this).data('morning'));
         $('#noon').val($(this).data('noon'));
         $('#night').val($(this).data('night'));

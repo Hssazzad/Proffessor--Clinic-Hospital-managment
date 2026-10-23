@@ -25,6 +25,14 @@
       </div>
 
       <div class="mb-3">
+        <label>Mobile (01XXXXXXXXX)</label>
+        <input type="text" name="mobile" value="{{ old('mobile') }}" class="form-control"
+               pattern="01[0-9]{9}" maxlength="11" placeholder="01XXXXXXXXX" required
+               oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+        @error('mobile') <small class="text-danger">{{ $message }}</small> @enderror
+      </div>
+
+      <div class="mb-3">
         <label>Password</label>
         <input type="password" name="password" class="form-control" required>
         @error('password') <small class="text-danger">{{ $message }}</small> @enderror
@@ -48,7 +56,4 @@
 	  <?php echo " <a href='https://auth-db1498.hstgr.io/' target='_blank'>Database</a>"; ?>
      	      
 	   </div>
-      DB_DATABASE=u972011074_vzeTw <br>
-DB_USERNAME=u972011074_YkczZ <br>
-DB_PASSWORD=I]WCh[dZZ2&6u84G
 @endsection

@@ -1,3 +1,6 @@
+@php
+  $wz = $wz ?? 'rx';
+@endphp
 <style>
   /* ===== Same look & feel as your Medicine tab ===== */
   .card{background:#fff;border:1px solid #e5eaf3;border-radius:.75rem;padding:1rem;margin-bottom:1rem}
@@ -110,7 +113,7 @@
   <div class="card-body">
 
     {{-- ADD NEW --}}
-    <form method="post" action="{{ route('rx.doctor.store') }}" class="mb-3">
+    <form method="post" action="{{ route($wz.'.doctor.store') }}" class="mb-3">
       @csrf
       <input type="hidden" name="prescription_id" value="{{ $pid }}">
       <input type="hidden" name="patient_id" value="{{ $patientId }}">
@@ -121,7 +124,7 @@
           <label>Doctor *</label>
           <select name="doctor_id" class="form-control select2" style="width:100%" required>
             <option value="">-- Select Doctor --</option>
-            @foreach(($commonDoctors ?? []) as $d)
+            @foreach($commonDoctors ?? [] as $d)
               <option value="{{ $d->id }}">{{ $d->doctor_name }}</option>
             @endforeach
           </select>
@@ -159,7 +162,7 @@
               </td>
              
               <td class="nowrap">
-                <form method="post" action="{{ route('rx.doctor.destroy', $row->id) }}"
+                <form method="post" action="{{ route($wz.'.doctor.destroy', $row->id) }}"
                       onsubmit="return confirm('Remove doctor?')" style="display:inline;">
                   @csrf
                   @method('DELETE')
@@ -181,8 +184,8 @@
 </div>
 
 <div style="display:flex;justify-content:space-between;gap:.75rem">
-  <a class="btn secondary" href="{{ route('rx.wizard',['id'=>$pid,'patient'=>$patientId,'tab'=>'investigations']) }}">← Back</a>
-  <form method="get" action="{{ route('rx.wizard') }}" style="margin:0">
+  <a class="btn secondary" href="{{ route($wz.'.wizard',['id'=>$pid,'patient'=>$patientId,'tab'=>'investigations']) }}">← Back</a>
+  <form method="get" action="{{ route($wz.'.wizard') }}" style="margin:0">
     <input type="hidden" name="id" value="{{ $pid }}">
     <input type="hidden" name="patient" value="{{ $patientId }}">
     <input type="hidden" name="tab" value="preview">

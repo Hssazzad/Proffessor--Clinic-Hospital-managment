@@ -198,12 +198,12 @@ body,input,select,textarea,button{font-family:var(--font)!important;}
     padding:16px 20px;
     border-bottom:1px solid var(--bdr);
     display:flex;align-items:center;justify-content:space-between;
-    gap:12px;
+    gap:12px;flex-wrap:wrap;
 }
 .mr-form-header-left{display:flex;align-items:center;gap:10px;}
 .mr-form-title{font-size:16px;font-weight:800;color:var(--txt);letter-spacing:-.2px;}
 .mr-form-subtitle{font-size:13px;color:var(--txt-secondary);font-weight:500;}
-.mr-form-actions{display:flex;align-items:center;gap:8px;}
+.mr-form-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
 .mr-form-body{padding:20px;}
 
 /* ── FORM ELEMENTS ── */
@@ -244,17 +244,6 @@ body,input,select,textarea,button{font-family:var(--font)!important;}
     background-repeat:no-repeat;
     background-position:right 12px center;
     padding-right:32px;
-}
-
-/* Dose grid */
-.mr-dose-grid{
-    display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;
-}
-.mr-dose-cell{text-align:center;}
-.mr-dose-cell .mr-label{text-align:center;font-size:9px;}
-.mr-dose-cell .mr-input{
-    text-align:center;font-size:15px;font-weight:800;
-    color:var(--primary);padding:8px 6px;
 }
 
 /* ── BUTTONS ── */
@@ -530,11 +519,17 @@ body,input,select,textarea,button{font-family:var(--font)!important;}
                         </div>
                     </div>
                     <div class="mr-form-actions">
-                        <button type="button" class="mr-btn mr-btn-success btn-save-print-next">
+                        <button type="button" class="mr-btn mr-btn-primary" onclick="savePrintOnly()">
                             <i class="fas fa-print"></i> Save & Print
                         </button>
-                        <button type="button" class="mr-btn mr-btn-danger" id="completeRoundBtn">
-                            <i class="fas fa-check-circle"></i> Complete Round & Next Stage
+                        <select id="nextStageSelect" class="mr-input mr-select" style="width:auto;min-width:175px;padding-top:8px;padding-bottom:8px;font-size:12px;" title="Next stage for this patient">
+                            <option value="5">Go to: Fresh Prescription</option>
+                            <option value="2">Go to: Pre Surgery</option>
+                            <option value="3">Go to: Post Surgery</option>
+                            <option value="6">Go to: Discharge</option>
+                        </select>
+                        <button type="button" class="mr-btn mr-btn-success btn-save-print-next" onclick="savePrintNext()">
+                            <i class="fas fa-print"></i> Save & Print & Go to Fresh Prescription
                         </button>
                     </div>
                 </div>
@@ -549,31 +544,32 @@ body,input,select,textarea,button{font-family:var(--font)!important;}
                         <div class="mr-form-grid">
                             <div class="mr-form-group span-2">
                                 <label class="mr-label">Medicine Name <span class="req">*</span></label>
-                                <input type="text" name="name" id="inf_name" class="mr-input" required placeholder="e.g. Paracetamol, Metformin...">
+                                <select name="name" id="inf_name" class="mr-input mr-select" required>
+                                    <option value="">-- Select Medicine --</option>
+                                    @foreach($medicine as $med)
+                                        <option value="{{ $med->name }}">{{ $med->name }}</option>
+                                    @endforeach
+                                </select>
                             </div>
                             <div class="mr-form-group">
                                 <label class="mr-label">Strength</label>
                                 <input type="text" name="strength" id="inf_strength" class="mr-input" placeholder="e.g. 500mg">
                             </div>
-                            <div class="mr-form-group">
-                                <label class="mr-label">Dose</label>
-                                <input type="text" name="dose" id="inf_dose" class="mr-input" placeholder="e.g. 1 Tablet">
-                            </div>
 
                             <div class="mr-form-group">
                                 <label class="mr-label">Dose Schedule (M · N · N)</label>
-                                <div class="mr-dose-grid">
-                                    <div class="mr-dose-cell">
-                                        <label class="mr-label">AM</label>
-                                        <input type="text" name="morning" id="inf_morning" class="mr-input" placeholder="1">
+                                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">
+                                    <div style="text-align:center;">
+                                        <label class="mr-label" style="text-align:center;font-size:9px;">AM</label>
+                                        <input type="text" name="morning" id="inf_morning" class="mr-input" placeholder="1" style="text-align:center;font-size:15px;font-weight:800;color:var(--primary);padding:8px 6px;">
                                     </div>
-                                    <div class="mr-dose-cell">
-                                        <label class="mr-label">Noon</label>
-                                        <input type="text" name="noon" id="inf_noon" class="mr-input" placeholder="0">
+                                    <div style="text-align:center;">
+                                        <label class="mr-label" style="text-align:center;font-size:9px;">Noon</label>
+                                        <input type="text" name="noon" id="inf_noon" class="mr-input" placeholder="0" style="text-align:center;font-size:15px;font-weight:800;color:var(--primary);padding:8px 6px;">
                                     </div>
-                                    <div class="mr-dose-cell">
-                                        <label class="mr-label">PM</label>
-                                        <input type="text" name="night" id="inf_night" class="mr-input" placeholder="1">
+                                    <div style="text-align:center;">
+                                        <label class="mr-label" style="text-align:center;font-size:9px;">PM</label>
+                                        <input type="text" name="night" id="inf_night" class="mr-input" placeholder="1" style="text-align:center;font-size:15px;font-weight:800;color:var(--primary);padding:8px 6px;">
                                     </div>
                                 </div>
                             </div>
@@ -667,6 +663,7 @@ body,input,select,textarea,button{font-family:var(--font)!important;}
         <form id="medicineForm">
             @csrf
             <input type="hidden" name="id"          id="medicine_id">
+            <input type="hidden" name="key"         id="key">
             <input type="hidden" name="patientcode" id="modal_patientcode" value="{{ $patientcode }}">
             <div class="modal-content">
                 <div class="modal-header bg-primary text-white">
@@ -682,10 +679,6 @@ body,input,select,textarea,button{font-family:var(--font)!important;}
                         <div class="col-md-6 form-group">
                             <label>Strength</label>
                             <input type="text" name="strength" id="strength" class="form-control">
-                        </div>
-                        <div class="col-md-6 form-group">
-                            <label>Dose</label>
-                            <input type="text" name="dose" id="dose" class="form-control">
                         </div>
                         <div class="col-md-6 form-group">
                             <label>Morning</label>
@@ -755,58 +748,78 @@ function ajaxErrorMessage(xhr, fallback) {
     return fallback;
 }
 
-function getSlipHtml(){
-    var rows='';var i=1;
-    $('#medicineTableArea table tbody tr').each(function(){
-        var row=$(this);var tds=$(this).find('td');
-        if(tds.length>=7){
-            rows+=admissionPrintMedicineRow(
-                tds.eq(1).text().trim(),tds.eq(2).text().trim(),
-                tds.eq(3).text().trim(),tds.eq(4).text().trim(),
-                row.data('strength')||'',
-                row.data('timing')||tds.eq(5).text().trim(),
-                row.data('duration')||tds.eq(6).text().trim(),
-                row.data('instruction')||''
-            );i++;
-        }
-    });
-    rows+=admissionPrintBlankMedicineRows(Math.max(0,8-(i-1)));
-    return admissionPrintPrescriptionHtml({
-        title:'Round Patient Medicine Prescription',
-        stageTitle:'Round Patient Medicine Prescription',
-        patientCode:$('#patientcode').val(),
-        patientName:$('#print_patientname').val(),
-        mobile:$('#print_mobile').val(),
-        admissionDate:$('#print_admissiondate').val(),
-        logoUrl:logoUrl,
-        doctorName:@json($printDoctor->doctor_name ?? $printDoctor->name ?? ''),
-        doctorSpeciality:@json($printDoctor->speciality ?? $printDoctor->Posting ?? ''),
-        doctorRegNo:@json($printDoctor->reg_no ?? ''),
-        doctorContact:@json($printDoctor->contact ?? ''),
-        rows:rows
-    });
-}
-
+/* ── print via server-side route (partials/rx_page) ── */
 function printSlip(){
-    var html=getSlipHtml();
-    var pname=$('#print_patientname').val();
-    var pw=window.open('','_blank','width=1000,height=700');
-    pw.document.open();pw.document.write(html);pw.document.close();
-    var today=new Date().toLocaleDateString('en-GB').replace(/\//g,'-');
-    pw.document.title='Round_Medicine_'+pname+'_'+today;
-    pw.onload=function(){pw.focus();pw.print();setTimeout(function(){pw.close();},500);};
+    var patientcode = $('#patientcode').val();
+    var stageTitle = 'Round Patient';
+    var printUrl = "{{ route('admission.roundmedicine.print') }}?patientcode=" + encodeURIComponent(patientcode) + "&stageTitle=" + encodeURIComponent(stageTitle);
+    window.open(printUrl,'_blank');
 }
 
-function savePrintNext(){
+function savePrintOnly(){
+    var patientcode = $('#patientcode').val();
     $.ajax({
         url:"{{ route('admission.roundmedicineSaveAll.save') }}",
         type:"POST",
-        data:{_token:"{{ csrf_token() }}",patientcode:$('#patientcode').val()},
+        data:{_token:"{{ csrf_token() }}",patientcode:patientcode},
         success:function(response){
             if(response.success){
-                printSlip();
-                loadMedicineTable();
-                showAjaxMessage('success', response.message || 'Saved & Printed.');
+                // 1. Open print first (no next stage - patient stays in Round)
+                var stageTitle = 'Round Patient';
+                var printUrl = "{{ route('admission.roundmedicine.print') }}?patientcode=" + encodeURIComponent(patientcode) + "&stageTitle=" + encodeURIComponent(stageTitle);
+                window.open(printUrl,'_blank');
+                showAjaxMessage('success', response.message || 'Saved & Printed. Patient stays in Round.');
+                setTimeout(function(){
+                    window.location.href = "{{ route('admission.roundmedicine') }}";
+                }, 1500);
+            }else{
+                showAjaxMessage('danger', response.message || 'Save failed.');
+            }
+        },
+        error:function(xhr){
+            showAjaxMessage('danger', ajaxErrorMessage(xhr, 'Save failed.'));
+        }
+    });
+}
+
+var STAGE_LABELS = {2:'Pre Surgery', 3:'Post Surgery', 4:'Round Patient', 5:'Fresh Prescription', 6:'Discharge'};
+
+$(document).on('change','#nextStageSelect',function(){
+    var label = STAGE_LABELS[$(this).val()] || '';
+    $('.btn-save-print-next').html('<i class="fas fa-print"></i> Save & Print & Go to ' + label);
+});
+
+function savePrintNext(){
+    var patientcode = $('#patientcode').val();
+    var targetStatus = $('#nextStageSelect').val();
+    $.ajax({
+        url:"{{ route('admission.roundmedicineSaveAll.save') }}",
+        type:"POST",
+        data:{_token:"{{ csrf_token() }}",patientcode:patientcode},
+        success:function(response){
+            if(response.success){
+                // 1. Open print first
+                var stageTitle = 'Round Patient';
+                var printUrl = "{{ route('admission.roundmedicine.print') }}?patientcode=" + encodeURIComponent(patientcode) + "&stageTitle=" + encodeURIComponent(stageTitle);
+                window.open(printUrl,'_blank');
+
+                // 2. Next Stage after short delay (let print request start first)
+                setTimeout(function(){
+                    $.ajax({
+                        url:"{{ route('admission.nextStage') }}",type:"POST",
+                        data:{_token:"{{ csrf_token() }}",patientcode:patientcode,target_status:targetStatus},
+                        success:function(res){
+                            if(res.success){
+                                showAjaxMessage('success', 'Saved & Printed. '+res.message);
+                                setTimeout(function(){
+                                    window.location.href = res.redirect_url || "{{ route('admission.roundmedicine') }}";
+                                }, 1500);
+                            }else{
+                                showAjaxMessage('danger', res.message || 'Stage update failed.');
+                            }
+                        }
+                    });
+                }, 800);
             }else{
                 showAjaxMessage('danger', response.message || 'Save failed.');
             }
@@ -832,36 +845,6 @@ function loadMedicineTable(){
 
 $(document).ready(function(){
 
-    /* ── Save & Print toolbar button ── */
-    $(document).on('click','.btn-save-print-next',function(){
-        savePrintNext();
-    });
-
-    /* ── Complete Round & Next Stage ── */
-    $('#completeRoundBtn').on('click', function () {
-        if (!confirm('Are you sure? Patient will move to Fresh Prescription stage.')) return;
-        $.ajax({
-            url: "{{ route('admission.nextStage') }}",
-            type: "POST",
-            data: {
-                _token: "{{ csrf_token() }}",
-                patientcode: $('#patientcode').val(),
-                confirm_complete: 1
-            },
-            success: function (res) {
-                if (res.success) {
-                    showAjaxMessage('success', res.message);
-                    setTimeout(function(){ location.reload(); }, 1500);
-                } else {
-                    showAjaxMessage('danger', res.message || 'Stage update failed.');
-                }
-            },
-            error: function (xhr) {
-                showAjaxMessage('danger', ajaxErrorMessage(xhr, 'Stage update failed.'));
-            }
-        });
-    });
-
     /* ── Inline form: Add New Medicine ── */
     $('#medicineFormInline').on('submit',function(e){
         e.preventDefault();
@@ -871,7 +854,6 @@ $(document).ready(function(){
             patientcode:$('#patientcode').val(),
             name:$('#inf_name').val(),
             strength:$('#inf_strength').val(),
-            dose:$('#inf_dose').val(),
             morning:$('#inf_morning').val(),
             noon:$('#inf_noon').val(),
             night:$('#inf_night').val(),
@@ -930,9 +912,9 @@ $(document).ready(function(){
     /* ── Edit button (in table rows) ── */
     $(document).on('click','.editMedicineBtn',function(){
         $('#medicine_id').val($(this).data('id'));
+        $('#key').val($(this).data('key'));
         $('#name').val($(this).data('name'));
         $('#strength').val($(this).data('strength'));
-        $('#dose').val($(this).data('dose'));
         $('#morning').val($(this).data('morning'));
         $('#noon').val($(this).data('noon'));
         $('#night').val($(this).data('night'));
@@ -948,11 +930,11 @@ $(document).ready(function(){
     /* ── Delete button ── */
     $(document).on('click','.deleteMedicineBtn',function(){
         if(!confirm('Are you sure you want to delete this medicine?'))return;
-        var id=$(this).data('id');
+        var key=$(this).data('key');
         $.ajax({
             url:"{{ route('admission.roundmedicine.delete') }}",
             type:"POST",
-            data:{_token:"{{ csrf_token() }}",id:id},
+            data:{_token:"{{ csrf_token() }}",patientcode:$('#patientcode').val(),key:key},
             success:function(response){
                 if (!response.success) {
                     showAjaxMessage('danger', response.message || 'Delete failed.');
