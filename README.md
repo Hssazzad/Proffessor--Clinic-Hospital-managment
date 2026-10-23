@@ -13,6 +13,10 @@
 
 Professor Clinic is a full-stack healthcare-management system designed for the day-to-day workflow of a clinic and diagnostic centre. It brings patient registration, clinical admissions, billing, accounting, reports, medicine workflows, and role-aware administration into one operational application.
 
+## Live application
+
+**[Open Professor Clinic Admin →](https://profclinic.erpbd.org/admin)**
+
 > **Privacy note:** Public portfolio screenshots use empty or de-identified interfaces only. No patient records, phone numbers, invoices, prescriptions, database exports, or environment credentials are included in this repository.
 
 ## Product capabilities
